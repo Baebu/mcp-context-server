@@ -1,13 +1,14 @@
 ﻿import { injectable } from 'inversify';
 import { z } from 'zod';
-import type { IMCPTool, ToolResult } from '@core/interfaces/tool-registry.interface.js';
+import type { IMCPTool, ToolResult, ToolContext } from '@core/interfaces/tool-registry.interface.js';
 
 const getMetricsSchema = z.object({
   category: z.enum(['server', 'database', 'filesystem', 'security']).optional().describe('Specific metric category')
 });
+type GetMetricsParams = z.infer<typeof getMetricsSchema>;
 
 @injectable()
-export class GetMetricsTool implements IMCPTool {
+export class GetMetricsTool implements IMCPTool<GetMetricsParams> {
   name = 'get_metrics';
   description = 'Get server performance metrics and statistics';
   schema = getMetricsSchema;
@@ -15,16 +16,20 @@ export class GetMetricsTool implements IMCPTool {
   private startTime = Date.now();
   private requestCount = 0;
   private errorCount = 0;
-  private lastRequestTime = Date.now();
+  private lastRequestTime = Date.now(); // Call #2 in constructor
 
-  async execute(params: z.infer<typeof getMetricsSchema>): Promise<ToolResult> {
+  async execute(
+    params: GetMetricsParams,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
+    _context: ToolContext
+  ): Promise<ToolResult> {
     this.requestCount++;
-    this.lastRequestTime = Date.now();
+    this.lastRequestTime = Date.now(); // Call #1 in execute (updates)
 
     const metrics = {
       server: {
-        uptime: Date.now() - this.startTime,
-        uptimeFormatted: this.formatUptime(Date.now() - this.startTime),
+        uptime: Date.now() - this.startTime, // Call #2 in execute
+        uptimeFormatted: this.formatUptime(Date.now() - this.startTime), // Call #3 in execute
         requestCount: this.requestCount,
         errorCount: this.errorCount,
         lastRequestTime: new Date(this.lastRequestTime).toISOString(),
@@ -49,13 +54,14 @@ export class GetMetricsTool implements IMCPTool {
       }
     };
 
-    const result = params.category ? { [params.category]: metrics[params.category] } : metrics;
+    const resultData =
+      params.category && metrics[params.category] ? { [params.category]: metrics[params.category] } : metrics;
 
     return {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(result, null, 2)
+          text: JSON.stringify(resultData, null, 2)
         }
       ]
     };

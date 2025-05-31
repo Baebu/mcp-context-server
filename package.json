@@ -15,9 +15,10 @@
     "config": "tsx scripts/config-ui.ts",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
+    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest",
+    "test:watch": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --watch",
+    "test:coverage": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --coverage",
+    "test:integration": "cross-env NODE_OPTIONS=--experimental-vm-modules jest tests/integration/comprehensive.test.ts",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "format": "prettier --write \"src/**/*.{ts,js,json}\" \"config/**/*.{yaml,json}\" \"*.{json,md}\"",
@@ -48,7 +49,7 @@
     "url": "https://github.com/Baebu/mcp-context-server/issues"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^0.5.0",
+    "@modelcontextprotocol/sdk": "0.5.0",
     "better-sqlite3": "^9.2.2",
     "convict": "^6.2.4",
     "inversify": "^6.0.2",
@@ -63,12 +64,14 @@
     "zod-to-json-schema": "^3.24.5"
   },
   "devDependencies": {
+    "@jest/globals": "^30.0.0-beta.3",
     "@types/better-sqlite3": "^7.6.8",
     "@types/convict": "^6.1.6",
     "@types/jest": "^29.5.11",
     "@types/node": "^20.11.5",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",
+    "cross-env": "^7.0.3",
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.2.1",

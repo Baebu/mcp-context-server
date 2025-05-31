@@ -14,44 +14,40 @@ const createSmartPathSchema = z.object({
         paths: z.array(z.string()).optional(),
         query: z.string().optional(),
         items: z.array(z.string()).optional(),
-        keys: z.array(z.string()).optional(), // Alias for items
+        keys: z.array(z.string()).optional(),
         metadata: z.record(z.unknown()).optional()
       }),
-      z.string() // JSON string that will be parsed
+      z.string()
     ])
     .optional()
     .describe('Smart path definition object or JSON string'),
-  // Backward compatibility fields
   path_name: z.string().optional().describe('Alias for name (backward compatibility)'),
   context_keys: z.string().optional().describe('JSON array of context keys (backward compatibility)'),
   description: z.string().optional().describe('Description (stored in metadata)'),
   steps: z.string().optional().describe('Legacy steps parameter (backward compatibility)')
 });
+type CreateSmartPathParams = z.infer<typeof createSmartPathSchema>;
 
-// Type for definition that might include legacy 'keys' property
 interface DefinitionWithKeys {
   paths?: string[];
   query?: string;
   items?: string[];
-  keys?: string[]; // Legacy property
+  keys?: string[];
   metadata?: Record<string, unknown>;
 }
 
 @injectable()
-export class CreateSmartPathTool implements IMCPTool {
+export class CreateSmartPathTool implements IMCPTool<CreateSmartPathParams> {
   name = 'create_smart_path';
   description = 'Create a smart path for efficient context bundling';
-  schema = createSmartPathSchema;
+  schema = createSmartPathSchema; // This assignment is fine
 
-  async execute(params: z.infer<typeof createSmartPathSchema>, context: ToolContext): Promise<ToolResult> {
+  async execute(params: CreateSmartPathParams, context: ToolContext): Promise<ToolResult> {
     const smartPathManager = context.container.get('SmartPathManager') as ISmartPathManager;
 
     try {
-      // Handle backward compatibility
       let name = params.name;
       let type = params.type;
-
-      // Initialize definition as a proper object
       let definition: {
         paths?: string[];
         query?: string;
@@ -59,7 +55,6 @@ export class CreateSmartPathTool implements IMCPTool {
         metadata?: Record<string, unknown>;
       } = {};
 
-      // Parse definition if it's a string, otherwise use the object directly
       if (typeof params.definition === 'string') {
         try {
           definition = JSON.parse(params.definition) as DefinitionWithKeys;
@@ -70,27 +65,23 @@ export class CreateSmartPathTool implements IMCPTool {
         definition = { ...params.definition };
       }
 
-      // Map old parameter names
       if (params.path_name && !name) {
         name = params.path_name;
       }
 
-      // Handle legacy steps parameter
       if (params.steps && (!definition.items || definition.items.length === 0)) {
         try {
           const steps = JSON.parse(params.steps);
           if (Array.isArray(steps)) {
-            // Convert steps to items array
             const items = steps.filter(step => step.action === 'get' && step.key).map(step => step.key);
             definition.items = items;
             type = type || 'item_bundle';
           }
         } catch {
-          // If steps isn't valid JSON, ignore
+          /* If steps isn't valid JSON, ignore */
         }
       }
 
-      // Handle context_keys parameter
       if (params.context_keys && (!definition.items || definition.items.length === 0)) {
         try {
           const keys = JSON.parse(params.context_keys);
@@ -101,7 +92,6 @@ export class CreateSmartPathTool implements IMCPTool {
             }
           }
         } catch {
-          // If not JSON, treat as single key
           definition.items = [params.context_keys];
           if (!type) {
             type = 'item_bundle';
@@ -109,11 +99,9 @@ export class CreateSmartPathTool implements IMCPTool {
         }
       }
 
-      // Handle keys vs items (keys is an alias for items) - using type assertion
       const definitionWithKeys = definition as DefinitionWithKeys;
       if (definitionWithKeys.keys && Array.isArray(definitionWithKeys.keys) && !definition.items) {
         definition.items = definitionWithKeys.keys;
-        // Clean up by creating a new object without the keys property
         definition = {
           paths: definitionWithKeys.paths,
           query: definitionWithKeys.query,
@@ -122,15 +110,10 @@ export class CreateSmartPathTool implements IMCPTool {
         };
       }
 
-      // Add description to metadata
       if (params.description) {
-        definition.metadata = {
-          ...definition.metadata,
-          description: params.description
-        };
+        definition.metadata = { ...definition.metadata, description: params.description };
       }
 
-      // Auto-detect type if not provided
       if (!type) {
         if (definition.items && Array.isArray(definition.items)) {
           type = 'item_bundle';
@@ -139,24 +122,18 @@ export class CreateSmartPathTool implements IMCPTool {
         } else if (definition.paths && Array.isArray(definition.paths)) {
           type = 'file_set';
         } else {
-          type = 'item_bundle'; // Default
+          type = 'item_bundle';
         }
       }
 
-      // Validate required fields
       if (!name) {
         throw new Error('Name is required for smart path');
       }
-      if (!definition || Object.keys(definition).length === 0) {
+      if (!definition || (Object.keys(definition).length === 0 && !params.context_keys && !params.steps)) {
         throw new Error('Definition is required for smart path');
       }
 
-      const id = await smartPathManager.create({
-        name,
-        type,
-        definition
-      });
-
+      const id = await smartPathManager.create({ name, type, definition });
       return {
         content: [
           {
@@ -183,32 +160,23 @@ export class CreateSmartPathTool implements IMCPTool {
   }
 }
 
-// Keep the other tools the same...
 const executeSmartPathSchema = z.object({
   id: z.string().describe('ID of the smart path to execute'),
   params: z.record(z.unknown()).optional().describe('Parameters for the smart path')
 });
+type ExecuteSmartPathParams = z.infer<typeof executeSmartPathSchema>;
 
 @injectable()
-export class ExecuteSmartPathTool implements IMCPTool {
+export class ExecuteSmartPathTool implements IMCPTool<ExecuteSmartPathParams> {
   name = 'execute_smart_path';
   description = 'Execute a smart path to retrieve bundled context';
-  schema = executeSmartPathSchema;
+  schema = executeSmartPathSchema; // This assignment is fine
 
-  async execute(params: z.infer<typeof executeSmartPathSchema>, context: ToolContext): Promise<ToolResult> {
+  async execute(params: ExecuteSmartPathParams, context: ToolContext): Promise<ToolResult> {
     const smartPathManager = context.container.get('SmartPathManager') as ISmartPathManager;
-
     try {
       const result = await smartPathManager.execute(params.id, params.params);
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(result, null, 2)
-          }
-        ]
-      };
+      return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
     } catch (error) {
       context.logger.error({ error, params }, 'Failed to execute smart path');
       throw error;
@@ -217,33 +185,29 @@ export class ExecuteSmartPathTool implements IMCPTool {
 }
 
 const listSmartPathsSchema = z.object({
-  limit: z.number().optional().default(50).describe('Maximum number of smart paths to return')
+  limit: z.number().describe('Maximum number of smart paths to return')
 });
+type ListSmartPathsParams = z.infer<typeof listSmartPathsSchema>;
 
 @injectable()
-export class ListSmartPathsTool implements IMCPTool {
+export class ListSmartPathsTool implements IMCPTool<ListSmartPathsParams> {
   name = 'list_smart_paths';
   description = 'List all available smart paths';
+  // Let TypeScript infer the type from the schema definition to avoid type incompatibility.
   schema = listSmartPathsSchema;
 
-  async execute(params: z.infer<typeof listSmartPathsSchema>, context: ToolContext): Promise<ToolResult> {
+  async execute(params: ListSmartPathsParams, context: ToolContext): Promise<ToolResult> {
     const smartPathManager = context.container.get('SmartPathManager') as ISmartPathManager;
-
     try {
       const smartPaths = await smartPathManager.list();
-
+      // Provide a default value for limit if not specified
+      const limit = typeof params.limit === 'number' ? params.limit : 50;
+      const limitedPaths = smartPaths.slice(0, limit);
       return {
         content: [
           {
             type: 'text',
-            text: JSON.stringify(
-              {
-                smart_paths: smartPaths.slice(0, params.limit),
-                total_count: smartPaths.length
-              },
-              null,
-              2
-            )
+            text: JSON.stringify({ smart_paths: limitedPaths, total_count: smartPaths.length }, null, 2)
           }
         ]
       };

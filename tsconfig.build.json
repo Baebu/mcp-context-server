@@ -1,9 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": [
-      "ES2022"
-    ],
+    "lib": ["ES2022"],
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "allowJs": false,
@@ -39,31 +37,17 @@
     "verbatimModuleSyntax": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "types": [
-      "node"
-    ],
+    "types": ["node"],
     "baseUrl": "./src",
     "paths": {
-      "@core/*": [
-        "core/*"
-      ],
-      "@application/*": [
-        "application/*"
-      ],
-      "@infrastructure/*": [
-        "infrastructure/*"
-      ],
-      "@presentation/*": [
-        "presentation/*"
-      ],
-      "@utils/*": [
-        "utils/*"
-      ]
+      "@core/*": ["core/*"],
+      "@application/*": ["application/*"],
+      "@infrastructure/*": ["infrastructure/*"],
+      "@presentation/*": ["presentation/*"],
+      "@utils/*": ["utils/*"]
     }
   },
-  "include": [
-    "src/**/*"
-  ],
+  "include": ["src/**/*"],
   "exclude": [
     "node_modules",
     "dist",
