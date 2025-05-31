@@ -1,24 +1,164 @@
-﻿server:
+﻿# Enhanced Development Configuration with Hierarchical Safe Zones
+# Save this as config/development.yaml in your project
+
+server:
   name: 'mcp-context-server-dev'
   version: '1.0.0-dev'
+  # Uncomment and modify to set a specific working directory
+  # workingDirectory: '/path/to/your/project'
 
 security:
-  allowedCommands: 'all' # Allow all commands in development
+  # Allow common development commands (cross-platform)
+  allowedCommands:
+    # Unix/Linux/macOS commands
+    - 'ls'      # List directory contents
+    - 'cat'     # Display file contents
+    - 'grep'    # Search text patterns
+    - 'find'    # Find files
+    - 'echo'    # Echo text
+    - 'pwd'     # Print working directory
+    - 'whoami'  # Current user
+    - 'head'    # Show first lines of file
+    - 'tail'    # Show last lines of file
+    - 'wc'      # Word count
+    - 'sort'    # Sort lines
+    - 'uniq'    # Remove duplicates
+
+    # Windows commands
+    - 'dir'     # List directory contents
+    - 'type'    # Display file contents
+    - 'where'   # Find files
+    - 'cd'      # Change directory (Windows)
+    - 'more'    # Display file page by page
+
+    # Development tools (uncomment if needed)
+    - 'git'     # Git commands
+    - 'npm'     # npm commands
+    - 'node'    # Node.js execution
+    - 'python'  # Python execution
+    - 'python3' # Python3 execution
+    # - 'docker'  # Docker commands (careful!)
+    # - 'curl'    # HTTP requests (careful!)
+    # - 'wget'    # Download files (careful!)
+
+  # 🔓 SAFE ZONES - Directories where the AI can access files recursively
+  # With safeZoneMode: 'recursive', subdirectories are automatically allowed
   safezones:
-    - '.'
-    - '/tmp'
-    - '/home'
-  maxExecutionTime: 60000 # 1 minute in dev
-  maxFileSize: 52428800 # 50MB in dev
+    - '.'                          # Current project directory and ALL subdirectories
+    - '~/Documents'                # User documents and subdirectories
+    - '~/Desktop'                  # User desktop and subdirectories
+    - '~/Downloads'                # User downloads and subdirectories
+    - '/tmp'                       # Temporary directory (Unix/Linux/macOS)
+    - 'C:\temp'                    # Temporary directory (Windows)
+    - 'C:\Users\Public'            # Public directory (Windows)
+
+    # Add your specific project directories:
+    # - '~/projects'               # All your projects
+    # - '/workspace'               # Development workspace
+    # - 'C:\dev'                   # Development folder (Windows)
+
+    # IMPORTANT: Only add directories you trust the AI to access!
+
+  # 🚫 RESTRICTED ZONES - Specific areas to block even within safe zones
+  # These override safe zones for security
+  restrictedZones:
+    # Sensitive configuration directories (even within allowed projects)
+    - '**/.git/config'             # Git configuration (contains credentials)
+    - '**/.env'                    # Environment files with secrets
+    - '**/.env.*'                  # All environment files
+    - '**/secrets/**'              # Any secrets directory
+    - '**/private/**'              # Any private directory
+    - '**/.ssh/**'                 # SSH keys (anywhere)
+    - '**/.gnupg/**'               # GPG keys (anywhere)
+
+    # Database files (protect from accidental modification)
+    - '**/*.db'                    # SQLite databases
+    - '**/*.sqlite*'               # SQLite databases
+    - '**/data/production/**'      # Production data
+
+    # Node.js specific
+    - '**/node_modules/.bin/**'    # Executable binaries in node_modules
+    - '**/package-lock.json'       # Lock files (prevent corruption)
+    - '**/yarn.lock'               # Yarn lock files
+
+    # Add your specific restricted areas:
+    # - '**/config/production/**'  # Production configurations
+    # - '**/backup/**'             # Backup directories
+    # - '**/logs/auth*'            # Authentication logs
+
+  # 🏗️ SAFE ZONE MODE
+  # 'recursive' = Allow access to subdirectories of safe zones (RECOMMENDED)
+  # 'strict'    = Only allow exact safe zone directories
+  safeZoneMode: 'recursive'
+
+  # Automatically include common development directories
+  autoExpandSafezones: true
+
+  # Extended timeout for development
+  maxExecutionTime: 60000 # 1 minute
+
+  # Larger file size limit for development
+  maxFileSize: 52428800 # 50MB
+
+  # 🛡️ UNSAFE ARGUMENT PATTERNS - Block dangerous command patterns
+  unsafeArgumentPatterns:
+    - '\\$\\(|`|\\$\\{.*\\}'      # Command substitution: $(cmd), `cmd`, ${var}
+    - ';\\s*rm'                   # Command chaining with dangerous commands
+    - '\\|\\s*sh'                 # Piping to shell
+    - '>\\s*/dev/'                # Writing to device files
+    - '(?:sudo|su)\\s'            # Privilege escalation
+    - '--exec'                    # Execution flags
+    - '--command'                 # Command execution flags
+
+  # 🚨 BLOCKED PATH PATTERNS - Always block these path patterns
+  blockedPathPatterns:
+    - '\\.\\.([\\\\/]|\\.)+'      # Path traversal attempts
+    - '[\\\\/](etc|bin|sbin)[\\\\/]' # System directories
+    - '\\.(pem|key|p12|pfx)$'     # Certificate/key files
+    - 'password|credential|secret' # Files with sensitive names
+    - '\\/proc\\/.*'              # Linux process filesystem
+    - '\\/sys\\/.*'               # Linux system filesystem
 
 database:
   path: './data/context-dev.db'
-  backupInterval: 0 # Disable backups in dev
+  backupInterval: 0 # Disable frequent backups in development
 
 logging:
-  level: 'debug'
-  pretty: true
+  level: 'debug'    # Verbose logging for development
+  pretty: true      # Pretty-print logs for readability
 
 performance:
-  maxConcurrency: 5
-  queueSize: 100
+  maxConcurrency: 5   # Lower concurrency for development
+  queueSize: 100      # Smaller queue for development
+
+# 📝 CONFIGURATION NOTES:
+#
+# 1. SAFE ZONES are directories where the AI can read/write files
+#    - With 'recursive' mode, all subdirectories are included
+#    - Be careful with broad directories like ~ or /
+#
+# 2. RESTRICTED ZONES override safe zones for specific sensitive areas
+#    - Use glob patterns (**) to match anywhere in the filesystem
+#    - These protect sensitive files even within safe zones
+#
+# 3. TESTING YOUR CONFIGURATION:
+#    - Use the diagnostic tool: npm run config:test
+#    - Check access with: "Can you access ~/Documents/test.txt?"
+#    - Verify restrictions: "Can you read ~/.ssh/id_rsa?"
+#
+# 4. SECURITY BEST PRACTICES:
+#    - Start restrictive, then gradually open up as needed
+#    - Never add system directories (/, /usr, /bin, C:\Windows)
+#    - Review logs regularly for blocked access attempts
+#    - Use specific project directories rather than home directory
+#
+# 5. EXAMPLES OF GOOD SAFE ZONES:
+#    - './projects/myapp'     # Specific project
+#    - '~/workspace'          # Development workspace
+#    - '/tmp'                 # Temporary files
+#
+# 6. EXAMPLES OF GOOD RESTRICTED ZONES:
+#    - '**/.env*'             # Environment files
+#    - '**/.ssh/**'           # SSH keys anywhere
+#    - '**/production/**'     # Production data
+#    - '**/*.key'             # Key files anywhere

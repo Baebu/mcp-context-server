@@ -1,5 +1,4 @@
-﻿// Enhanced Configuration Loader with Hierarchical Safe Zones
-// File: src/infrastructure/config/config-loader.ts
+﻿// Enhanced src/infrastructure/config/config-loader.ts
 
 import convict from 'convict';
 import { promises as fs } from 'node:fs';
@@ -12,7 +11,6 @@ import type { ServerConfig } from './types.js';
 // Helper function to get common development directories
 function getCommonDevDirectories(): string[] {
   const home = os.homedir();
-  const platform = os.platform();
   const commonDirs = [
     process.cwd(), // Current working directory
     path.join(home, 'Documents'),
@@ -23,23 +21,10 @@ function getCommonDevDirectories(): string[] {
   ];
 
   // Add platform-specific directories
-  if (platform === 'win32') {
-    commonDirs.push(
-      path.join(home, 'AppData', 'Local', 'Temp'),
-      'C:\\temp',
-      'C:\\tmp',
-      path.join(home, 'Projects'),
-      path.join(home, 'Source')
-    );
+  if (os.platform() === 'win32') {
+    commonDirs.push(path.join(home, 'AppData', 'Local', 'Temp'), 'C:\\temp', 'C:\\tmp');
   } else {
-    commonDirs.push(
-      '/var/tmp',
-      path.join(home, '.cache'),
-      path.join(home, 'tmp'),
-      path.join(home, 'projects'),
-      path.join(home, 'workspace'),
-      path.join(home, 'dev')
-    );
+    commonDirs.push('/var/tmp', path.join(home, '.cache'), path.join(home, 'tmp'));
   }
 
   // Filter to only existing directories
@@ -50,62 +35,6 @@ function getCommonDevDirectories(): string[] {
       return false;
     }
   });
-}
-
-// Get platform-specific restricted zones (sensitive system areas)
-function getPlatformRestrictedZones(): string[] {
-  const platform = os.platform();
-  const restrictedZones: string[] = [];
-
-  if (platform === 'win32') {
-    restrictedZones.push(
-      'C:\\Windows\\System32',
-      'C:\\Windows\\SysWOW64',
-      'C:\\Program Files\\WindowsApps',
-      'C:\\ProgramData\\Microsoft\\Windows\\Start Menu',
-      '**/AppData/Roaming/Microsoft/Credentials',
-      '**/AppData/Roaming/Microsoft/Crypto'
-    );
-  } else {
-    restrictedZones.push(
-      '/bin',
-      '/boot',
-      '/dev',
-      '/etc/passwd',
-      '/etc/shadow',
-      '/etc/sudoers*',
-      '/lib',
-      '/proc',
-      '/root',
-      '/sbin',
-      '/sys',
-      '/usr/bin',
-      '/usr/sbin',
-      '/var/log/auth*',
-      '/var/log/secure*'
-    );
-
-    if (platform === 'darwin') {
-      restrictedZones.push('/System', '/Library/Keychains', '/private/etc', '/private/var/root');
-    }
-  }
-
-  // Add cross-platform sensitive patterns
-  restrictedZones.push(
-    '**/.ssh',
-    '**/.gnupg',
-    '**/Library/Keychains',
-    '**/.aws/credentials',
-    '**/.docker/config.json',
-    '**/id_rsa*',
-    '**/id_ed25519*',
-    '**/*.pem',
-    '**/*.key',
-    '**/*.p12',
-    '**/*.pfx'
-  );
-
-  return restrictedZones;
 }
 
 export const configSchema = convict({
@@ -133,32 +62,20 @@ export const configSchema = convict({
     allowedCommands: {
       doc: 'List of allowed commands or "all"',
       format: Array,
-      default: ['ls', 'cat', 'grep', 'find', 'echo', 'pwd', 'whoami', 'dir', 'type', 'where'], // Added Windows commands
+      default: ['ls', 'cat', 'grep', 'find', 'echo', 'pwd', 'whoami', 'dir'], // Added common Windows commands
       env: 'MCP_ALLOWED_COMMANDS'
     },
     safezones: {
-      doc: 'Allowed directories for file operations (recursive by default)',
+      doc: 'Allowed directories for file operations',
       format: Array,
       default: [process.cwd()], // Will be expanded later if autoExpandSafezones is true
       env: 'MCP_SAFEZONES'
-    },
-    restrictedZones: {
-      doc: 'Directories to block even if they are within safe zones',
-      format: Array,
-      default: [], // Will be populated with platform defaults
-      env: 'MCP_RESTRICTED_ZONES'
     },
     autoExpandSafezones: {
       doc: 'Automatically include common development directories in safe zones',
       format: Boolean,
       default: true,
       env: 'MCP_AUTO_EXPAND_SAFEZONES'
-    },
-    safeZoneMode: {
-      doc: 'How to handle subdirectories of safe zones',
-      format: ['strict', 'recursive'],
-      default: 'recursive', // Allow subdirectories by default
-      env: 'MCP_SAFE_ZONE_MODE'
     },
     maxExecutionTime: {
       doc: 'Maximum command execution time in ms',
@@ -176,23 +93,11 @@ export const configSchema = convict({
       doc: 'Regex patterns to block in command arguments',
       format: Array,
       default: [
-        '\\$\\(|`|\\$\\{.*\\}', // Command substitution
+        '\\$\\(|`|\\$\\{.*\\}', // Command substitution: $(cmd), `cmd`, ${var}
         '(?:^|\\s)(?:-|--)(?:exec|execute|command|eval|source|run|call|start|invoke|delegate)(?:$|\\s|=)', // Execution flags
         '^(?:http|ftp)s?:\\/\\/' // Standalone URLs as arguments
       ],
       env: 'MCP_UNSAFE_ARGUMENT_PATTERNS'
-    },
-    blockedPathPatterns: {
-      doc: 'Regex patterns for paths to always block',
-      format: Array,
-      default: [
-        '\\.\\.([\\\\/]|\\.)+', // Path traversal attempts
-        '[\\\\/](etc|bin|sbin|boot|sys|proc|dev|root)[\\\\/]', // System directories
-        '\\.(ssh|gnupg)[\\\\/]', // Security directories
-        '\\.(pem|key|p12|pfx)$', // Security files
-        'credentials?$' // Credential files
-      ],
-      env: 'MCP_BLOCKED_PATH_PATTERNS'
     }
   },
   database: {
@@ -241,7 +146,7 @@ export const configSchema = convict({
 
 export async function loadConfig(): Promise<ServerConfig> {
   try {
-    logger.info('Loading enhanced security configuration...');
+    logger.info('Loading configuration...');
 
     const configPaths = [
       './config/server.yaml',
@@ -310,11 +215,11 @@ export async function loadConfig(): Promise<ServerConfig> {
     }
 
     if (!configLoaded) {
-      logger.warn('No configuration file found, using enhanced defaults');
+      logger.warn('No configuration file found, using defaults');
     }
 
     try {
-      logger.debug('Validating enhanced configuration schema...');
+      logger.debug('Validating configuration schema...');
       configSchema.validate({ allowed: 'strict' });
       logger.debug('Configuration validation successful');
     } catch (validationError) {
@@ -326,7 +231,7 @@ export async function loadConfig(): Promise<ServerConfig> {
 
     const finalConfig = configSchema.getProperties() as ServerConfig;
 
-    // Post-process configuration for enhanced security
+    // Post-process configuration
 
     // Change working directory if specified
     if (finalConfig.server.workingDirectory && finalConfig.server.workingDirectory !== process.cwd()) {
@@ -350,11 +255,6 @@ export async function loadConfig(): Promise<ServerConfig> {
       }
     }
 
-    // Initialize restricted zones with platform defaults
-    const platformRestrictedZones = getPlatformRestrictedZones();
-    const configRestrictedZones = finalConfig.security.restrictedZones || [];
-    finalConfig.security.restrictedZones = [...platformRestrictedZones, ...configRestrictedZones];
-
     // Expand safe zones if auto-expansion is enabled
     if (finalConfig.security.autoExpandSafezones) {
       const commonDirs = getCommonDevDirectories();
@@ -370,58 +270,38 @@ export async function loadConfig(): Promise<ServerConfig> {
 
       logger.info(
         {
-          originalSafeZoneCount: configSchema.get('security.safezones').length,
-          finalSafeZoneCount: finalConfig.security.safezones.length,
-          restrictedZoneCount: finalConfig.security.restrictedZones.length,
-          safeZoneMode: finalConfig.security.safeZoneMode,
+          originalCount: configSchema.get('security.safezones').length,
+          finalCount: finalConfig.security.safezones.length,
           safezones: finalConfig.security.safezones
         },
-        'Auto-expanded safe zones with enhanced security'
+        'Auto-expanded safe zones'
       );
     }
 
-    // Ensure all array properties are properly initialized
-    finalConfig.security.unsafeArgumentPatterns =
-      finalConfig.security.unsafeArgumentPatterns || (configSchema.get('security.unsafeArgumentPatterns') as string[]);
-
-    finalConfig.security.blockedPathPatterns =
-      finalConfig.security.blockedPathPatterns || (configSchema.get('security.blockedPathPatterns') as string[]);
+    // Ensure unsafeArgumentPatterns is an array
+    if (!Array.isArray(finalConfig.security.unsafeArgumentPatterns)) {
+      finalConfig.security.unsafeArgumentPatterns = configSchema.get('security.unsafeArgumentPatterns') as string[];
+    }
 
     // Resolve database path relative to working directory
     if (!path.isAbsolute(finalConfig.database.path)) {
       finalConfig.database.path = path.resolve(process.cwd(), finalConfig.database.path);
     }
 
-    // Log comprehensive security configuration
     logger.info(
       {
-        loadedFrom: loadedFrom || 'enhanced-defaults',
+        loadedFrom: loadedFrom || 'defaults',
         workingDirectory: process.cwd(),
         serverName: finalConfig.server.name,
-        security: {
-          allowedCommands: Array.isArray(finalConfig.security.allowedCommands)
-            ? finalConfig.security.allowedCommands.length
-            : 'all',
-          safeZones: finalConfig.security.safezones.length,
-          restrictedZones: finalConfig.security.restrictedZones.length,
-          safeZoneMode: finalConfig.security.safeZoneMode,
-          autoExpandSafezones: finalConfig.security.autoExpandSafezones,
-          unsafeArgumentPatterns: finalConfig.security.unsafeArgumentPatterns.length,
-          blockedPathPatterns: finalConfig.security.blockedPathPatterns.length
-        },
+        allowedCommands: Array.isArray(finalConfig.security.allowedCommands)
+          ? finalConfig.security.allowedCommands.length
+          : 'all',
+        safezones: finalConfig.security.safezones.length,
+        unsafeArgumentPatternsCount: finalConfig.security.unsafeArgumentPatterns?.length || 0,
         logLevel: finalConfig.logging.level,
         databasePath: finalConfig.database.path
       },
-      'Enhanced security configuration loaded and validated'
-    );
-
-    // Log some example safe zones and restricted zones for debugging
-    logger.debug(
-      {
-        exampleSafeZones: finalConfig.security.safezones.slice(0, 5),
-        exampleRestrictedZones: finalConfig.security.restrictedZones.slice(0, 5)
-      },
-      'Example security zones (showing first 5 of each)'
+      'Configuration loaded and validated'
     );
 
     return finalConfig;
@@ -436,9 +316,9 @@ export async function loadConfig(): Promise<ServerConfig> {
         cwd: process.cwd(),
         nodeVersion: process.version
       },
-      'Failed to load enhanced security configuration'
+      'Failed to load configuration'
     );
 
-    throw new Error(`Enhanced security configuration loading failed: ${errorMessage}`);
+    throw new Error(`Configuration loading failed: ${errorMessage}`);
   }
 }

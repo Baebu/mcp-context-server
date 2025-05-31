@@ -75,7 +75,7 @@ export class MCPContextServer {
           let inputSchema;
           try {
             inputSchema = zodToJsonSchema(tool.schema, {
-              target: 'openApi3', // Use OpenAPI 3.0 format which is more compatible
+              target: 'openApi30', // Use OpenAPI 3.0 format which is more compatible
               removeAdditionalStrategy: 'passthrough'
             });
 

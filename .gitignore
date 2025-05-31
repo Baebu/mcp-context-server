@@ -112,3 +112,7 @@ Desktop.ini
 *-backup*
 *.tmp
 *.temp
+config/server.yaml
+config/development.yaml
+data/
+*.log

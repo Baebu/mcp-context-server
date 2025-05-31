@@ -2,19 +2,15 @@
   server: {
     name: string;
     version: string;
-    workingDirectory?: string;
+    workingDirectory?: string; // Added: override working directory
   };
   security: {
     allowedCommands: string[] | 'all';
     safezones: string[];
-    restrictedZones?: string[]; // NEW: Blocked areas even within safe zones
     maxExecutionTime: number;
     maxFileSize: number;
     unsafeArgumentPatterns?: string[];
-    autoExpandSafezones?: boolean;
-    safeZoneMode?: 'strict' | 'recursive'; // NEW: How to handle subdirectories
-    // NEW: Specific patterns to always block
-    blockedPathPatterns?: string[];
+    autoExpandSafezones?: boolean; // Added: automatically include common dev directories
   };
   database: {
     path: string;
