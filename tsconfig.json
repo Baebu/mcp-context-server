@@ -53,7 +53,7 @@
       "@utils/*": ["utils/*"]
     }
   },
-  "include": ["src/**/*", "tests/**/*"],
+  "include": ["src/**/*", "tests/**/*", "scripts/health-check.js", "scripts/claude-config.js"],
   "exclude": ["node_modules", "dist", "build", "coverage"],
   "ts-node": {
     "esm": true,

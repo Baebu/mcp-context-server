@@ -21,3 +21,4 @@ coverage/
 # Generated files
 **/*.d.ts
 **/*.js.map
+scripts\health-check.js

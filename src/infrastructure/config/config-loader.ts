@@ -2,8 +2,8 @@
 import { promises as fs } from 'node:fs';
 import * as yaml from 'yaml';
 import path from 'node:path';
-import { logger } from '@utils/logger.js';
-import type { ServerConfig } from '@infrastructure/config/types.js';
+import { logger } from '../../utils/logger.js';
+import type { ServerConfig } from './types.js';
 
 export const configSchema = convict({
   server: {

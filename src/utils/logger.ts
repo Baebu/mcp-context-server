@@ -1,5 +1,4 @@
-﻿// Option 1: CommonJS Style Import
-const pino = require('pino');
+﻿const pino = require('pino');
 
 const logLevel = process.env.MCP_LOG_LEVEL || 'info';
 const isPretty = process.env.NODE_ENV === 'development' || process.env.MCP_LOG_PRETTY === 'true';

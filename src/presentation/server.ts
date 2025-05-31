@@ -9,11 +9,11 @@ import {
   GetPromptRequestSchema
 } from '@modelcontextprotocol/sdk/types.js';
 import type { Container } from 'inversify';
-import type { IToolRegistry } from '@core/interfaces/tool-registry.interface.js';
-import type { IResourceRegistry } from '@core/interfaces/resource-registry.interface.js';
-import type { IPromptRegistry } from '@core/interfaces/prompt-registry.interface.js';
-import { logger } from '@utils/logger.js';
-import type { ServerConfig } from '@infrastructure/config/types.js';
+import type { IToolRegistry } from '../core/interfaces/tool-registry.interface.js';
+import type { IResourceRegistry } from '../core/interfaces/resource-registry.interface.js';
+import type { IPromptRegistry } from '../core/interfaces/prompt-registry.interface.js';
+import { logger } from '../utils/logger.js';
+import type { ServerConfig } from '../infrastructure/config/types.js';
 
 export class MCPContextServer {
   private mcpServer: Server;

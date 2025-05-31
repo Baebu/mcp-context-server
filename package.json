@@ -25,7 +25,10 @@
     "clean": "rimraf dist",
     "prebuild": "npm run clean",
     "prestart": "npm run build",
-    "prepare": "husky install || true"
+    "prepare": "husky install || true",
+    "setup": "node scripts/setup.js",
+    "health-check": "node scripts/health-check.js",
+    "claude-config": "node scripts/claude-config.js"
   },
   "keywords": [
     "mcp",
