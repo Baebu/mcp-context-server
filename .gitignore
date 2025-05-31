@@ -97,3 +97,18 @@ mcp-config.*
 /scripts/build-with-fix.js
 /scripts/clean-build.js
 /scripts/debug-build-script.js
+# IDE specific files
+.vscode/settings.json
+.vscode/launch.json
+
+# macOS specific
+*.DS_Store
+
+# Windows specific
+Thumbs.db
+Desktop.ini
+
+# Temporary files from cleanup
+*-backup*
+*.tmp
+*.temp

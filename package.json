@@ -9,9 +9,7 @@
     "npm": ">=8.0.0"
   },
   "scripts": {
-    "fix-imports": "node comprehensive-import-fixer.js",
     "build": "npm run fix-imports && tsc -p tsconfig.build.json",
-    "build:clean": "node clean-build.js",
     "build:simple": "tsc -p tsconfig.build.json",
     "build:watch": "tsc -p tsconfig.build.json --watch",
     "dev": "tsx watch src/index.ts",

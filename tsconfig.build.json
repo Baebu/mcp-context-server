@@ -1,7 +1,9 @@
-﻿{
+{
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022"],
+    "lib": [
+      "ES2022"
+    ],
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "allowJs": false,
@@ -13,7 +15,6 @@
     "sourceMap": false,
     "composite": false,
     "incremental": false,
-
     "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
@@ -29,7 +30,6 @@
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": false,
-
     "moduleDetection": "force",
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
@@ -37,22 +37,33 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "verbatimModuleSyntax": true,
-
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-
-    "types": ["node"],
-
+    "types": [
+      "node"
+    ],
     "baseUrl": "./src",
     "paths": {
-      "@core/*": ["core/*"],
-      "@application/*": ["application/*"],
-      "@infrastructure/*": ["infrastructure/*"],
-      "@presentation/*": ["presentation/*"],
-      "@utils/*": ["utils/*"]
+      "@core/*": [
+        "core/*"
+      ],
+      "@application/*": [
+        "application/*"
+      ],
+      "@infrastructure/*": [
+        "infrastructure/*"
+      ],
+      "@presentation/*": [
+        "presentation/*"
+      ],
+      "@utils/*": [
+        "utils/*"
+      ]
     }
   },
-  "include": ["src/**/*"],
+  "include": [
+    "src/**/*"
+  ],
   "exclude": [
     "node_modules",
     "dist",
