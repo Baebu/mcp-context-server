@@ -8,6 +8,7 @@
     safezones: string[];
     maxExecutionTime: number;
     maxFileSize: number;
+    unsafeArgumentPatterns?: string[]; // Added
   };
   database: {
     path: string;

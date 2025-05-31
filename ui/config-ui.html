@@ -18,6 +18,8 @@
       --success: #10b981;
       --warning: #f59e0b;
       --danger: #ef4444;
+      --info-bg: #3b82f6;
+      /* For info toasts */
       --bg-primary: #0f172a;
       --bg-secondary: #1e293b;
       --bg-tertiary: #334155;
@@ -35,6 +37,8 @@
       color: var(--text-primary);
       min-height: 100vh;
       line-height: 1.6;
+      overflow-x: hidden;
+      /* Prevent horizontal scroll with toasts */
     }
 
     .container {
@@ -204,6 +208,7 @@
     textarea.form-control {
       resize: vertical;
       min-height: 100px;
+      font-family: 'Courier New', monospace;
     }
 
     .btn {
@@ -283,25 +288,26 @@
       border: 1px solid var(--border);
     }
 
-    .command-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
+    .item-list-container {
       margin-top: 1rem;
     }
 
+    .item-tag,
     .command-tag {
       background: var(--bg-tertiary);
       color: var(--text-primary);
       padding: 0.25rem 0.75rem;
       border-radius: 20px;
       font-size: 0.8rem;
-      display: flex;
+      display: inline-flex;
       align-items: center;
       gap: 0.5rem;
       border: 1px solid var(--border);
+      margin-right: 0.5rem;
+      margin-bottom: 0.5rem;
     }
 
+    .item-tag .remove,
     .command-tag .remove {
       cursor: pointer;
       color: var(--danger);
@@ -311,10 +317,12 @@
       background: rgba(239, 68, 68, 0.1);
     }
 
+    .item-tag .remove:hover,
     .command-tag .remove:hover {
       background: var(--danger);
       color: white;
     }
+
 
     .safezone-list {
       margin-top: 1rem;
@@ -336,6 +344,7 @@
       color: var(--text-primary);
     }
 
+    /* Original Alert styling (can be removed or kept for specific non-toast alerts) */
     .alert {
       padding: 1rem;
       border-radius: var(--radius);
@@ -343,29 +352,8 @@
       border-left: 4px solid;
     }
 
-    .alert-success {
-      background: rgba(16, 185, 129, 0.1);
-      border-left-color: var(--success);
-      color: var(--success);
-    }
+    /* ... other .alert-type styles ... */
 
-    .alert-warning {
-      background: rgba(245, 158, 11, 0.1);
-      border-left-color: var(--warning);
-      color: var(--warning);
-    }
-
-    .alert-danger {
-      background: rgba(239, 68, 68, 0.1);
-      border-left-color: var(--danger);
-      color: var(--danger);
-    }
-
-    .alert-info {
-      background: rgba(59, 130, 246, 0.1);
-      border-left-color: var(--primary);
-      color: var(--primary);
-    }
 
     .loading {
       display: inline-block;
@@ -404,7 +392,7 @@
       margin-top: 1rem;
     }
 
-    .security-presets {
+    .presets-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
       gap: 0.5rem;
@@ -421,7 +409,7 @@
       background: var(--bg-tertiary);
     }
 
-    .preset-btn:hover {
+    .preset-btn:hover:not(:disabled) {
       border-color: var(--primary);
       background: rgba(59, 130, 246, 0.1);
     }
@@ -431,6 +419,14 @@
       background: var(--primary);
       color: white;
     }
+
+    .preset-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      border-color: var(--border);
+      background: var(--bg-tertiary);
+    }
+
 
     .preset-title {
       font-weight: 600;
@@ -442,11 +438,24 @@
       color: var(--text-muted);
     }
 
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+    }
+
     .grid-2 {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 1.5rem;
     }
+
+    @media (max-width: 992px) {
+      .grid-3 {
+        grid-template-columns: 1fr;
+      }
+    }
+
 
     @media (max-width: 768px) {
 
@@ -489,10 +498,81 @@
       margin-bottom: 0.5rem;
       color: var(--text-secondary);
     }
+
+    /* Toast Notification Styles - NEW */
+    .toast-container {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 1000;
+      width: 350px;
+      max-width: 90%;
+    }
+
+    .toast {
+      background-color: var(--bg-tertiary);
+      color: var(--text-primary);
+      padding: 1rem;
+      border-radius: var(--radius);
+      margin-bottom: 1rem;
+      box-shadow: var(--shadow);
+      border-left: 5px solid;
+      opacity: 0;
+      transform: translateX(100%);
+      transition: all 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    .toast-message {
+      flex-grow: 1;
+      white-space: pre-wrap;
+      /* Allow newlines in toast messages */
+    }
+
+    .toast-close-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.2rem;
+      cursor: pointer;
+      padding: 0.25rem;
+      margin-left: 1rem;
+    }
+
+    .toast-close-btn:hover {
+      color: var(--text-primary);
+    }
+
+    .toast.success {
+      border-left-color: var(--success);
+    }
+
+    .toast.warning {
+      border-left-color: var(--warning);
+    }
+
+    .toast.danger {
+      border-left-color: var(--danger);
+    }
+
+    .toast.info {
+      border-left-color: var(--info-bg);
+    }
+
+    /* Use primary for info */
   </style>
 </head>
 
 <body>
+  <div class="toast-container" id="toastContainer"></div> <!-- NEW Toast Container -->
+
   <div class="container">
     <div class="header">
       <h1>MCP Context Server</h1>
@@ -500,9 +580,9 @@
     </div>
 
     <div class="tabs">
-      <div class="tab active" onclick="switchTab('claude-desktop')">🔗 Claude Desktop</div>
-      <div class="tab" onclick="switchTab('security')">🔒 Security Settings</div>
-      <div class="tab" onclick="switchTab('server')">⚙️ Server Configuration</div>
+      <div class="tab active" onclick="switchTab(event, 'claude-desktop')">🔗 Claude Desktop</div>
+      <div class="tab" onclick="switchTab(event, 'security')">🔒 Security Settings</div>
+      <div class="tab" onclick="switchTab(event, 'server')">⚙️ Server Configuration</div>
     </div>
 
     <!-- Claude Desktop Configuration Tab -->
@@ -512,7 +592,6 @@
           <span class="section-icon">🔗</span>
           Claude Desktop Integration
         </h2>
-
         <div class="config-status">
           <div class="status-card">
             <h3>Config File Status</h3>
@@ -527,12 +606,10 @@
             <div class="value" id="claudeServerStatus">Not Configured</div>
           </div>
         </div>
-
         <div class="form-group">
           <label for="claudeConfigPath">Claude Desktop Config File Location</label>
           <div class="path-display" id="claudeConfigPath">Detecting...</div>
         </div>
-
         <div class="server-config">
           <div>
             <div class="form-group">
@@ -541,13 +618,11 @@
                 placeholder="context-server">
               <div class="help-text">Unique name for your MCP server in Claude Desktop</div>
             </div>
-
             <div class="form-group">
               <label for="serverPath">Server Path</label>
               <input type="text" id="serverPath" class="form-control" placeholder="/absolute/path/to/dist/index.js">
               <div class="help-text">Absolute path to your built server (index.js)</div>
             </div>
-
             <div class="form-group">
               <label for="logLevel">Log Level</label>
               <select id="logLevel" class="form-control">
@@ -558,7 +633,6 @@
               </select>
             </div>
           </div>
-
           <div>
             <div class="form-group">
               <label>Quick Actions</label>
@@ -567,7 +641,6 @@
                 <button class="btn btn-secondary" onclick="loadClaudeConfig()">🔄 Load Current</button>
               </div>
             </div>
-
             <div class="form-group">
               <label>Configuration Actions</label>
               <div class="btn-group">
@@ -577,7 +650,6 @@
             </div>
           </div>
         </div>
-
         <div class="form-group">
           <label for="claudeConfigPreview">Current Configuration Preview</label>
           <div class="config-preview" id="claudeConfigPreview">Loading configuration...</div>
@@ -592,7 +664,6 @@
           <span class="section-icon">🔒</span>
           Security Configuration
         </h2>
-
         <div class="config-status">
           <div class="status-card">
             <h3>Server Config Status</h3>
@@ -606,75 +677,116 @@
             <h3>Safe Zones</h3>
             <div class="value" id="safezoneCount">-</div>
           </div>
-        </div>
-
-        <div class="form-group">
-          <label>Security Presets</label>
-          <div class="help-text">Choose a security level that matches your needs</div>
-          <div class="security-presets">
-            <div class="preset-btn" onclick="setSecurityPreset('minimal')">
-              <div class="preset-title">🛡️ Minimal</div>
-              <div class="preset-desc">Basic commands only</div>
-            </div>
-            <div class="preset-btn" onclick="setSecurityPreset('standard')">
-              <div class="preset-title">⚖️ Standard</div>
-              <div class="preset-desc">Common dev commands</div>
-            </div>
-            <div class="preset-btn" onclick="setSecurityPreset('developer')">
-              <div class="preset-title">🔧 Developer</div>
-              <div class="preset-desc">Full dev toolkit</div>
-            </div>
-            <div class="preset-btn" onclick="setSecurityPreset('custom')">
-              <div class="preset-title">⚙️ Custom</div>
-              <div class="preset-desc">Configure manually</div>
-            </div>
+          <div class="status-card">
+            <h3>Unsafe Arg Patterns</h3>
+            <div class="value" id="unsafePatternCount">-</div>
           </div>
         </div>
 
-        <div class="grid-2">
+        <div class="grid-3">
           <div>
+            <h4>Allowed Commands</h4>
             <div class="form-group">
-              <label for="allowedCommands">Allowed Commands</label>
-              <div class="help-text">Commands that the server can execute (one per line)</div>
-              <textarea id="allowedCommands" class="form-control" rows="8"
-                placeholder="ls&#10;cat&#10;grep&#10;find&#10;echo"></textarea>
-            </div>
-
-            <div class="form-group">
-              <label for="addCommand">Add Command</label>
-              <div style="display: flex; gap: 0.5rem;">
-                <input type="text" id="addCommand" class="form-control" placeholder="e.g., python3">
-                <button class="btn btn-primary" onclick="addCommand()">Add</button>
+              <label>Security Presets</label>
+              <div class="help-text">Choose a security level for allowed commands</div>
+              <div class="presets-grid" id="commandPresetsContainer">
+                <div class="preset-btn" onclick="setSecurityPreset(event, 'minimal')">
+                  <div class="preset-title">🛡️ Minimal</div>
+                  <div class="preset-desc">Basic commands only</div>
+                </div>
+                <div class="preset-btn" onclick="setSecurityPreset(event, 'standard')">
+                  <div class="preset-title">⚖️ Standard</div>
+                  <div class="preset-desc">Common dev commands</div>
+                </div>
+                <div class="preset-btn" onclick="setSecurityPreset(event, 'developer')">
+                  <div class="preset-title">🔧 Developer</div>
+                  <div class="preset-desc">Full dev toolkit</div>
+                </div>
+                <div class="preset-btn" onclick="setSecurityPreset(event, 'custom')">
+                  <div class="preset-title">⚙️ Custom</div>
+                  <div class="preset-desc">Configure manually</div>
+                </div>
               </div>
             </div>
-
-            <div class="command-list" id="commandList"></div>
+            <div class="form-group">
+              <label for="allowedCommands">Allowed Commands (one per line)</label>
+              <textarea id="allowedCommands" class="form-control" rows="5" placeholder="ls
+cat
+grep
+find
+echo"></textarea>
+            </div>
+            <div class="form-group">
+              <label for="addCommandInput">Add Command</label>
+              <div style="display: flex; gap: 0.5rem;">
+                <input type="text" id="addCommandInput" class="form-control" placeholder="e.g., python3">
+                <button id="addCommandBtn" class="btn btn-primary" onclick="addCommand()">Add</button>
+              </div>
+            </div>
+            <div class="item-list-container" id="commandList"></div>
           </div>
 
           <div>
+            <h4>Safe Zones</h4>
             <div class="form-group">
-              <label for="safezones">Safe Zones</label>
-              <div class="help-text">Directories where file operations are allowed (one per line)</div>
-              <textarea id="safezones" class="form-control" rows="6"
-                placeholder=".&#10;/tmp&#10;/home/user/projects"></textarea>
+              <label for="safezones">Safe Zones (one per line)</label>
+              <div class="help-text">Directories where file operations are allowed</div>
+              <textarea id="safezones" class="form-control" rows="6" placeholder=".
+/tmp
+/home/user/projects"></textarea>
             </div>
-
             <div class="form-group">
-              <label for="addSafezone">Add Safe Zone</label>
+              <label for="addSafezoneInput">Add Safe Zone</label>
               <div style="display: flex; gap: 0.5rem;">
-                <input type="text" id="addSafezone" class="form-control" placeholder="/path/to/directory">
-                <button class="btn btn-primary" onclick="addSafezone()">Add</button>
+                <input type="text" id="addSafezoneInput" class="form-control" placeholder="/path/to/directory">
+                <button id="addSafezoneBtn" class="btn btn-primary" onclick="addSafezone()">Add</button>
               </div>
             </div>
-
             <div class="safezone-list" id="safezoneList"></div>
+          </div>
+
+          <div>
+            <h4>Unsafe Argument Patterns</h4>
+            <div class="form-group">
+              <label>Pattern Presets</label>
+              <div class="help-text">Choose a strictness level for unsafe argument patterns</div>
+              <div class="presets-grid" id="unsafePatternPresetsContainer">
+                <div class="preset-btn" onclick="setUnsafePatternPreset(event, 'strict')">
+                  <div class="preset-title">🚨 Strict</div>
+                  <div class="preset-desc">Blocks many patterns</div>
+                </div>
+                <div class="preset-btn" onclick="setUnsafePatternPreset(event, 'balanced')">
+                  <div class="preset-title">⚖️ Balanced</div>
+                  <div class="preset-desc">Commonly blocked patterns</div>
+                </div>
+                <div class="preset-btn" onclick="setUnsafePatternPreset(event, 'custom')">
+                  <div class="preset-title">⚙️ Custom</div>
+                  <div class="preset-desc">Configure manually</div>
+                </div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="unsafeArgumentPatterns">Unsafe Argument Patterns (Regex, one per line)</label>
+              <textarea id="unsafeArgumentPatterns" class="form-control" rows="5"
+                placeholder="\\$\\(|`|\\$\\{.*\\}"></textarea>
+            </div>
+            <div class="form-group">
+              <label for="addUnsafePatternInput">Add Unsafe Pattern (Regex)</label>
+              <div style="display: flex; gap: 0.5rem;">
+                <input type="text" id="addUnsafePatternInput" class="form-control" placeholder="e.g., ;\\s*rm">
+                <button id="addUnsafePatternBtn" class="btn btn-primary" onclick="addUnsafePattern()">Add</button>
+              </div>
+            </div>
+            <div class="item-list-container" id="unsafePatternList"></div>
           </div>
         </div>
 
         <div class="btn-group" style="margin-top: 2rem;">
-          <button class="btn btn-success" onclick="saveSecurityConfig()">💾 Save Security Settings</button>
-          <button class="btn btn-secondary" onclick="loadSecurityConfig()">🔄 Reload Settings</button>
-          <button class="btn btn-warning" onclick="resetToDefaults()">↩️ Reset to Defaults</button>
+          <button id="saveSecurityBtn" class="btn btn-success" onclick="saveSecurityConfig()">💾 Save Security
+            Settings</button>
+          <button class="btn btn-secondary" onclick="loadServerConfig()">🔄 Reload Settings</button>
+          <!-- Changed to loadServerConfig -->
+          <button class="btn btn-warning" onclick="resetSecurityToDefaults()">↩️ Reset Security to Defaults</button>
         </div>
       </div>
     </div>
@@ -684,48 +796,41 @@
       <div class="main-section">
         <h2 class="section-title">
           <span class="section-icon">⚙️</span>
-          Server Configuration
+          Server Configuration (General)
         </h2>
-
         <div class="grid-2">
           <div>
             <div class="form-group">
               <label for="serverName2">Server Name</label>
               <input type="text" id="serverName2" class="form-control" value="mcp-context-server">
             </div>
-
             <div class="form-group">
               <label for="maxExecutionTime">Max Execution Time (ms)</label>
               <input type="number" id="maxExecutionTime" class="form-control" value="30000">
               <div class="help-text">Maximum time for command execution</div>
             </div>
-
             <div class="form-group">
               <label for="maxFileSize">Max File Size (bytes)</label>
               <input type="number" id="maxFileSize" class="form-control" value="10485760">
               <div class="help-text">Maximum file size for operations (10MB default)</div>
             </div>
-
-            <div class="form-group">
-              <label for="maxConcurrency">Max Concurrency</label>
-              <input type="number" id="maxConcurrency" class="form-control" value="10">
-              <div class="help-text">Maximum concurrent operations</div>
-            </div>
           </div>
-
           <div>
             <div class="form-group">
               <label for="databasePath">Database Path</label>
               <input type="text" id="databasePath" class="form-control" value="./data/context.db">
               <div class="help-text">Path to SQLite database file</div>
             </div>
-
             <div class="form-group">
               <label for="backupInterval">Backup Interval (minutes)</label>
               <input type="number" id="backupInterval" class="form-control" value="60">
               <div class="help-text">0 to disable automatic backups</div>
             </div>
-
+          </div>
+        </div>
+        <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: var(--text-secondary);">Logging & Performance</h3>
+        <div class="grid-2">
+          <div>
             <div class="form-group">
               <label for="serverLogLevel">Server Log Level</label>
               <select id="serverLogLevel" class="form-control">
@@ -737,7 +842,6 @@
                 <option value="fatal">Fatal</option>
               </select>
             </div>
-
             <div class="form-group">
               <label for="prettyLogging">Pretty Logging</label>
               <select id="prettyLogging" class="form-control">
@@ -746,16 +850,29 @@
               </select>
             </div>
           </div>
+          <div>
+            <div class="form-group">
+              <label for="maxConcurrency">Max Concurrency</label>
+              <input type="number" id="maxConcurrency" class="form-control" value="10">
+              <div class="help-text">Maximum concurrent operations</div>
+            </div>
+            <div class="form-group">
+              <label for="queueSize">Queue Size</label>
+              <input type="number" id="queueSize" class="form-control" value="1000" disabled>
+              <div class="help-text">Max operations in queue (not currently user-editable)</div>
+            </div>
+          </div>
         </div>
 
         <div class="btn-group" style="margin-top: 2rem;">
-          <button class="btn btn-success" onclick="saveServerConfig()">💾 Save Server Config</button>
-          <button class="btn btn-secondary" onclick="loadServerConfig()">🔄 Reload Config</button>
+          <button id="saveServerBtn" class="btn btn-success" onclick="saveCompleteServerConfig()">💾 Save Server
+            Config</button>
+          <button class="btn btn-secondary" onclick="loadServerConfig()">🔄 Reload Server Config</button>
           <button class="btn btn-primary" onclick="testServerConfig()">🧪 Test Configuration</button>
         </div>
 
         <div class="form-group" style="margin-top: 2rem;">
-          <label for="serverConfigPreview">Server Configuration Preview</label>
+          <label for="serverConfigPreview">Server Configuration Preview (YAML)</label>
           <div class="config-preview" id="serverConfigPreview">Loading server configuration...</div>
         </div>
       </div>
@@ -764,17 +881,15 @@
     <div class="instructions">
       <h3>🚀 Complete Setup Guide</h3>
       <ol>
-        <li><strong>Configure Security:</strong> Set allowed commands and safe zones for your use case</li>
-        <li><strong>Adjust Server Settings:</strong> Configure timeouts, file sizes, and logging preferences</li>
-        <li><strong>Setup Claude Desktop:</strong> Configure the integration path and settings</li>
-        <li><strong>Save All Changes:</strong> Apply configurations to both server and Claude Desktop</li>
-        <li><strong>Restart Claude Desktop:</strong> Close and reopen Claude Desktop completely</li>
-        <li><strong>Test Integration:</strong> Ask Claude to list files or execute commands</li>
+        <li><strong>Configure Security:</strong> Set allowed commands, safe zones, and unsafe argument patterns.</li>
+        <li><strong>Adjust Server Settings:</strong> Configure timeouts, file sizes, database, and logging.</li>
+        <li><strong>Setup Claude Desktop:</strong> Configure the integration path and settings.</li>
+        <li><strong>Save All Changes:</strong> Apply configurations.</li>
+        <li><strong>Restart Claude Desktop:</strong> Close and reopen Claude Desktop completely.</li>
+        <li><strong>Test Integration:</strong> Ask Claude to list files or execute commands.</li>
       </ol>
-
-      <div class="alert alert-info" style="margin-top: 1rem;">
-        <strong>💡 Pro Tip:</strong> Start with "Standard" security preset and adjust as needed. You can always modify
-        settings later through this interface.
+      <div class="alert alert-info" style="margin-top: 1rem;"> <!-- Kept this specific alert -->
+        <strong>💡 Pro Tip:</strong> Start with "Standard" security presets and adjust as needed.
       </div>
     </div>
   </div>
@@ -786,41 +901,60 @@
     let claudeConfigPath = '';
     let platformInfo = {};
 
-    // Security presets
-    const securityPresets = {
-      minimal: {
-        commands: ['echo', 'pwd'],
-        description: 'Basic commands only - safest option'
-      },
-      standard: {
-        commands: ['ls', 'cat', 'grep', 'find', 'echo', 'pwd', 'whoami'],
-        description: 'Common development commands'
-      },
-      developer: {
-        commands: ['ls', 'cat', 'grep', 'find', 'echo', 'pwd', 'whoami', 'node', 'npm', 'git', 'python', 'python3'],
-        description: 'Full development toolkit'
-      },
-      custom: {
-        commands: [],
-        description: 'Configure manually'
-      }
+    const commandSecurityPresets = {
+      minimal: { commands: ['echo', 'pwd'], description: 'Basic commands only' },
+      standard: { commands: ['ls', 'cat', 'grep', 'find', 'echo', 'pwd', 'whoami'], description: 'Common dev commands' },
+      developer: { commands: ['ls', 'cat', 'grep', 'find', 'echo', 'pwd', 'whoami', 'node', 'npm', 'git', 'python', 'python3'], description: 'Full dev toolkit' },
+      custom: { commands: [], description: 'Configure manually' }
     };
 
-    // Initialize on page load
+    const unsafePatternPresets = {
+      strict: {
+        patterns: [
+          "\\$\\(|`|\\$\\{.*\\}",
+          "(?:^|\\s)(?:-|--)(?:exec|execute|command|eval|source|run|call|start|invoke|delegate)(?:$|\\s|=)",
+          ";",
+          "\\|\\|",
+          "&&",
+          "\\|(?![|=])"
+        ],
+        description: 'Blocks many patterns including common injection vectors'
+      },
+      balanced: {
+        patterns: [
+          "\\$\\(|`|\\$\\{.*\\}",
+          "(?:^|\\s)(?:-|--)(?:exec|execute|command|eval|source)(?:$|\\s|=)",
+        ],
+        description: 'Blocks common command injection patterns'
+      },
+      custom: { patterns: [], description: 'Configure manually' }
+    };
+
     document.addEventListener('DOMContentLoaded', async () => {
       await detectPlatform();
       await loadClaudeConfig();
-      await loadSecurityConfig();
       await loadServerConfig();
       await autoDetectPath();
+      setupInputListeners();
     });
 
-    function switchTab(tabName) {
-      // Update tab buttons
-      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-      event.target.classList.add('active');
+    function setupInputListeners() {
+      ['addCommandInput', 'addSafezoneInput', 'addUnsafePatternInput'].forEach(id => {
+        const inputEl = document.getElementById(id);
+        const btnEl = document.getElementById(id.replace('Input', 'Btn'));
+        if (inputEl && btnEl) {
+          inputEl.addEventListener('input', (e) => {
+            btnEl.disabled = e.target.value.trim() === '';
+          });
+          btnEl.disabled = true;
+        }
+      });
+    }
 
-      // Update tab content
+
+    function switchTab(event, tabName) {
+      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+      event.currentTarget.classList.add('active');
       document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
       document.getElementById(tabName + '-tab').classList.add('active');
     }
@@ -829,12 +963,9 @@
       try {
         const response = await fetch('/api/platform-info');
         platformInfo = await response.json();
-
         document.getElementById('platformInfo').textContent = platformInfo.platformName;
         claudeConfigPath = platformInfo.configPath;
         document.getElementById('claudeConfigPath').textContent = claudeConfigPath;
-
-        showAlert('Platform detected: ' + platformInfo.platformName, 'info');
       } catch (error) {
         showAlert('Failed to detect platform: ' + error.message, 'danger');
       }
@@ -843,28 +974,22 @@
     async function loadClaudeConfig() {
       try {
         showLoading('claudeConfigStatus');
-
         const response = await fetch('/api/claude-config');
         const result = await response.json();
-
         if (result.exists) {
           currentClaudeConfig = result.config;
           updateClaudeConfigPreview();
           updateClaudeServerStatus();
-
-          // Load server settings if they exist
           const servers = currentClaudeConfig.mcpServers || {};
           const contextServer = Object.values(servers).find(server =>
             server.args && server.args.some(arg => arg.includes('context-server') || arg.includes('index.js'))
           );
-
           if (contextServer) {
             const serverName = Object.keys(servers).find(name => servers[name] === contextServer);
             document.getElementById('serverName').value = serverName || 'context-server';
             document.getElementById('serverPath').value = contextServer.args[contextServer.args.length - 1] || '';
             document.getElementById('logLevel').value = contextServer.env?.MCP_LOG_LEVEL || 'info';
           }
-
           document.getElementById('claudeConfigStatus').textContent = '✅ Found';
         } else {
           document.getElementById('claudeConfigStatus').textContent = '📄 Not Found';
@@ -877,33 +1002,41 @@
       }
     }
 
-    async function loadSecurityConfig() {
+    async function loadServerConfig() {
       try {
         showLoading('serverConfigStatus');
-
         const response = await fetch('/api/server-config');
         const result = await response.json();
 
-        if (result.exists) {
+        if (result.config) {
           currentServerConfig = result.config;
 
-          // Update security settings
-          const commands = result.config.security?.allowedCommands || [];
-          const safezones = result.config.security?.safezones || [];
+          const securityConf = currentServerConfig.security || {};
+          document.getElementById('allowedCommands').value = Array.isArray(securityConf.allowedCommands) ? securityConf.allowedCommands.join('\n') : (securityConf.allowedCommands === 'all' ? 'all' : '');
+          document.getElementById('safezones').value = (securityConf.safezones || []).join('\n');
+          document.getElementById('unsafeArgumentPatterns').value = (securityConf.unsafeArgumentPatterns || []).join('\n');
 
-          document.getElementById('allowedCommands').value = Array.isArray(commands) ? commands.join('\n') : '';
-          document.getElementById('safezones').value = safezones.join('\n');
+          updateCommandList();
+          updateSafezoneList();
+          updateUnsafePatternList();
+          updateActiveSecurityPresets();
 
-          updateCommandList(commands);
-          updateSafezoneList(safezones);
-          updateCommandCount();
-          updateSafezoneCount();
+          document.getElementById('serverName2').value = currentServerConfig.server?.name || 'mcp-context-server';
+          document.getElementById('maxExecutionTime').value = securityConf.maxExecutionTime || 30000;
+          document.getElementById('maxFileSize').value = securityConf.maxFileSize || 10485760;
+          document.getElementById('databasePath').value = currentServerConfig.database?.path || './data/context.db';
+          document.getElementById('backupInterval').value = currentServerConfig.database?.backupInterval || 60;
+          document.getElementById('serverLogLevel').value = currentServerConfig.logging?.level || 'info';
+          document.getElementById('prettyLogging').value = String(currentServerConfig.logging?.pretty !== false);
+          document.getElementById('maxConcurrency').value = currentServerConfig.performance?.maxConcurrency || 10;
+          document.getElementById('queueSize').value = currentServerConfig.performance?.queueSize || 1000;
 
-          document.getElementById('serverConfigStatus').textContent = '✅ Found';
+          document.getElementById('serverConfigStatus').textContent = result.exists ? '✅ Found' : '📄 Defaults';
+          updateServerConfigPreview();
+
         } else {
-          document.getElementById('serverConfigStatus').textContent = '📄 Not Found';
-          // Set defaults
-          setSecurityPreset('standard');
+          document.getElementById('serverConfigStatus').textContent = '❌ Error';
+          showAlert('Failed to load server configuration: ' + (result.error || 'Unknown error'), 'danger');
         }
       } catch (error) {
         document.getElementById('serverConfigStatus').textContent = '❌ Error';
@@ -911,39 +1044,65 @@
       }
     }
 
-    async function loadServerConfig() {
-      try {
-        const response = await fetch('/api/server-config');
-        const result = await response.json();
-
-        if (result.exists) {
-          const config = result.config;
-
-          // Update server settings
-          document.getElementById('serverName2').value = config.server?.name || 'mcp-context-server';
-          document.getElementById('maxExecutionTime').value = config.security?.maxExecutionTime || 30000;
-          document.getElementById('maxFileSize').value = config.security?.maxFileSize || 10485760;
-          document.getElementById('maxConcurrency').value = config.performance?.maxConcurrency || 10;
-          document.getElementById('databasePath').value = config.database?.path || './data/context.db';
-          document.getElementById('backupInterval').value = config.database?.backupInterval || 60;
-          document.getElementById('serverLogLevel').value = config.logging?.level || 'info';
-          document.getElementById('prettyLogging').value = String(config.logging?.pretty !== false);
-
-          updateServerConfigPreview();
-        }
-      } catch (error) {
-        showAlert('Failed to load server configuration: ' + error.message, 'danger');
+    function arraysEqual(a, b) {
+      if (a === b) return true;
+      if (a == null || b == null) return false;
+      if (a.length !== b.length) return false;
+      const sortedA = [...a].sort();
+      const sortedB = [...b].sort();
+      for (let i = 0; i < sortedA.length; ++i) {
+        if (sortedA[i] !== sortedB[i]) return false;
       }
+      return true;
     }
+
+    function updateActiveSecurityPresets() {
+      const currentCommands = document.getElementById('allowedCommands').value.split('\n').filter(c => c.trim());
+      document.querySelectorAll('#commandPresetsContainer .preset-btn').forEach(btn => {
+        const presetNameMatch = btn.onclick.toString().match(/setSecurityPreset\(\s*event\s*,\s*['"](.*?)['"]\)/);
+        if (!presetNameMatch) return;
+        const presetName = presetNameMatch[1];
+
+        if (presetName === 'custom') {
+          const isCustomActive = !Object.keys(commandSecurityPresets).some(key =>
+            key !== 'custom' && arraysEqual(commandSecurityPresets[key].commands, currentCommands)
+          );
+          btn.classList.toggle('active', isCustomActive);
+          btn.disabled = isCustomActive;
+        } else if (commandSecurityPresets[presetName]) {
+          const isActive = arraysEqual(commandSecurityPresets[presetName].commands, currentCommands);
+          btn.classList.toggle('active', isActive);
+          btn.disabled = isActive;
+        }
+      });
+
+      const currentUnsafePatterns = document.getElementById('unsafeArgumentPatterns').value.split('\n').filter(p => p.trim());
+      document.querySelectorAll('#unsafePatternPresetsContainer .preset-btn').forEach(btn => {
+        const presetNameMatch = btn.onclick.toString().match(/setUnsafePatternPreset\(\s*event\s*,\s*['"](.*?)['"]\)/);
+        if (!presetNameMatch) return;
+        const presetName = presetNameMatch[1];
+
+        if (presetName === 'custom') {
+          const isCustomActive = !Object.keys(unsafePatternPresets).some(key =>
+            key !== 'custom' && unsafePatternPresets[key] && arraysEqual(unsafePatternPresets[key].patterns, currentUnsafePatterns)
+          );
+          btn.classList.toggle('active', isCustomActive);
+          btn.disabled = isCustomActive;
+        } else if (unsafePatternPresets[presetName]) {
+          const isActive = arraysEqual(unsafePatternPresets[presetName].patterns, currentUnsafePatterns);
+          btn.classList.toggle('active', isActive);
+          btn.disabled = isActive;
+        }
+      });
+    }
+
 
     async function autoDetectPath() {
       try {
         const response = await fetch('/api/auto-detect-path');
         const result = await response.json();
-
         if (result.found) {
           document.getElementById('serverPath').value = result.path;
-          showAlert('Server path auto-detected: ' + result.path, 'success');
         } else {
           showAlert('Could not auto-detect server path. Please enter manually.', 'warning');
         }
@@ -952,117 +1111,131 @@
       }
     }
 
-    function setSecurityPreset(presetName) {
-      // Update active preset button
-      document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
-      event.target.classList.add('active');
-
-      const preset = securityPresets[presetName];
+    function setSecurityPreset(event, presetName) {
+      const preset = commandSecurityPresets[presetName];
       if (preset) {
         document.getElementById('allowedCommands').value = preset.commands.join('\n');
-        updateCommandList(preset.commands);
-        updateCommandCount();
+        updateCommandList();
+        updateActiveSecurityPresets();
+      }
+    }
 
-        if (presetName !== 'custom') {
-          showAlert(`Security preset applied: ${presetName}`, 'success');
+    function setUnsafePatternPreset(event, presetName) {
+      const preset = unsafePatternPresets[presetName];
+      if (preset) {
+        document.getElementById('unsafeArgumentPatterns').value = preset.patterns.join('\n');
+        updateUnsafePatternList();
+        updateActiveSecurityPresets();
+      }
+    }
+
+    function addToList(inputId, textareaId, updateListFunc, updatePresetsFunc) {
+      const inputElement = document.getElementById(inputId);
+      const itemValue = inputElement.value.trim(); // Renamed from pattern to itemValue
+      if (itemValue) {
+        const textarea = document.getElementById(textareaId);
+        const currentItems = textarea.value.split('\n').filter(item => item.trim());
+        if (!currentItems.includes(itemValue)) {
+          currentItems.push(itemValue);
+          textarea.value = currentItems.join('\n');
+          updateListFunc();
+          if (updatePresetsFunc) updatePresetsFunc();
+          inputElement.value = '';
+          document.getElementById(inputId.replace('Input', 'Btn')).disabled = true;
+        } else {
+          showAlert(`'${itemValue}' is already in the list.`, 'warning');
         }
       }
     }
 
-    function addCommand() {
-      const input = document.getElementById('addCommand');
-      const command = input.value.trim();
-      if (command) {
-        const currentCommands = document.getElementById('allowedCommands').value.split('\n').filter(c => c.trim());
-        if (!currentCommands.includes(command)) {
-          currentCommands.push(command);
-          document.getElementById('allowedCommands').value = currentCommands.join('\n');
-          updateCommandList(currentCommands);
-          updateCommandCount();
-          input.value = '';
-        }
-      }
+    function removeFromList(itemToRemove, textareaId, updateListFunc, updatePresetsFunc) {
+      const textarea = document.getElementById(textareaId);
+      const currentItems = textarea.value.split('\n').filter(item => item.trim() !== itemToRemove);
+      textarea.value = currentItems.join('\n');
+      updateListFunc();
+      if (updatePresetsFunc) updatePresetsFunc();
     }
 
-    function addSafezone() {
-      const input = document.getElementById('addSafezone');
-      const safezone = input.value.trim();
-      if (safezone) {
-        const currentSafezones = document.getElementById('safezones').value.split('\n').filter(s => s.trim());
-        if (!currentSafezones.includes(safezone)) {
-          currentSafezones.push(safezone);
-          document.getElementById('safezones').value = currentSafezones.join('\n');
-          updateSafezoneList(currentSafezones);
-          updateSafezoneCount();
-          input.value = '';
-        }
-      }
-    }
+    function addCommand() { addToList('addCommandInput', 'allowedCommands', updateCommandList, updateActiveSecurityPresets); }
+    function addSafezone() { addToList('addSafezoneInput', 'safezones', updateSafezoneList); }
+    function addUnsafePattern() { addToList('addUnsafePatternInput', 'unsafeArgumentPatterns', updateUnsafePatternList, updateActiveSecurityPresets); }
 
-    function removeCommand(command) {
-      const commands = document.getElementById('allowedCommands').value.split('\n').filter(c => c.trim() !== command);
-      document.getElementById('allowedCommands').value = commands.join('\n');
-      updateCommandList(commands);
-      updateCommandCount();
-    }
+    function removeCommand(command) { removeFromList(command, 'allowedCommands', updateCommandList, updateActiveSecurityPresets); }
+    function removeSafezone(safezone) { removeFromList(safezone, 'safezones', updateSafezoneList); }
+    function removeUnsafePattern(pattern) { removeFromList(pattern, 'unsafeArgumentPatterns', updateUnsafePatternList, updateActiveSecurityPresets); }
 
-    function removeSafezone(safezone) {
-      const safezones = document.getElementById('safezones').value.split('\n').filter(s => s.trim() !== safezone);
-      document.getElementById('safezones').value = safezones.join('\n');
-      updateSafezoneList(safezones);
-      updateSafezoneCount();
-    }
 
-    function updateCommandList(commands) {
-      const container = document.getElementById('commandList');
+    function updateListDisplay(textareaId, containerId, countId, itemClass, removeFunctionPrefix) {
+      const container = document.getElementById(containerId);
       container.innerHTML = '';
+      const items = document.getElementById(textareaId).value.split('\n').filter(item => item.trim());
 
-      commands.forEach(command => {
-        if (command.trim()) {
-          const tag = document.createElement('div');
-          tag.className = 'command-tag';
-          tag.innerHTML = `${command} <span class="remove" onclick="removeCommand('${command}')">&times;</span>`;
-          container.appendChild(tag);
-        }
+      items.forEach(item => {
+        const tag = document.createElement('div');
+        tag.className = itemClass;
+        const textNode = document.createTextNode(item);
+        const removeSpan = document.createElement('span');
+        removeSpan.className = 'remove';
+        removeSpan.innerHTML = '×';
+        removeSpan.onclick = () => window[removeFunctionPrefix](item);
+
+        tag.appendChild(textNode);
+        tag.appendChild(removeSpan);
+        container.appendChild(tag);
       });
+      document.getElementById(countId).textContent = items.length;
     }
 
-    function updateSafezoneList(safezones) {
+    function updateCommandList() { updateListDisplay('allowedCommands', 'commandList', 'commandCount', 'command-tag', 'removeCommand'); }
+    function updateSafezoneList() {
       const container = document.getElementById('safezoneList');
       container.innerHTML = '';
-
-      safezones.forEach(safezone => {
-        if (safezone.trim()) {
-          const item = document.createElement('div');
-          item.className = 'safezone-item';
-          item.innerHTML = `
-            <span class="safezone-path">${safezone}</span>
-            <button class="btn btn-danger btn-sm" onclick="removeSafezone('${safezone}')">Remove</button>
-          `;
-          container.appendChild(item);
-        }
+      const items = document.getElementById('safezones').value.split('\n').filter(s => s.trim());
+      items.forEach(safezone => {
+        const itemEl = document.createElement('div');
+        itemEl.className = 'safezone-item';
+        itemEl.innerHTML = `<span class="safezone-path">${safezone}</span> <button class="btn btn-danger btn-sm" onclick="removeSafezone('${safezone}')">Remove</button>`;
+        container.appendChild(itemEl);
       });
+      document.getElementById('safezoneCount').textContent = items.length;
     }
-
-    function updateCommandCount() {
-      const commands = document.getElementById('allowedCommands').value.split('\n').filter(c => c.trim());
-      document.getElementById('commandCount').textContent = commands.length;
-    }
-
-    function updateSafezoneCount() {
-      const safezones = document.getElementById('safezones').value.split('\n').filter(s => s.trim());
-      document.getElementById('safezoneCount').textContent = safezones.length;
-    }
+    function updateUnsafePatternList() { updateListDisplay('unsafeArgumentPatterns', 'unsafePatternList', 'unsafePatternCount', 'item-tag', 'removeUnsafePattern'); }
 
     function updateClaudeConfigPreview() {
-      const preview = document.getElementById('claudeConfigPreview');
-      preview.textContent = JSON.stringify(currentClaudeConfig, null, 2);
+      document.getElementById('claudeConfigPreview').textContent = JSON.stringify(currentClaudeConfig, null, 2);
+    }
+    function updateServerConfigPreview() {
+      try {
+        const yamlString = jsToYaml(currentServerConfig);
+        document.getElementById('serverConfigPreview').textContent = yamlString;
+      } catch (e) {
+        document.getElementById('serverConfigPreview').textContent = JSON.stringify(currentServerConfig, null, 2);
+        showAlert('Error converting config to YAML for preview, showing JSON instead.', 'warning');
+      }
     }
 
-    function updateServerConfigPreview() {
-      const preview = document.getElementById('serverConfigPreview');
-      preview.textContent = JSON.stringify(currentServerConfig, null, 2);
+    function jsToYaml(obj, indent = 0) {
+      let yamlString = '';
+      const spaces = '  '.repeat(indent);
+      for (const key in obj) {
+        if (obj.hasOwnProperty(key)) {
+          const value = obj[key];
+          if (Array.isArray(value)) {
+            yamlString += `${spaces}${key}:\n`;
+            value.forEach(item => {
+              yamlString += `${spaces}  - ${typeof item === 'string' ? item.replace(/'/g, "''") : JSON.stringify(item)}\n`;
+            });
+          } else if (typeof value === 'object' && value !== null) {
+            yamlString += `${spaces}${key}:\n`;
+            yamlString += jsToYaml(value, indent + 1);
+          } else {
+            yamlString += `${spaces}${key}: ${typeof value === 'string' ? value.replace(/'/g, "''") : value}\n`;
+          }
+        }
+      }
+      return yamlString;
     }
+
 
     function updateClaudeServerStatus() {
       const servers = currentClaudeConfig.mcpServers || {};
@@ -1070,14 +1243,9 @@
       const hasContextServer = Object.values(servers).some(server =>
         server.args && server.args.some(arg => arg.includes('context-server') || arg.includes('index.js'))
       );
-
       let status = '🔴 Not Configured';
-      if (hasContextServer) {
-        status = '🟢 Configured';
-      } else if (serverCount > 0) {
-        status = '🟡 Other Servers';
-      }
-
+      if (hasContextServer) status = '🟢 Configured';
+      else if (serverCount > 0) status = '🟡 Other Servers';
       document.getElementById('claudeServerStatus').textContent = status;
     }
 
@@ -1085,46 +1253,30 @@
       const serverName = document.getElementById('serverName').value.trim();
       const serverPath = document.getElementById('serverPath').value.trim();
       const logLevel = document.getElementById('logLevel').value;
-
       if (!serverName || !serverPath) {
         showAlert('Please enter both server name and path', 'danger');
         return;
       }
-
       try {
         showLoading('claudeConfigStatus');
-
         const newConfig = {
           ...currentClaudeConfig,
           mcpServers: {
-            ...currentClaudeConfig.mcpServers,
-            [serverName]: {
-              command: 'node',
-              args: [serverPath],
-              env: {
-                MCP_LOG_LEVEL: logLevel
-              }
-            }
+            ...(currentClaudeConfig.mcpServers || {}),
+            [serverName]: { command: 'node', args: [serverPath], env: { MCP_LOG_LEVEL: logLevel } }
           }
         };
-
         const response = await fetch('/api/claude-config', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newConfig)
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newConfig)
         });
-
         const result = await response.json();
-
         if (result.success) {
           currentClaudeConfig = newConfig;
           updateClaudeConfigPreview();
           updateClaudeServerStatus();
           document.getElementById('claudeConfigStatus').textContent = '✅ Saved';
           showAlert('Claude Desktop configuration saved! Please restart Claude Desktop.', 'success');
-        } else {
-          throw new Error(result.error || 'Save failed');
-        }
+        } else { throw new Error(result.error || 'Save failed'); }
       } catch (error) {
         document.getElementById('claudeConfigStatus').textContent = '❌ Error';
         showAlert('Failed to save Claude Desktop configuration: ' + error.message, 'danger');
@@ -1133,48 +1285,42 @@
 
     async function saveSecurityConfig() {
       try {
-        const commands = document.getElementById('allowedCommands').value.split('\n').filter(c => c.trim());
-        const safezones = document.getElementById('safezones').value.split('\n').filter(s => s.trim());
-
-        const securityConfig = {
-          security: {
-            allowedCommands: commands,
-            safezones: safezones,
-            maxExecutionTime: parseInt(document.getElementById('maxExecutionTime').value) || 30000,
-            maxFileSize: parseInt(document.getElementById('maxFileSize').value) || 10485760
-          }
+        const securitySettings = {
+          allowedCommands: document.getElementById('allowedCommands').value.split('\n').filter(c => c.trim()),
+          safezones: document.getElementById('safezones').value.split('\n').filter(s => s.trim()),
+          unsafeArgumentPatterns: document.getElementById('unsafeArgumentPatterns').value.split('\n').filter(p => p.trim()),
+          maxExecutionTime: parseInt(document.getElementById('maxExecutionTime').value) || 30000,
+          maxFileSize: parseInt(document.getElementById('maxFileSize').value) || 10485760
         };
+
+        const payload = { security: securitySettings };
 
         const response = await fetch('/api/server-config', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(securityConfig)
+          body: JSON.stringify(payload)
         });
-
         const result = await response.json();
-
         if (result.success) {
           showAlert('Security configuration saved successfully!', 'success');
-          updateCommandList(commands);
-          updateSafezoneList(safezones);
-        } else {
-          throw new Error(result.error || 'Save failed');
-        }
+          await loadServerConfig();
+        } else { throw new Error(result.error || 'Save failed'); }
       } catch (error) {
         showAlert('Failed to save security configuration: ' + error.message, 'danger');
       }
     }
 
-    async function saveServerConfig() {
+    async function saveCompleteServerConfig() {
       try {
-        const serverConfig = {
+        const configToSave = {
           server: {
             name: document.getElementById('serverName2').value || 'mcp-context-server',
-            version: '1.0.0'
+            version: currentServerConfig.server?.version || '1.0.0'
           },
           security: {
             allowedCommands: document.getElementById('allowedCommands').value.split('\n').filter(c => c.trim()),
             safezones: document.getElementById('safezones').value.split('\n').filter(s => s.trim()),
+            unsafeArgumentPatterns: document.getElementById('unsafeArgumentPatterns').value.split('\n').filter(p => p.trim()),
             maxExecutionTime: parseInt(document.getElementById('maxExecutionTime').value) || 30000,
             maxFileSize: parseInt(document.getElementById('maxFileSize').value) || 10485760
           },
@@ -1188,79 +1334,61 @@
           },
           performance: {
             maxConcurrency: parseInt(document.getElementById('maxConcurrency').value) || 10,
-            queueSize: 1000
+            queueSize: parseInt(document.getElementById('queueSize').value) || 1000
           }
         };
 
         const response = await fetch('/api/server-config', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(serverConfig)
+          body: JSON.stringify(configToSave)
         });
-
         const result = await response.json();
-
         if (result.success) {
-          currentServerConfig = serverConfig;
+          currentServerConfig = configToSave;
           updateServerConfigPreview();
+          updateActiveSecurityPresets();
           showAlert('Server configuration saved successfully!', 'success');
-        } else {
-          throw new Error(result.error || 'Save failed');
-        }
+        } else { throw new Error(result.error || 'Save failed'); }
       } catch (error) {
         showAlert('Failed to save server configuration: ' + error.message, 'danger');
       }
     }
 
+
     async function removeServer() {
       const serverName = document.getElementById('serverName').value.trim();
-
-      if (!serverName) {
-        showAlert('Please enter the server name to remove', 'danger');
-        return;
-      }
-
-      if (!confirm('Are you sure you want to remove the server "' + serverName + '"?')) {
-        return;
-      }
-
+      if (!serverName) { showAlert('Please enter the server name to remove', 'danger'); return; }
+      if (!confirm('Are you sure you want to remove the server "' + serverName + '"?')) return;
       try {
         const newConfig = { ...currentClaudeConfig };
         if (newConfig.mcpServers && newConfig.mcpServers[serverName]) {
           delete newConfig.mcpServers[serverName];
         }
-
         const response = await fetch('/api/claude-config', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newConfig)
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newConfig)
         });
-
         const result = await response.json();
-
         if (result.success) {
           currentClaudeConfig = newConfig;
           updateClaudeConfigPreview();
           updateClaudeServerStatus();
-
           document.getElementById('serverPath').value = '';
-
           showAlert('Server removed successfully! Please restart Claude Desktop.', 'success');
-        } else {
-          throw new Error(result.error || 'Remove failed');
-        }
+        } else { throw new Error(result.error || 'Remove failed'); }
       } catch (error) {
         showAlert('Failed to remove server: ' + error.message, 'danger');
       }
     }
 
-    function resetToDefaults() {
+    function resetSecurityToDefaults() {
       if (confirm('Reset all security settings to defaults? This will overwrite your current configuration.')) {
-        setSecurityPreset('standard');
+        setSecurityPreset(null, 'standard');
+        setUnsafePatternPreset(null, 'balanced');
         document.getElementById('safezones').value = '.\n/tmp';
-        updateSafezoneList(['.', '/tmp']);
-        updateSafezoneCount();
-        showAlert('Security settings reset to defaults', 'info');
+        updateSafezoneList();
+        showAlert('Security settings reset to defaults.', 'info'); // Keep as info for non-error
+        updateActiveSecurityPresets();
       }
     }
 
@@ -1268,60 +1396,75 @@
       try {
         const response = await fetch('/api/test-config', { method: 'POST' });
         const result = await response.json();
-
         if (result.success) {
-          showAlert('Configuration test passed!', 'success');
+          let message = 'Configuration test passed!';
+          if (result.warnings && result.warnings.length > 0) {
+            message += '\nWarnings:\n' + result.warnings.join('\n');
+            showAlert(message, 'warning');
+          } else {
+            showAlert(message, 'success');
+          }
         } else {
-          showAlert('Configuration test failed: ' + result.error, 'warning');
+          let errMessage = 'Configuration test failed.';
+          if (result.errors && result.errors.length > 0) errMessage += '\nErrors:\n' + result.errors.join('\n');
+          if (result.warnings && result.warnings.length > 0) errMessage += '\nWarnings:\n' + result.warnings.join('\n');
+          showAlert(errMessage, 'danger');
         }
       } catch (error) {
         showAlert('Failed to test configuration: ' + error.message, 'danger');
       }
     }
 
-    function showAlert(message, type) {
-      // Remove existing alerts
-      const existingAlerts = document.querySelectorAll('.alert');
-      existingAlerts.forEach(alert => {
-        if (!alert.classList.contains('alert-info') || !alert.textContent.includes('Pro Tip:')) {
-          alert.remove();
-        }
-      });
+    function showAlert(message, type = 'info', duration = 5000) { // Default type to 'info'
+      const toastContainer = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
 
-      // Create new alert
-      const alert = document.createElement('div');
-      alert.className = `alert alert-${type}`;
-      alert.textContent = message;
+      const messageSpan = document.createElement('span');
+      messageSpan.className = 'toast-message';
+      messageSpan.textContent = message;
 
-      // Insert at the top of the page
-      const container = document.querySelector('.container');
-      container.insertBefore(alert, container.children[1]);
+      const closeButton = document.createElement('button');
+      closeButton.className = 'toast-close-btn';
+      closeButton.innerHTML = '×';
+      closeButton.onclick = () => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 500); // Remove after animation
+      };
 
-      // Auto-remove after 5 seconds for non-error messages
+      toast.appendChild(messageSpan);
+      toast.appendChild(closeButton);
+      toastContainer.appendChild(toast);
+
+      // Trigger the animation
+      setTimeout(() => toast.classList.add('show'), 100);
+
+      // Auto-remove after duration, unless it's a danger type
       if (type !== 'danger') {
         setTimeout(() => {
-          alert.remove();
-        }, 5000);
+          toast.classList.remove('show');
+          setTimeout(() => toast.remove(), 500);
+        }, duration);
       }
     }
 
+
     function showLoading(elementId) {
-      const element = document.getElementById(elementId);
-      element.innerHTML = '<span class="loading"></span> Loading...';
+      document.getElementById(elementId).innerHTML = '<span class="loading"></span> Loading...';
     }
 
-    // Auto-update command and safezone lists when text areas change
-    document.getElementById('allowedCommands').addEventListener('input', () => {
-      const commands = document.getElementById('allowedCommands').value.split('\n').filter(c => c.trim());
-      updateCommandList(commands);
-      updateCommandCount();
+    ['allowedCommands', 'safezones', 'unsafeArgumentPatterns'].forEach(textareaId => {
+      const el = document.getElementById(textareaId);
+      if (el) {
+        el.addEventListener('input', () => {
+          if (textareaId === 'allowedCommands') updateCommandList();
+          else if (textareaId === 'safezones') updateSafezoneList();
+          else if (textareaId === 'unsafeArgumentPatterns') updateUnsafePatternList();
+          updateActiveSecurityPresets();
+        });
+      }
     });
 
-    document.getElementById('safezones').addEventListener('input', () => {
-      const safezones = document.getElementById('safezones').value.split('\n').filter(s => s.trim());
-      updateSafezoneList(safezones);
-      updateSafezoneCount();
-    });
   </script>
 </body>
 

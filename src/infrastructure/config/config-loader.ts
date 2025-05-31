@@ -46,6 +46,17 @@ export const configSchema = convict({
       format: Number,
       default: 10485760, // 10MB
       env: 'MCP_MAX_FILE_SIZE'
+    },
+    unsafeArgumentPatterns: {
+      // Added
+      doc: 'Regex patterns to block in command arguments',
+      format: Array,
+      default: [
+        '\\$\\(|`|\\$\\{.*\\}', // Command substitution: $(cmd), `cmd`, ${var}
+        '(?:^|\\s)(?:-|--)(?:exec|execute|command|eval|source|run|call|start|invoke|delegate)(?:$|\\s|=)', // Execution flags
+        '^(?:http|ftp)s?:\\/\\/' // Standalone URLs as arguments
+      ],
+      env: 'MCP_UNSAFE_ARGUMENT_PATTERNS'
     }
   },
   database: {
@@ -96,7 +107,6 @@ export async function loadConfig(): Promise<ServerConfig> {
   try {
     logger.info('Loading configuration...');
 
-    // Try to load config from multiple sources in order of preference
     const configPaths = [
       './config/server.yaml',
       './config/server.yml',
@@ -111,17 +121,12 @@ export async function loadConfig(): Promise<ServerConfig> {
     for (const configPath of configPaths) {
       try {
         logger.debug(`Attempting to load config from: ${configPath}`);
-
-        // Check if file exists
         await fs.access(configPath);
-
         const ext = path.extname(configPath).toLowerCase();
         const content = await fs.readFile(configPath, 'utf-8');
-
         logger.debug(`Config file content length: ${content.length} characters`);
 
         let parsed: unknown;
-
         if (ext === '.yaml' || ext === '.yml') {
           try {
             parsed = yaml.parse(content);
@@ -172,7 +177,6 @@ export async function loadConfig(): Promise<ServerConfig> {
       logger.warn('No configuration file found, using defaults');
     }
 
-    // Validate configuration
     try {
       logger.debug('Validating configuration schema...');
       configSchema.validate({ allowed: 'strict' });
@@ -186,6 +190,11 @@ export async function loadConfig(): Promise<ServerConfig> {
 
     const finalConfig = configSchema.getProperties() as ServerConfig;
 
+    // Ensure unsafeArgumentPatterns is an array, even if not present in file (use default)
+    if (!Array.isArray(finalConfig.security.unsafeArgumentPatterns)) {
+      finalConfig.security.unsafeArgumentPatterns = configSchema.get('security.unsafeArgumentPatterns') as string[];
+    }
+
     logger.info(
       {
         loadedFrom: loadedFrom || 'defaults',
@@ -194,6 +203,7 @@ export async function loadConfig(): Promise<ServerConfig> {
           ? finalConfig.security.allowedCommands.length
           : 'all',
         safezones: finalConfig.security.safezones.length,
+        unsafeArgumentPatternsCount: finalConfig.security.unsafeArgumentPatterns?.length || 0,
         logLevel: finalConfig.logging.level
       },
       'Configuration loaded and validated'

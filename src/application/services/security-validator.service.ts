@@ -13,6 +13,7 @@ export class SecurityValidator implements ISecurityValidator {
   private allowedCommands: Set<string>;
   private safeZones: string[];
   private dangerousPatterns: RegExp[];
+  private unsafeArgumentContentPatterns: RegExp[];
 
   constructor(@inject('Config') private config: ServerConfig) {
     this.allowedCommands = new Set(
@@ -20,59 +21,89 @@ export class SecurityValidator implements ISecurityValidator {
     );
     this.safeZones = this.config.security.safezones.map((zone: string) => path.resolve(zone));
 
-    // Enhanced dangerous pattern detection
     this.dangerousPatterns = [
       /rm\s+-rf/i,
       /del\s+\/s/i,
       /format\s+c:/i,
       /sudo\s+/i,
       /passwd/i,
-      /chmod\s+777/i,
+      /chmod\s+(?:[0-7]{3,4}|u\+rwx|g\+rwx|o\+rwx|a\+rwx|\+x)/i,
       /dd\s+if=/i,
-      /fdisk/i,
-      /\.\.\/.*\/\.\./, // Path traversal
-      /\$\(.*\)/, // Command substitution
-      /`.*`/, // Backtick execution
-      /;\s*rm/i, // Command chaining with rm
-      /\|\s*sh/i, // Piping to shell
-      />\s*\/dev\//i, // Writing to device files
-      /curl.*\|\s*sh/i, // Curl pipe to shell
-      /wget.*\|\s*bash/i // Wget pipe to bash
+      /fdisk|mkfs|parted/i,
+      /\.\.\//,
+      /\$\(.*\)/,
+      /`.*`/,
+      /;\s*(?:rm|mv|cp|dd|mkfs|shutdown|reboot|halt)/i,
+      /\|\s*(?:sh|bash|zsh|csh|ksh|powershell|pwsh|cmd)\s*$/i,
+      />\s*\/dev\/(?:null|random|zero|sda|hda|tty|pts)/i,
+      /<\s*\/dev\/(?:random|zero|sda|hda|tty|pts)/i,
+      /(?:curl|wget)\s+.*\s*\|\s*(?:sh|bash|zsh|csh|ksh|powershell|pwsh)/i
     ];
+
+    // Load unsafe argument patterns from config
+    this.unsafeArgumentContentPatterns = (this.config.security.unsafeArgumentPatterns || []).map(patternStr => {
+      try {
+        return new RegExp(patternStr, 'i'); // Add 'i' for case-insensitivity, or make configurable
+      } catch (e) {
+        logger.error({ pattern: patternStr, error: e }, 'Invalid regex pattern in unsafeArgumentPatterns config');
+        return new RegExp('THIS_IS_AN_INVALID_REGEX_PLACEHOLDER_THAT_WILL_NOT_MATCH_ANYTHING'); // Fallback
+      }
+    });
   }
 
   async validatePath(inputPath: string): Promise<string> {
     const resolvedPath = path.resolve(inputPath);
-    const canonicalPath = await fs.realpath(resolvedPath).catch(() => resolvedPath);
+    let canonicalPath;
+    try {
+      canonicalPath = await fs.realpath(resolvedPath);
+    } catch (error) {
+      canonicalPath = resolvedPath;
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        (error as { code: string }).code !== 'ENOENT'
+      ) {
+        logger.warn({ path: inputPath, resolvedPath, error }, 'realpath failed, using resolved path for validation.');
+      }
+    }
 
     if (!this.isPathInSafeZone(canonicalPath)) {
-      throw new Error(`Path access denied: ${inputPath}`);
+      this.logSecurityEvent({
+        type: 'path_denied',
+        path: inputPath,
+        details: `Resolved to ${canonicalPath}`,
+        severity: 'high'
+      });
+      throw new Error(`Path access denied: ${inputPath} (resolved to ${canonicalPath} which is outside safe zones)`);
     }
 
     return canonicalPath;
   }
 
   async validateCommand(command: string, args: string[]): Promise<void> {
+    const fullCommand = `${command} ${args.join(' ')}`;
+
     if (this.allowedCommands.has('all')) {
-      logger.warn('All commands allowed - this is dangerous for production');
-      // Still run additional security checks even if all commands are allowed
+      logger.warn({ command: fullCommand }, 'SECURITY_RISK: All commands are currently allowed in configuration.');
     } else if (!this.allowedCommands.has(command)) {
+      this.logSecurityEvent({ type: 'command_blocked', command, details: 'Not in whitelist', severity: 'high' });
       throw new Error(`Command not allowed: ${command}`);
     }
 
-    // Enhanced validation for dangerous patterns
-    const fullCommand = `${command} ${args.join(' ')}`;
-
     for (const pattern of this.dangerousPatterns) {
       if (pattern.test(fullCommand)) {
-        throw new Error(`Potentially dangerous command blocked: ${command}`);
+        this.logSecurityEvent({
+          type: 'pattern_detected',
+          pattern: pattern.source,
+          command: fullCommand,
+          severity: 'high'
+        });
+        throw new Error(`Potentially dangerous command pattern blocked: ${pattern.source} in command "${command}"`);
       }
     }
 
-    // Shell-specific validations
     await this.validateShellSpecific(command, args);
-
-    // Additional argument validation
     this.validateArguments(args);
 
     logger.debug({ command, args }, 'Command validated');
@@ -80,128 +111,196 @@ export class SecurityValidator implements ISecurityValidator {
 
   isPathInSafeZone(testPath: string): boolean {
     const resolvedPath = path.resolve(testPath);
-    return this.safeZones.some(zone => resolvedPath.startsWith(zone));
+    return this.safeZones.some(zone => {
+      const absoluteZone = path.resolve(zone);
+      if (resolvedPath === absoluteZone) {
+        return true;
+      }
+      return resolvedPath.startsWith(absoluteZone + path.sep);
+    });
   }
 
   sanitizeInput(input: string): string {
     return input
-      .replace(/[<>:"'|?*]/g, '') // Remove potentially dangerous characters
-      .replace(/\.\./g, '') // Remove directory traversal attempts
+      .replace(/[<>:"'|?*]/g, '')
+      .replace(/\p{Cc}/gu, '')
+      .replace(/\.\.+[/\\]?/g, '')
       .trim();
   }
 
   private async validateShellSpecific(command: string, args: string[]): Promise<void> {
     const argsString = args.join(' ');
+    const lowerCommand = command.toLowerCase();
 
-    // PowerShell specific validations
-    if (command.toLowerCase().includes('powershell') || command.toLowerCase() === 'pwsh') {
+    if (lowerCommand.includes('powershell') || lowerCommand === 'pwsh') {
       const blockedCmdlets = [
         'Invoke-Expression',
+        'iex',
         'Invoke-Command',
+        'icm',
         'Start-Process',
+        'start',
         'Remove-Item',
+        'rm',
+        'del',
         'Set-ExecutionPolicy',
         'Add-Type',
         'Invoke-RestMethod',
+        'irm',
         'Invoke-WebRequest',
+        'iwr',
+        'wget',
+        'curl',
         'New-Object System.Net.WebClient',
-        'DownloadString',
-        'DownloadFile'
+        /(DownloadString|DownloadFile)\s*\(.*\)/i,
+        /-EncodedCommand|-enc\s+\S+/i
       ];
 
       for (const cmdlet of blockedCmdlets) {
-        if (argsString.toLowerCase().includes(cmdlet.toLowerCase())) {
-          throw new Error(`Blocked PowerShell cmdlet: ${cmdlet}`);
+        const pattern =
+          typeof cmdlet === 'string' ? new RegExp(`(?:^|\\s|[-/;])${cmdlet}(?:$|\\s|[-/;])`, 'i') : cmdlet;
+        if (pattern.test(argsString) || pattern.test(command)) {
+          this.logSecurityEvent({
+            type: 'pattern_detected',
+            pattern: pattern.source,
+            command: `${command} ${argsString}`,
+            details: 'Blocked PowerShell cmdlet/feature',
+            severity: 'high'
+          });
+          throw new Error(`Blocked PowerShell cmdlet/feature: ${pattern.source}`);
         }
-      }
-
-      // Block PowerShell encoded commands
-      if (argsString.includes('-EncodedCommand') || argsString.includes('-enc')) {
-        throw new Error('Encoded PowerShell commands are not allowed');
       }
     }
 
-    // Bash/sh specific validations
-    if (['bash', 'sh', 'zsh'].includes(command)) {
+    if (['bash', 'sh', 'zsh', 'ksh', 'csh'].includes(lowerCommand)) {
+      const blockedFeatures = ['eval', 'exec', 'source', /\.\s/, /\$\(\(|\$\[/];
+      for (const feature of blockedFeatures) {
+        const pattern = typeof feature === 'string' ? new RegExp(`(?:^|\\s)${feature}(?:$|\\s)`, 'i') : feature;
+        if (pattern.test(argsString)) {
+          this.logSecurityEvent({
+            type: 'pattern_detected',
+            pattern: pattern.source,
+            command: `${command} ${argsString}`,
+            details: 'Blocked shell feature',
+            severity: 'high'
+          });
+          throw new Error(`Blocked shell feature: ${pattern.source}`);
+        }
+      }
+    }
+
+    if (lowerCommand.includes('cmd') || lowerCommand === 'cmd.exe') {
       const blockedFeatures = [
-        'eval',
-        'exec',
-        'source',
-        '$((', // Arithmetic expansion
-        '$[', // Old arithmetic expansion
-        '<(', // Process substitution
-        '>(' // Process substitution
+        'start',
+        'call',
+        /for\s+\/f/i,
+        'powershell',
+        'wscript',
+        'cscript',
+        'reg add',
+        'reg delete'
       ];
-
       for (const feature of blockedFeatures) {
-        if (argsString.includes(feature)) {
-          throw new Error(`Blocked shell feature: ${feature}`);
+        const pattern = typeof feature === 'string' ? new RegExp(`(?:^|\\s)${feature}(?:$|\\s)`, 'i') : feature;
+        if (pattern.test(argsString)) {
+          this.logSecurityEvent({
+            type: 'pattern_detected',
+            pattern: pattern.source,
+            command: `${command} ${argsString}`,
+            details: 'Blocked CMD feature',
+            severity: 'high'
+          });
+          throw new Error(`Blocked CMD feature: ${pattern.source}`);
         }
       }
     }
 
-    // CMD specific validations
-    if (command.toLowerCase().includes('cmd')) {
-      const blockedFeatures = ['start', 'call', 'for /f', 'powershell', 'wscript', 'cscript'];
-
-      for (const feature of blockedFeatures) {
-        if (argsString.toLowerCase().includes(feature)) {
-          throw new Error(`Blocked CMD feature: ${feature}`);
-        }
-      }
-    }
-
-    // WSL specific validations
-    if (command === 'wsl' || command === 'wsl.exe') {
-      // Prevent escaping to Windows from WSL
+    if (lowerCommand === 'wsl' || lowerCommand === 'wsl.exe') {
       if (
         argsString.includes('/mnt/c/Windows/System32') ||
-        argsString.includes('cmd.exe') ||
-        argsString.includes('powershell.exe')
+        argsString.match(/\bcmd\.exe\b/i) ||
+        argsString.match(/\bpowershell\.exe\b/i)
       ) {
-        throw new Error('WSL access to Windows system directories blocked');
+        this.logSecurityEvent({
+          type: 'pattern_detected',
+          pattern: 'wsl_windows_escape',
+          command: `${command} ${argsString}`,
+          details: 'WSL escape to Windows system blocked',
+          severity: 'high'
+        });
+        throw new Error('WSL access to Windows system directories or shells blocked');
       }
     }
   }
 
   private validateArguments(args: string[]): void {
     for (const arg of args) {
-      // Check for path traversal in arguments
       if (arg.includes('../') || arg.includes('..\\')) {
+        this.logSecurityEvent({
+          type: 'pattern_detected',
+          pattern: 'path_traversal_argument',
+          details: `Argument: ${arg}`,
+          severity: 'high'
+        });
         throw new Error('Path traversal attempts in arguments are blocked');
       }
 
-      // Check for null bytes (used in some exploits)
       if (arg.includes('\0')) {
+        this.logSecurityEvent({
+          type: 'pattern_detected',
+          pattern: 'null_byte_argument',
+          details: `Argument: ${arg}`,
+          severity: 'high'
+        });
         throw new Error('Null bytes in arguments are not allowed');
       }
 
-      // Check for extremely long arguments (potential buffer overflow)
       if (arg.length > 4096) {
-        throw new Error('Argument too long');
+        this.logSecurityEvent({
+          type: 'pattern_detected',
+          pattern: 'long_argument',
+          details: `Argument length: ${arg.length}`,
+          severity: 'medium'
+        });
+        throw new Error('Argument too long (max 4096 chars)');
       }
 
-      // Check for common injection patterns
-      const injectionPatterns = [
-        /&&/, // Command chaining
-        /\|\|/, // OR command chaining
-        /;/, // Command separator
-        /\|/, // Pipe
-        />/, // Redirect
-        /</ // Input redirect
+      const shellMetaCharPatterns = [
+        { pattern: /&&/, name: 'command_chaining_&&' },
+        { pattern: /\|\|/, name: 'command_chaining_||' },
+        { pattern: /;/, name: 'command_separator_;' },
+        { pattern: /\|(?![|=])/, name: 'pipe_|' },
+        { pattern: />/, name: 'redirect_>' },
+        { pattern: /</, name: 'redirect_<' }
       ];
 
-      for (const pattern of injectionPatterns) {
+      for (const { pattern, name } of shellMetaCharPatterns) {
         if (pattern.test(arg)) {
-          logger.warn({ arg, pattern: pattern.source }, 'Potentially dangerous argument pattern detected');
-          // Note: Not throwing error here as these might be legitimate in some contexts
-          // Consider making this configurable based on security level
+          this.logSecurityEvent({
+            type: 'pattern_detected',
+            pattern: name,
+            details: `Argument: ${arg}`,
+            severity: 'high'
+          });
+          throw new Error(`Potentially dangerous shell metacharacter '${pattern.source}' in argument: ${arg}`);
+        }
+      }
+
+      // Use the patterns loaded from config
+      for (const pattern of this.unsafeArgumentContentPatterns) {
+        if (pattern.test(arg)) {
+          this.logSecurityEvent({
+            type: 'pattern_detected',
+            pattern: pattern.source,
+            details: `Argument: ${arg}`,
+            severity: 'high'
+          });
+          throw new Error(`Unsafe argument content detected (pattern: ${pattern.source}): ${arg}`);
         }
       }
     }
   }
 
-  // Additional method for runtime security monitoring
   public logSecurityEvent(event: {
     type: 'command_blocked' | 'path_denied' | 'pattern_detected';
     command?: string;
@@ -212,15 +311,17 @@ export class SecurityValidator implements ISecurityValidator {
   }): void {
     logger.warn(
       {
-        securityEvent: event,
-        timestamp: new Date().toISOString()
+        securityEvent: {
+          type: event.type,
+          command: event.command,
+          path: event.path,
+          pattern: event.pattern,
+          severity: event.severity,
+          details: event.details,
+          timestamp: new Date().toISOString()
+        }
       },
-      `Security event: ${event.type}`
+      `SECURITY_EVENT (${event.severity.toUpperCase()}): ${event.type}. ${event.details || ''}`
     );
-
-    // In a production system, you might want to:
-    // - Send alerts for high severity events
-    // - Log to a security monitoring system
-    // - Implement rate limiting for repeated violations
   }
 }
