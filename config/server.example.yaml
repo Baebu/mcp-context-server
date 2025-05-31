@@ -1,0 +1,37 @@
+﻿server:
+  name: 'mcp-context-server'
+  version: '1.0.0'
+
+security:
+  allowedCommands:
+    - 'ls'
+    - 'cat'
+    - 'grep'
+    - 'find'
+    - 'git'
+    - 'npm'
+    - 'node'
+    - 'python'
+    - 'python3'
+    - 'echo'
+    - 'pwd'
+    - 'which'
+    - 'whoami'
+  safezones:
+    - '.'
+    - '/tmp'
+    - '/var/tmp'
+  maxExecutionTime: 30000 # 30 seconds
+  maxFileSize: 10485760 # 10MB
+
+database:
+  path: './data/context.db'
+  backupInterval: 60 # minutes, 0 to disable
+
+logging:
+  level: 'info' # trace, debug, info, warn, error, fatal
+  pretty: true
+
+performance:
+  maxConcurrency: 10
+  queueSize: 1000

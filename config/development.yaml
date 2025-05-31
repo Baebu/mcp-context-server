@@ -1,0 +1,24 @@
+﻿server:
+  name: 'mcp-context-server-dev'
+  version: '1.0.0-dev'
+
+security:
+  allowedCommands: 'all' # Allow all commands in development
+  safezones:
+    - '.'
+    - '/tmp'
+    - '/home'
+  maxExecutionTime: 60000 # 1 minute in dev
+  maxFileSize: 52428800 # 50MB in dev
+
+database:
+  path: './data/context-dev.db'
+  backupInterval: 0 # Disable backups in dev
+
+logging:
+  level: 'debug'
+  pretty: true
+
+performance:
+  maxConcurrency: 5
+  queueSize: 100

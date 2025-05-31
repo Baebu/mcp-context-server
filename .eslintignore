@@ -1,0 +1,23 @@
+﻿# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Dependencies
+node_modules/
+
+# Data and logs
+data/
+logs/
+*.log
+
+# Coverage reports
+coverage/
+.nyc_output/
+
+# Environment files
+.env*
+
+# Generated files
+**/*.d.ts
+**/*.js.map
