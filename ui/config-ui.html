@@ -1,0 +1,1142 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MCP Context Server - Configuration Dashboard</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --bg-primary: #0f172a;
+      --bg-secondary: #1e293b;
+      --bg-tertiary: #334155;
+      --text-primary: #f1f5f9;
+      --text-secondary: #cbd5e1;
+      --text-muted: #94a3b8;
+      --border: #475569;
+      --radius: 8px;
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 3rem;
+      padding: 2rem;
+      background: var(--bg-secondary);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .header h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, var(--primary), #8b5cf6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .header p {
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+    }
+
+    .status-bar {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .status-card {
+      flex: 1;
+      min-width: 200px;
+      padding: 1.5rem;
+      background: var(--bg-secondary);
+      border-radius: var(--radius);
+      border-left: 4px solid var(--primary);
+      box-shadow: var(--shadow);
+    }
+
+    .status-card h3 {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.5rem;
+    }
+
+    .status-card .value {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    @media (max-width: 1024px) {
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .section {
+      background: var(--bg-secondary);
+      border-radius: var(--radius);
+      padding: 2rem;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+    }
+
+    .section h2 {
+      font-size: 1.5rem;
+      margin-bottom: 1.5rem;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .section-icon {
+      width: 1.5rem;
+      height: 1.5rem;
+      background: var(--primary);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+    }
+
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+
+    .form-control:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .form-control::placeholder {
+      color: var(--text-muted);
+    }
+
+    textarea.form-control {
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 0.9rem;
+      font-weight: 500;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-hover);
+      transform: translateY(-1px);
+    }
+
+    .btn-success {
+      background: var(--success);
+      color: white;
+    }
+
+    .btn-warning {
+      background: var(--warning);
+      color: white;
+    }
+
+    .btn-danger {
+      background: var(--danger);
+      color: white;
+    }
+
+    .btn-secondary {
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .command-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .command-tag {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      border: 1px solid var(--border);
+    }
+
+    .command-tag .remove {
+      cursor: pointer;
+      color: var(--danger);
+      font-weight: bold;
+    }
+
+    .test-area {
+      background: var(--bg-tertiary);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      margin-top: 1rem;
+      border: 1px solid var(--border);
+    }
+
+    .output {
+      background: #000;
+      color: #00ff00;
+      padding: 1rem;
+      border-radius: var(--radius);
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      max-height: 200px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      margin-top: 1rem;
+    }
+
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 1.5rem;
+    }
+
+    .tab {
+      padding: 0.75rem 1.5rem;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      color: var(--text-muted);
+      transition: all 0.2s;
+    }
+
+    .tab.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .context-item {
+      background: var(--bg-tertiary);
+      border-radius: var(--radius);
+      padding: 1rem;
+      margin-bottom: 1rem;
+      border: 1px solid var(--border);
+    }
+
+    .context-item h4 {
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+    }
+
+    .context-meta {
+      display: flex;
+      gap: 1rem;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    .alert {
+      padding: 1rem;
+      border-radius: var(--radius);
+      margin-bottom: 1rem;
+      border-left: 4px solid;
+    }
+
+    .alert-success {
+      background: rgba(16, 185, 129, 0.1);
+      border-left-color: var(--success);
+      color: var(--success);
+    }
+
+    .alert-warning {
+      background: rgba(245, 158, 11, 0.1);
+      border-left-color: var(--warning);
+      color: var(--warning);
+    }
+
+    .alert-danger {
+      background: rgba(239, 68, 68, 0.1);
+      border-left-color: var(--danger);
+      color: var(--danger);
+    }
+
+    .loading {
+      display: inline-block;
+      width: 1rem;
+      height: 1rem;
+      border: 2px solid var(--border);
+      border-top: 2px solid var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    .full-width {
+      grid-column: 1 / -1;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .metric-card {
+      background: var(--bg-tertiary);
+      padding: 1rem;
+      border-radius: var(--radius);
+      text-align: center;
+      border: 1px solid var(--border);
+    }
+
+    .metric-card .label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    .metric-card .value {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>MCP Context Server</h1>
+      <p>Configuration Dashboard & Management Interface</p>
+    </div>
+
+    <div class="status-bar">
+      <div class="status-card">
+        <h3>Server Status</h3>
+        <div class="value" id="serverStatus">🟢 Online</div>
+      </div>
+      <div class="status-card">
+        <h3>Total Context Items</h3>
+        <div class="value" id="contextCount">-</div>
+      </div>
+      <div class="status-card">
+        <h3>Smart Paths</h3>
+        <div class="value" id="smartPathCount">-</div>
+      </div>
+      <div class="status-card">
+        <h3>Allowed Commands</h3>
+        <div class="value" id="commandCount">-</div>
+      </div>
+    </div>
+
+    <div class="main-grid">
+      <!-- Security Configuration -->
+      <div class="section">
+        <h2>
+          <span class="section-icon">🔒</span>
+          Security Configuration
+        </h2>
+
+        <div class="form-group">
+          <label for="allowedCommands">Allowed Commands</label>
+          <div class="btn-group">
+            <button class="btn btn-secondary" onclick="setSecurityLevel('minimal')">Minimal</button>
+            <button class="btn btn-secondary" onclick="setSecurityLevel('standard')">Standard</button>
+            <button class="btn btn-secondary" onclick="setSecurityLevel('developer')">Developer</button>
+            <button class="btn btn-warning" onclick="setSecurityLevel('all')">All (Dangerous)</button>
+          </div>
+          <div class="command-list" id="commandList"></div>
+        </div>
+
+        <div class="form-group">
+          <label for="addCommand">Add Custom Command</label>
+          <div style="display: flex; gap: 0.5rem;">
+            <input type="text" id="addCommand" class="form-control" placeholder="e.g., python3">
+            <button class="btn btn-primary" onclick="addCommand()">Add</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="safezones">Safe Zones (one per line)</label>
+          <textarea id="safezones" class="form-control" rows="4" placeholder=".\n/tmp\n/var/tmp"></textarea>
+        </div>
+
+        <div class="btn-group">
+          <button class="btn btn-success" onclick="saveSecurityConfig()">💾 Save Security Config</button>
+          <button class="btn btn-secondary" onclick="loadCurrentConfig()">🔄 Reload Config</button>
+        </div>
+      </div>
+
+      <!-- Command Testing -->
+      <div class="section">
+        <h2>
+          <span class="section-icon">🧪</span>
+          Command Testing
+        </h2>
+
+        <div class="form-group">
+          <label for="testCommand">Test Command</label>
+          <input type="text" id="testCommand" class="form-control" placeholder="echo Hello World">
+        </div>
+
+        <div class="form-group">
+          <label for="testArgs">Arguments (one per line)</label>
+          <textarea id="testArgs" class="form-control" rows="3" placeholder="--version"></textarea>
+        </div>
+
+        <div class="btn-group">
+          <button class="btn btn-primary" onclick="testCommand()">🚀 Execute Command</button>
+          <button class="btn btn-secondary" onclick="clearOutput()">🗑️ Clear Output</button>
+        </div>
+
+        <div class="output" id="commandOutput">Ready to execute commands...</div>
+      </div>
+
+      <!-- Context Management -->
+      <div class="section full-width">
+        <h2>
+          <span class="section-icon">💾</span>
+          Context Management
+        </h2>
+
+        <div class="tabs">
+          <div class="tab active" onclick="switchTab('store')">Store Context</div>
+          <div class="tab" onclick="switchTab('query')">Query Context</div>
+          <div class="tab" onclick="switchTab('smart-paths')">Smart Paths</div>
+        </div>
+
+        <!-- Store Context Tab -->
+        <div class="tab-content active" id="store-tab">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+            <div>
+              <div class="form-group">
+                <label for="contextKey">Context Key</label>
+                <input type="text" id="contextKey" class="form-control" placeholder="my_project_config">
+              </div>
+
+              <div class="form-group">
+                <label for="contextType">Type</label>
+                <select id="contextType" class="form-control">
+                  <option value="generic">Generic</option>
+                  <option value="project">Project</option>
+                  <option value="config">Configuration</option>
+                  <option value="notes">Notes</option>
+                  <option value="data">Data</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="contextValue">Value (JSON)</label>
+                <textarea id="contextValue" class="form-control" rows="6"
+                  placeholder='{"name": "My Project", "version": "1.0.0"}'></textarea>
+              </div>
+
+              <button class="btn btn-success" onclick="storeContext()">💾 Store Context</button>
+            </div>
+
+            <div>
+              <h3>Recent Context Items</h3>
+              <div id="recentContexts"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Query Context Tab -->
+        <div class="tab-content" id="query-tab">
+          <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 2rem;">
+            <div>
+              <div class="form-group">
+                <label for="queryType">Filter by Type</label>
+                <select id="queryType" class="form-control">
+                  <option value="">All Types</option>
+                  <option value="project">Project</option>
+                  <option value="config">Configuration</option>
+                  <option value="notes">Notes</option>
+                  <option value="data">Data</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="queryPattern">Key Pattern</label>
+                <input type="text" id="queryPattern" class="form-control" placeholder="project">
+              </div>
+
+              <div class="form-group">
+                <label for="queryLimit">Limit</label>
+                <input type="number" id="queryLimit" class="form-control" value="10" min="1" max="100">
+              </div>
+
+              <button class="btn btn-primary" onclick="queryContexts()">🔍 Query Contexts</button>
+            </div>
+
+            <div>
+              <h3>Query Results</h3>
+              <div id="queryResults"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Smart Paths Tab -->
+        <div class="tab-content" id="smart-paths-tab">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+            <div>
+              <div class="form-group">
+                <label for="smartPathName">Smart Path Name</label>
+                <input type="text" id="smartPathName" class="form-control" placeholder="project_bundle">
+              </div>
+
+              <div class="form-group">
+                <label for="smartPathType">Type</label>
+                <select id="smartPathType" class="form-control">
+                  <option value="item_bundle">Item Bundle</option>
+                  <option value="query_template">Query Template</option>
+                  <option value="file_set">File Set</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="smartPathItems">Context Items (one per line)</label>
+                <textarea id="smartPathItems" class="form-control" rows="4"
+                  placeholder="project_config&#10;user_preferences&#10;app_settings"></textarea>
+              </div>
+
+              <div class="form-group">
+                <label for="smartPathDescription">Description</label>
+                <input type="text" id="smartPathDescription" class="form-control"
+                  placeholder="Bundle of project-related contexts">
+              </div>
+
+              <button class="btn btn-success" onclick="createSmartPath()">✨ Create Smart Path</button>
+            </div>
+
+            <div>
+              <h3>Existing Smart Paths</h3>
+              <div id="smartPathList"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Metrics & Status -->
+      <div class="section full-width">
+        <h2>
+          <span class="section-icon">📊</span>
+          Server Metrics & Status
+        </h2>
+
+        <div class="btn-group">
+          <button class="btn btn-primary" onclick="refreshMetrics()">🔄 Refresh Metrics</button>
+          <button class="btn btn-secondary" onclick="exportConfig()">📄 Export Config</button>
+        </div>
+
+        <div class="metric-grid" id="metricsGrid"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Global state
+    let currentConfig = {
+      allowedCommands: ['ls', 'cat', 'echo', 'pwd'],
+      safezones: ['.', '/tmp'],
+      contexts: [],
+      smartPaths: []
+    };
+
+    // Security level presets
+    const securityLevels = {
+      minimal: ['echo', 'pwd'],
+      standard: ['ls', 'cat', 'grep', 'find', 'echo', 'pwd', 'whoami'],
+      developer: ['ls', 'cat', 'grep', 'find', 'echo', 'pwd', 'whoami', 'node', 'npm', 'git', 'python', 'python3'],
+      all: 'all'
+    };
+
+    // API base URL - adjust if needed
+    const API_BASE = window.location.origin;
+
+    // Real API integration functions
+    async function callMCPTool(toolName, args) {
+      const response = await fetch(`${API_BASE}/api/execute`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tool: toolName, arguments: args })
+      });
+
+      if (!response.ok) {
+        throw new Error(`API call failed: ${response.statusText}`);
+      }
+
+      return await response.json();
+    }
+
+    // Load actual server configuration
+    async function loadCurrentConfig() {
+      try {
+        const response = await fetch(`${API_BASE}/api/config`);
+        const config = await response.json();
+
+        currentConfig.allowedCommands = config.allowedCommands;
+        currentConfig.safezones = config.safezones;
+
+        document.getElementById('safezones').value = config.safezones.join('\n');
+        updateCommandList();
+        updateCommandCount();
+
+        showAlert('Configuration loaded successfully!', 'success');
+      } catch (error) {
+        showAlert('Failed to load config: ' + error.message, 'danger');
+        console.error('Config load error:', error);
+      }
+    }
+
+    // Real command testing
+    async function testCommand() {
+      const command = document.getElementById('testCommand').value.trim();
+      const argsText = document.getElementById('testArgs').value.trim();
+      const args = argsText ? argsText.split('\n').map(a => a.trim()).filter(a => a) : [];
+      const output = document.getElementById('commandOutput');
+
+      if (!command) {
+        output.textContent = 'Error: Please enter a command to test';
+        return;
+      }
+
+      output.innerHTML = '<div class="loading"></div> Executing command...';
+
+      try {
+        const result = await callMCPTool('execute_command', {
+          command,
+          args,
+          timeout: 10000
+        });
+
+        if (result.content && result.content[0]) {
+          const commandResult = JSON.parse(result.content[0].text);
+          output.textContent = `✅ Command: ${command} ${args.join(' ')}\n` +
+            `📤 Exit Code: ${commandResult.exitCode}\n` +
+            `⏱️  Execution Time: ${commandResult.executionTime}ms\n` +
+            `📋 STDOUT:\n${commandResult.stdout}\n` +
+            (commandResult.stderr ? `❌ STDERR:\n${commandResult.stderr}\n` : '');
+        } else {
+          output.textContent = `✅ Command executed successfully:\n${JSON.stringify(result, null, 2)}`;
+        }
+      } catch (error) {
+        output.textContent = `❌ Command failed:\n${error.message}\n\n` +
+          `💡 Possible causes:\n` +
+          `- Command not in allowed list\n` +
+          `- Command not found in system PATH\n` +
+          `- Security policy blocked execution`;
+      }
+    }
+
+    // Real context storage
+    async function storeContext() {
+      const key = document.getElementById('contextKey').value.trim();
+      const type = document.getElementById('contextType').value;
+      const valueText = document.getElementById('contextValue').value.trim();
+
+      if (!key || !valueText) {
+        showAlert('Please enter both key and value', 'danger');
+        return;
+      }
+
+      try {
+        const value = JSON.parse(valueText);
+
+        const result = await callMCPTool('store_context', {
+          key,
+          value,
+          type
+        });
+
+        if (result.content && result.content[0]) {
+          showAlert(`Context "${key}" stored successfully!`, 'success');
+
+          // Add to local state for UI updates
+          const context = { key, type, value, createdAt: new Date().toISOString() };
+          currentConfig.contexts = currentConfig.contexts.filter(c => c.key !== key);
+          currentConfig.contexts.unshift(context);
+
+          // Clear form
+          document.getElementById('contextKey').value = '';
+          document.getElementById('contextValue').value = '';
+
+          loadRecentContexts();
+          updateContextCount();
+        }
+      } catch (error) {
+        if (error.message.includes('JSON')) {
+          showAlert('Invalid JSON in value field', 'danger');
+        } else {
+          showAlert('Failed to store context: ' + error.message, 'danger');
+        }
+      }
+    }
+
+    // Real context querying
+    async function queryContexts() {
+      const type = document.getElementById('queryType').value;
+      const pattern = document.getElementById('queryPattern').value;
+      const limit = parseInt(document.getElementById('queryLimit').value);
+
+      try {
+        const queryParams = { limit };
+        if (type) queryParams.type = type;
+        if (pattern) queryParams.keyPattern = pattern;
+
+        const result = await callMCPTool('query_context', queryParams);
+
+        if (result.content && result.content[0]) {
+          const contexts = JSON.parse(result.content[0].text);
+          displayQueryResults(contexts);
+          currentConfig.contexts = contexts; // Update local state
+        }
+      } catch (error) {
+        showAlert('Failed to query contexts: ' + error.message, 'danger');
+      }
+    }
+
+    // Load recent contexts from server
+    async function loadRecentContexts() {
+      try {
+        const result = await callMCPTool('query_context', { limit: 5 });
+
+        if (result.content && result.content[0]) {
+          const contexts = JSON.parse(result.content[0].text);
+          const container = document.getElementById('recentContexts');
+
+          container.innerHTML = '';
+          contexts.forEach(context => {
+            const item = document.createElement('div');
+            item.className = 'context-item';
+            item.innerHTML = `
+                        <h4>${context.key}</h4>
+                        <div class="context-meta">
+                            <span>${context.type}</span>
+                            <span>${new Date(context.createdAt).toLocaleDateString()}</span>
+                        </div>
+                    `;
+            container.appendChild(item);
+          });
+
+          currentConfig.contexts = contexts;
+          updateContextCount();
+        }
+      } catch (error) {
+        console.error('Failed to load recent contexts:', error);
+      }
+    }
+
+    // Real smart path creation
+    async function createSmartPath() {
+      const name = document.getElementById('smartPathName').value.trim();
+      const type = document.getElementById('smartPathType').value;
+      const itemsText = document.getElementById('smartPathItems').value.trim();
+      const description = document.getElementById('smartPathDescription').value.trim();
+
+      if (!name || !itemsText) {
+        showAlert('Please enter name and items', 'danger');
+        return;
+      }
+
+      try {
+        const items = itemsText.split('\n').map(item => item.trim()).filter(item => item);
+
+        const result = await callMCPTool('create_smart_path', {
+          name,
+          type,
+          definition: {
+            items,
+            metadata: { description }
+          }
+        });
+
+        if (result.content && result.content[0]) {
+          const response = JSON.parse(result.content[0].text);
+
+          if (response.success) {
+            showAlert(`Smart path "${name}" created successfully!`, 'success');
+
+            // Clear form
+            document.getElementById('smartPathName').value = '';
+            document.getElementById('smartPathItems').value = '';
+            document.getElementById('smartPathDescription').value = '';
+
+            loadSmartPaths();
+            updateSmartPathCount();
+          } else {
+            showAlert('Failed to create smart path', 'danger');
+          }
+        }
+      } catch (error) {
+        showAlert('Failed to create smart path: ' + error.message, 'danger');
+      }
+    }
+
+    // Load smart paths from server
+    async function loadSmartPaths() {
+      try {
+        const result = await callMCPTool('list_smart_paths', {});
+
+        if (result.content && result.content[0]) {
+          const data = JSON.parse(result.content[0].text);
+          const smartPaths = data.smart_paths || [];
+
+          const container = document.getElementById('smartPathList');
+          container.innerHTML = '';
+
+          smartPaths.forEach(sp => {
+            const item = document.createElement('div');
+            item.className = 'context-item';
+            item.innerHTML = `
+                        <h4>${sp.name}</h4>
+                        <div class="context-meta">
+                            <span>Type: ${sp.type}</span>
+                            <span>Usage: ${sp.usageCount}</span>
+                        </div>
+                        <button class="btn btn-primary btn-sm" onclick="executeSmartPath('${sp.id}')">Execute</button>
+                    `;
+            container.appendChild(item);
+          });
+
+          currentConfig.smartPaths = smartPaths;
+          updateSmartPathCount();
+        }
+      } catch (error) {
+        console.error('Failed to load smart paths:', error);
+      }
+    }
+
+    // Execute a smart path
+    async function executeSmartPath(id) {
+      try {
+        const result = await callMCPTool('execute_smart_path', { id });
+
+        if (result.content && result.content[0]) {
+          const data = JSON.parse(result.content[0].text);
+          showAlert(`Smart path executed! Retrieved ${data.data?.count || 0} items`, 'success');
+
+          // Could display the results in a modal or separate section
+          console.log('Smart path result:', data);
+        }
+      } catch (error) {
+        showAlert('Failed to execute smart path: ' + error.message, 'danger');
+      }
+    }
+
+    // Real metrics loading
+    async function refreshMetrics() {
+      try {
+        const response = await fetch(`${API_BASE}/api/metrics`);
+        const metrics = await response.json();
+
+        // Get server metrics from MCP
+        const mcpResult = await callMCPTool('get_metrics', {});
+        let serverMetrics = {};
+
+        if (mcpResult.content && mcpResult.content[0]) {
+          serverMetrics = JSON.parse(mcpResult.content[0].text);
+        }
+
+        // Combine system and server metrics
+        const combinedMetrics = {
+          'Uptime': formatUptime(metrics.uptime),
+          'Memory Usage': formatBytes(metrics.memoryUsage.rss),
+          'CPU Usage': 'N/A', // Would need more complex calculation
+          'Request Count': serverMetrics.server?.requestCount || 'N/A',
+          'Error Count': serverMetrics.server?.errorCount || 'N/A',
+          'Database Size': 'N/A', // Could add to metrics
+          'Contexts': currentConfig.contexts.length,
+          'Smart Paths': currentConfig.smartPaths.length
+        };
+
+        const container = document.getElementById('metricsGrid');
+        container.innerHTML = '';
+
+        Object.entries(combinedMetrics).forEach(([label, value]) => {
+          const card = document.createElement('div');
+          card.className = 'metric-card';
+          card.innerHTML = `
+                    <div class="label">${label}</div>
+                    <div class="value">${value}</div>
+                `;
+          container.appendChild(card);
+        });
+
+      } catch (error) {
+        console.error('Failed to refresh metrics:', error);
+        showAlert('Failed to refresh metrics: ' + error.message, 'danger');
+      }
+    }
+
+    // Helper functions
+    function formatUptime(seconds) {
+      const hours = Math.floor(seconds / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+      return `${hours}h ${minutes}m`;
+    }
+
+    function formatBytes(bytes) {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // Real configuration saving
+    async function saveSecurityConfig() {
+      const safezones = document.getElementById('safezones').value.split('\n').map(s => s.trim()).filter(s => s);
+
+      try {
+        // This would need a corresponding API endpoint to save config
+        const response = await fetch(`${API_BASE}/api/config`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            allowedCommands: currentConfig.allowedCommands,
+            safezones: safezones
+          })
+        });
+
+        if (response.ok) {
+          showAlert('Security configuration saved successfully!', 'success');
+          currentConfig.safezones = safezones;
+        } else {
+          throw new Error('Failed to save configuration');
+        }
+      } catch (error) {
+        showAlert('Failed to save configuration: ' + error.message, 'danger');
+      }
+    }
+
+    // The following functions remain unchanged:
+    function setSecurityLevel(level) {
+      currentConfig.allowedCommands = securityLevels[level];
+      updateCommandList();
+      updateCommandCount();
+    }
+
+    function addCommand() {
+      const input = document.getElementById('addCommand');
+      const command = input.value.trim();
+      if (command && !currentConfig.allowedCommands.includes(command)) {
+        if (currentConfig.allowedCommands === 'all') {
+          currentConfig.allowedCommands = [...securityLevels.developer];
+        }
+        currentConfig.allowedCommands.push(command);
+        updateCommandList();
+        updateCommandCount();
+        input.value = '';
+      }
+    }
+
+    function removeCommand(command) {
+      if (currentConfig.allowedCommands !== 'all') {
+        currentConfig.allowedCommands = currentConfig.allowedCommands.filter(cmd => cmd !== command);
+        updateCommandList();
+        updateCommandCount();
+      }
+    }
+
+    function updateCommandList() {
+      const container = document.getElementById('commandList');
+      container.innerHTML = '';
+
+      if (currentConfig.allowedCommands === 'all') {
+        container.innerHTML = '<div class="alert alert-warning">⚠️ All commands allowed - This is dangerous for production!</div>';
+      } else {
+        currentConfig.allowedCommands.forEach(command => {
+          const tag = document.createElement('div');
+          tag.className = 'command-tag';
+          tag.innerHTML = `${command} <span class="remove" onclick="removeCommand('${command}')">&times;</span>`;
+          container.appendChild(tag);
+        });
+      }
+    }
+
+    function updateCommandCount() {
+      const count = currentConfig.allowedCommands === 'all' ? 'ALL' : currentConfig.allowedCommands.length;
+      document.getElementById('commandCount').textContent = count;
+    }
+
+    function clearOutput() {
+      document.getElementById('commandOutput').textContent = 'Ready to execute commands...';
+    }
+
+    function switchTab(tabName) {
+      // Update tab buttons
+      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+      event.target.classList.add('active');
+
+      // Update tab content
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+      document.getElementById(tabName + '-tab').classList.add('active');
+    }
+
+    function displayQueryResults(results) {
+      const container = document.getElementById('queryResults');
+      container.innerHTML = '';
+
+      if (results.length === 0) {
+        container.innerHTML = '<div class="alert alert-warning">No matching contexts found</div>';
+        return;
+      }
+
+      results.forEach(context => {
+        const item = document.createElement('div');
+        item.className = 'context-item';
+        item.innerHTML = `
+                    <h4>${context.key}</h4>
+                    <div class="context-meta">
+                        <span>Type: ${context.type}</span>
+                        <span>Created: ${new Date(context.createdAt).toLocaleDateString()}</span>
+                    </div>
+                    <pre style="font-size: 0.8rem; color: var(--text-muted); overflow-x: auto;">${JSON.stringify(context.value, null, 2)}</pre>
+                `;
+        container.appendChild(item);
+      });
+    }
+
+    function updateContextCount() {
+      document.getElementById('contextCount').textContent = currentConfig.contexts.length;
+    }
+
+    function updateSmartPathCount() {
+      document.getElementById('smartPathCount').textContent = currentConfig.smartPaths.length;
+    }
+
+    function showAlert(message, type) {
+      const alertDiv = document.createElement('div');
+      alertDiv.className = `alert alert-${type}`;
+      alertDiv.textContent = message;
+
+      // Insert at the top of the first section
+      const firstSection = document.querySelector('.section');
+      firstSection.insertBefore(alertDiv, firstSection.firstChild);
+
+      // Remove after 5 seconds
+      setTimeout(() => {
+        alertDiv.remove();
+      }, 5000);
+    }
+
+    // Initialize with real data
+    async function init() {
+      try {
+        await loadCurrentConfig();
+        await refreshMetrics();
+        await loadRecentContexts();
+        await loadSmartPaths();
+
+        // Set up periodic refresh
+        setInterval(refreshMetrics, 30000); // Refresh every 30 seconds
+      } catch (error) {
+        console.error('Initialization error:', error);
+        showAlert('Failed to initialize UI. Make sure the MCP server is running.', 'danger');
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+
+</html>

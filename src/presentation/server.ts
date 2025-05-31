@@ -39,6 +39,7 @@ export class MCPContextServer {
   }
 
   async start(): Promise<void> {
+    // Log to stderr only
     logger.info('Starting MCP Context Server...');
 
     // Register all capabilities
@@ -65,42 +66,72 @@ export class MCPContextServer {
     const toolRegistry = this.container.get<IToolRegistry>('ToolRegistry');
     const tools = await toolRegistry.getAllTools();
 
-    // Register tools/list handler - returns list of available tools
+    // Register tools/list handler
     this.mcpServer.setRequestHandler(ListToolsRequestSchema, async () => {
-      return {
+      const result = {
         tools: tools.map(tool => ({
           name: tool.name,
           description: tool.description,
           inputSchema: {
             type: 'object',
-            properties: {},
             additionalProperties: true
           }
         }))
       };
+
+      return result;
     });
 
-    // Register tools/call handler - executes a specific tool
-    this.mcpServer.setRequestHandler(
-      CallToolRequestSchema,
-      async (request: { params: { name?: string; arguments?: Record<string, unknown> } }) => {
-        const toolName = request.params?.name;
-        const tool = tools.find(t => t.name === toolName);
+    // Register tools/call handler
+    this.mcpServer.setRequestHandler(CallToolRequestSchema, async request => {
+      const toolName = request.params?.name;
+      const tool = tools.find(t => t.name === toolName);
 
-        if (!tool) {
-          throw new Error(`Unknown tool: ${toolName}`);
+      if (!tool) {
+        const error = new Error(`Unknown tool: ${toolName}`);
+        logger.error({ toolName }, error.message);
+        throw error;
+      }
+
+      try {
+        const validatedArgs = tool.schema.parse(request.params?.arguments || {});
+        const context = this.createToolContext();
+        const result = await tool.execute(validatedArgs, context);
+
+        // Ensure proper response format
+        if (!result.content || !Array.isArray(result.content)) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: 'Tool executed successfully'
+              }
+            ],
+            isError: false
+          };
         }
 
-        const context = this.createToolContext();
-        const result = await tool.execute(request.params?.arguments || {}, context);
-
-        // Return MCP-compliant response
         return {
           content: result.content,
           isError: false
         };
+      } catch (error) {
+        logger.error(
+          { toolName, error: error instanceof Error ? error.message : String(error) },
+          'Tool execution failed'
+        );
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Error: ${error instanceof Error ? error.message : String(error)}`
+            }
+          ],
+          isError: true
+        };
       }
-    );
+    });
 
     logger.debug(`Registered ${tools.length} tools`);
   }
@@ -109,28 +140,66 @@ export class MCPContextServer {
     const resourceRegistry = this.container.get<IResourceRegistry>('ResourceRegistry');
     const resources = await resourceRegistry.getAllResources();
 
-    // Register resources/list handler
     this.mcpServer.setRequestHandler(ListResourcesRequestSchema, async () => {
       return {
         resources: resources.map(resource => ({
           uri: resource.template,
           name: resource.name,
-          description: resource.description,
+          description: resource.description || 'Resource',
           mimeType: 'text/plain'
         }))
       };
     });
 
-    // Register resources/read handler
-    this.mcpServer.setRequestHandler(ReadResourceRequestSchema, async (request: { params: { uri?: string } }) => {
+    this.mcpServer.setRequestHandler(ReadResourceRequestSchema, async request => {
       const uri = request.params?.uri;
-      const resource = resources.find(r => uri?.startsWith(r.template.replace('{path}', '')));
 
-      if (!resource) {
-        throw new Error(`No resource handler for URI: ${uri}`);
+      if (!uri) {
+        const error = new Error('URI is required');
+        logger.error('Resource read failed: URI is required');
+        throw error;
       }
 
-      return await resource.read(uri || '', request.params || {});
+      const resource = resources.find(r => {
+        const template = r.template.replace('{path}', '');
+        return uri.startsWith(template);
+      });
+
+      if (!resource) {
+        const error = new Error(`No resource handler for URI: ${uri}`);
+        logger.error({ uri }, error.message);
+        throw error;
+      }
+
+      try {
+        const result = await resource.read(uri, request.params || {});
+
+        if (!result.contents || !Array.isArray(result.contents)) {
+          return {
+            contents: [
+              {
+                uri,
+                mimeType: 'text/plain',
+                text: 'Resource found but returned no content'
+              }
+            ]
+          };
+        }
+
+        return result;
+      } catch (error) {
+        logger.error({ uri, error: error instanceof Error ? error.message : String(error) }, 'Resource read failed');
+
+        return {
+          contents: [
+            {
+              uri,
+              mimeType: 'text/plain',
+              text: `Error reading resource: ${error instanceof Error ? error.message : String(error)}`
+            }
+          ]
+        };
+      }
     });
 
     logger.debug(`Registered ${resources.length} resources`);
@@ -140,31 +209,46 @@ export class MCPContextServer {
     const promptRegistry = this.container.get<IPromptRegistry>('PromptRegistry');
     const prompts = await promptRegistry.getAllPrompts();
 
-    // Register prompts/list handler
     this.mcpServer.setRequestHandler(ListPromptsRequestSchema, async () => {
       return {
         prompts: prompts.map(prompt => ({
           name: prompt.name,
-          description: prompt.description,
+          description: prompt.description || 'Prompt',
           arguments: []
         }))
       };
     });
 
-    // Register prompts/get handler
-    this.mcpServer.setRequestHandler(
-      GetPromptRequestSchema,
-      async (request: { params: { name?: string; arguments?: Record<string, unknown> } }) => {
-        const promptName = request.params?.name;
-        const prompt = prompts.find(p => p.name === promptName);
+    this.mcpServer.setRequestHandler(GetPromptRequestSchema, async request => {
+      const promptName = request.params?.name;
+      const prompt = prompts.find(p => p.name === promptName);
 
-        if (!prompt) {
-          throw new Error(`Unknown prompt: ${promptName}`);
+      if (!prompt) {
+        const error = new Error(`Unknown prompt: ${promptName}`);
+        logger.error({ promptName }, error.message);
+        throw error;
+      }
+
+      try {
+        const validatedArgs = prompt.schema.parse(request.params?.arguments || {});
+        const result = await prompt.generate(validatedArgs);
+
+        if (!result.messages || !Array.isArray(result.messages)) {
+          return {
+            description: 'Prompt generated but returned no messages',
+            messages: []
+          };
         }
 
-        return await prompt.generate(request.params?.arguments || {});
+        return result;
+      } catch (error) {
+        logger.error(
+          { promptName, error: error instanceof Error ? error.message : String(error) },
+          'Prompt generation failed'
+        );
+        throw error;
       }
-    );
+    });
 
     logger.debug(`Registered ${prompts.length} prompts`);
   }

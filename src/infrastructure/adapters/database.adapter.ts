@@ -1,12 +1,13 @@
-﻿import { injectable, inject } from 'inversify';
+﻿// src/infrastructure/adapters/database.adapter.ts
+import { injectable, inject } from 'inversify';
 import Database from 'better-sqlite3';
 import type { IDatabaseHandler, ContextItem, QueryOptions } from '@core/interfaces/database.interface.js';
-import { logger } from '@utils/logger.js';
+import { logger } from '../../utils/logger.js';
 import type { ServerConfig } from '@infrastructure/config/types.js';
 
 @injectable()
 export class DatabaseAdapter implements IDatabaseHandler {
-  private db!: Database.Database; // Use definite assignment assertion
+  private db!: Database.Database;
 
   constructor(@inject('Config') private config: ServerConfig) {
     this.initializeDatabase();
@@ -31,8 +32,8 @@ export class DatabaseAdapter implements IDatabaseHandler {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS context_items (
         key TEXT PRIMARY KEY,
-        value ANY,
-        type TEXT,
+        value TEXT NOT NULL,
+        type TEXT DEFAULT 'generic',
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
         updated_at TEXT DEFAULT CURRENT_TIMESTAMP
       ) WITHOUT ROWID;
@@ -44,7 +45,7 @@ export class DatabaseAdapter implements IDatabaseHandler {
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         type TEXT CHECK (type IN ('item_bundle', 'query_template', 'file_set')),
-        definition JSON NOT NULL,
+        definition TEXT NOT NULL,
         usage_count INTEGER DEFAULT 0,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
         updated_at TEXT DEFAULT CURRENT_TIMESTAMP
@@ -56,14 +57,14 @@ export class DatabaseAdapter implements IDatabaseHandler {
       CREATE TABLE IF NOT EXISTS workspaces (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
-        config JSON,
+        config TEXT,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
       );
 
       CREATE TABLE IF NOT EXISTS workspace_files (
         workspace_id TEXT,
         file_path TEXT,
-        metadata JSON,
+        metadata TEXT,
         last_modified TEXT,
         PRIMARY KEY (workspace_id, file_path),
         FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
@@ -77,8 +78,10 @@ export class DatabaseAdapter implements IDatabaseHandler {
       VALUES (?, ?, ?, CURRENT_TIMESTAMP)
     `);
 
-    stmt.run(key, JSON.stringify(value), type || 'generic');
-    logger.debug({ key, type }, 'Context item stored');
+    const serializedValue = JSON.stringify(value);
+    stmt.run(key, serializedValue, type || 'generic');
+
+    logger.debug({ key, type, valueLength: serializedValue.length }, 'Context item stored');
   }
 
   async getContext(key: string): Promise<unknown | null> {
@@ -86,12 +89,16 @@ export class DatabaseAdapter implements IDatabaseHandler {
     const row = stmt.get(key) as { value: string } | undefined;
 
     if (!row) {
+      logger.debug({ key }, 'Context item not found');
       return null;
     }
 
     try {
-      return JSON.parse(row.value);
-    } catch {
+      const parsed = JSON.parse(row.value);
+      logger.debug({ key, found: true }, 'Context item retrieved');
+      return parsed;
+    } catch (error) {
+      logger.warn({ key, error }, 'Failed to parse context item value, returning as string');
       return row.value;
     }
   }
@@ -126,13 +133,22 @@ export class DatabaseAdapter implements IDatabaseHandler {
     const stmt = this.db.prepare(query);
     const rows = stmt.all(...params) as DatabaseRow[];
 
-    return rows.map(row => ({
-      key: row.key,
-      value: JSON.parse(row.value),
-      type: row.type,
-      createdAt: new Date(row.created_at),
-      updatedAt: new Date(row.updated_at)
-    }));
+    return rows.map(row => {
+      let parsedValue: unknown;
+      try {
+        parsedValue = JSON.parse(row.value);
+      } catch {
+        parsedValue = row.value;
+      }
+
+      return {
+        key: row.key,
+        value: parsedValue,
+        type: row.type,
+        createdAt: new Date(row.created_at),
+        updatedAt: new Date(row.updated_at)
+      };
+    });
   }
 
   async backup(backupPath: string): Promise<void> {
@@ -163,7 +179,7 @@ export class DatabaseAdapter implements IDatabaseHandler {
   }
 }
 
-// Add interface for database row structure
+// Database row interface
 interface DatabaseRow {
   key: string;
   value: string;

@@ -2,11 +2,8 @@
 export default {
   preset: 'ts-jest/presets/default-esm',
   extensionsToTreatAsEsm: ['.ts'],
-  globals: {
-    'ts-jest': {
-      useESM: true
-    }
-  },
+
+  // Fixed typo: moduleNameMapping -> moduleNameMapping
   moduleNameMapping: {
     '^@core/(.*)$': '<rootDir>/src/core/$1',
     '^@application/(.*)$': '<rootDir>/src/application/$1',
@@ -15,17 +12,22 @@ export default {
     '^@utils/(.*)$': '<rootDir>/src/utils/$1',
     '^(\\.{1,2}/.*)\\.js$': '$1'
   },
+
   testEnvironment: 'node',
   roots: ['<rootDir>/src', '<rootDir>/tests'],
   testMatch: ['**/__tests__/**/*.ts', '**/?(*.)+(spec|test).ts'],
+
+  // Updated ts-jest configuration (not deprecated)
   transform: {
     '^.+\\.ts$': [
       'ts-jest',
       {
-        useESM: true
+        useESM: true,
+        isolatedModules: true
       }
     ]
   },
+
   coverageDirectory: 'coverage',
   collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts', '!src/index.ts', '!src/**/*.test.ts', '!src/**/*.spec.ts'],
   coverageReporters: ['text', 'lcov', 'html'],
@@ -37,6 +39,7 @@ export default {
       statements: 70
     }
   },
+
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
   testTimeout: 10000,
   verbose: true,

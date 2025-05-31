@@ -1,4 +1,5 @@
-﻿import type { Container } from 'inversify';
+﻿// src/infrastructure/di/container-initializer.ts
+import type { Container } from 'inversify';
 import type { IToolRegistry } from '../../core/interfaces/tool-registry.interface.js';
 import type { IResourceRegistry } from '../../core/interfaces/resource-registry.interface.js';
 import type { IPromptRegistry } from '../../core/interfaces/prompt-registry.interface.js';
@@ -11,7 +12,11 @@ import {
   GetContextTool,
   QueryContextTool
 } from '../../application/tools/database-operations.tool.js';
-import { CreateSmartPathTool, ExecuteSmartPathTool } from '../../application/tools/smart-path.tool.js';
+import {
+  CreateSmartPathTool,
+  ExecuteSmartPathTool,
+  ListSmartPathsTool // Add the new tool
+} from '../../application/tools/smart-path.tool.js';
 import { ParseFileTool } from '../../application/tools/file-parsing.tool.js';
 import { GetMetricsTool } from '../../application/tools/metrics.tool.js';
 
@@ -58,6 +63,7 @@ export class ContainerInitializer {
     // Smart paths
     toolRegistry.register(new CreateSmartPathTool());
     toolRegistry.register(new ExecuteSmartPathTool());
+    toolRegistry.register(new ListSmartPathsTool()); // Add the new tool
 
     // File parsing
     toolRegistry.register(container.get(ParseFileTool));

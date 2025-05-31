@@ -94,3 +94,6 @@ mcp-config.*
 .husky/_
 /.repomix
 /.vscode
+/scripts/build-with-fix.js
+/scripts/clean-build.js
+/scripts/debug-build-script.js

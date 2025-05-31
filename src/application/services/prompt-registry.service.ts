@@ -1,6 +1,6 @@
 ﻿import { injectable } from 'inversify';
-import type { IPromptRegistry, MCPPrompt } from '@core/interfaces/prompt-registry.interface.js';
-import { logger } from '@utils/logger.js';
+import type { IPromptRegistry, MCPPrompt } from '../../core/interfaces/prompt-registry.interface.js';
+import { logger } from '../../utils/logger.js';
 
 @injectable()
 export class PromptRegistry implements IPromptRegistry {

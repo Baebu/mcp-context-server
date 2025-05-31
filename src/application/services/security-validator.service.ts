@@ -1,9 +1,9 @@
 ﻿import { injectable, inject } from 'inversify';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import type { ISecurityValidator } from '@core/interfaces/security.interface.js';
-import { logger } from '@utils/logger.js';
-import type { ServerConfig } from '@infrastructure/config/types.js';
+import type { ISecurityValidator } from '../../core/interfaces/security.interface.js';
+import { logger } from '../../utils/logger.js';
+import type { ServerConfig } from '../../infrastructure/config/types.js';
 
 @injectable()
 export class SecurityValidator implements ISecurityValidator {

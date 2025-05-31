@@ -1,6 +1,6 @@
 ﻿import { injectable } from 'inversify';
-import type { IToolRegistry, IMCPTool } from '@core/interfaces/tool-registry.interface.js';
-import { logger } from '@utils/logger.js';
+import type { IToolRegistry, IMCPTool } from '../../core/interfaces/tool-registry.interface.js';
+import { logger } from '../../utils/logger.js';
 
 @injectable()
 export class ToolRegistry implements IToolRegistry {

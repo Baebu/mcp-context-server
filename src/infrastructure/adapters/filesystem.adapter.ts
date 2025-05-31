@@ -3,7 +3,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import type { IFilesystemHandler, FileContent, DirectoryEntry } from '@core/interfaces/filesystem.interface.js';
 import type { ISecurityValidator } from '@core/interfaces/security.interface.js';
-import { logger } from '@utils/logger.js';
+import { logger } from '../../utils/logger.js';
 
 @injectable()
 export class FilesystemAdapter implements IFilesystemHandler {

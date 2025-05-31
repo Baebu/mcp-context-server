@@ -21,4 +21,22 @@ coverage/
 # Generated files
 **/*.d.ts
 **/*.js.map
-scripts\health-check.js
+
+# Utility scripts (not part of main codebase)
+fix-imports.js
+build-with-fix.js
+scripts/health-check.js
+scripts/claude-config.js
+scripts/*.js
+
+# Config files
+*.config.js
+jest.config.js
+debug-build-script.js
+comprehensive-import-fixer.js
+fix-server.js
+test-server.js
+test-context-operations.js
+diagnose-mcp.js
+config-fix.js
+

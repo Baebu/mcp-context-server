@@ -1,4 +1,6 @@
-﻿import convict from 'convict';
+﻿// Replace src/infrastructure/config/config-loader.ts with this improved version
+
+import convict from 'convict';
 import { promises as fs } from 'node:fs';
 import * as yaml from 'yaml';
 import path from 'node:path';
@@ -92,52 +94,126 @@ export const configSchema = convict({
 
 export async function loadConfig(): Promise<ServerConfig> {
   try {
-    // Try to load config from multiple sources
+    logger.info('Loading configuration...');
+
+    // Try to load config from multiple sources in order of preference
     const configPaths = [
-      './config/server.toml',
       './config/server.yaml',
+      './config/server.yml',
       './config/server.json',
-      './mcp-config.toml',
       './mcp-config.yaml',
       './mcp-config.json'
     ];
 
+    let configLoaded = false;
+    let loadedFrom = '';
+
     for (const configPath of configPaths) {
       try {
-        const ext = path.extname(configPath);
+        logger.debug(`Attempting to load config from: ${configPath}`);
+
+        // Check if file exists
+        await fs.access(configPath);
+
+        const ext = path.extname(configPath).toLowerCase();
         const content = await fs.readFile(configPath, 'utf-8');
 
+        logger.debug(`Config file content length: ${content.length} characters`);
+
         let parsed: unknown;
-        switch (ext) {
-          case '.toml':
-            // Would need to import a TOML parser
-            logger.warn('TOML config support not implemented');
-            continue;
-          case '.yaml':
-          case '.yml':
+
+        if (ext === '.yaml' || ext === '.yml') {
+          try {
             parsed = yaml.parse(content);
-            break;
-          case '.json':
+            logger.debug('YAML parsing successful');
+          } catch (yamlError) {
+            logger.error({ yamlError, configPath }, 'YAML parsing failed');
+            throw new Error(
+              `YAML parsing error in ${configPath}: ${yamlError instanceof Error ? yamlError.message : 'Unknown YAML error'}`
+            );
+          }
+        } else if (ext === '.json') {
+          try {
             parsed = JSON.parse(content);
-            break;
+            logger.debug('JSON parsing successful');
+          } catch (jsonError) {
+            logger.error({ jsonError, configPath }, 'JSON parsing failed');
+            throw new Error(
+              `JSON parsing error in ${configPath}: ${jsonError instanceof Error ? jsonError.message : 'Unknown JSON error'}`
+            );
+          }
+        } else {
+          logger.warn(`Unsupported config file extension: ${ext}`);
+          continue;
         }
 
-        if (parsed) {
+        if (parsed && typeof parsed === 'object') {
+          logger.debug('Loading parsed config into schema...');
           configSchema.load(parsed);
-          logger.info({ path: configPath }, 'Configuration loaded');
+          configLoaded = true;
+          loadedFrom = configPath;
+          logger.info({ path: configPath }, 'Configuration loaded successfully');
           break;
+        } else {
+          logger.warn(`Config file ${configPath} did not contain a valid object`);
         }
       } catch (error) {
-        // Continue to next config path
+        if ((error as { code?: string }).code === 'ENOENT') {
+          logger.debug(`Config file not found: ${configPath}`);
+          continue;
+        } else {
+          logger.error({ error, configPath }, `Error loading config from ${configPath}`);
+          throw error;
+        }
       }
     }
 
-    // Validate configuration
-    configSchema.validate({ allowed: 'strict' });
+    if (!configLoaded) {
+      logger.warn('No configuration file found, using defaults');
+    }
 
-    return configSchema.getProperties() as ServerConfig;
+    // Validate configuration
+    try {
+      logger.debug('Validating configuration schema...');
+      configSchema.validate({ allowed: 'strict' });
+      logger.debug('Configuration validation successful');
+    } catch (validationError) {
+      logger.error({ validationError }, 'Configuration validation failed');
+      throw new Error(
+        `Configuration validation error: ${validationError instanceof Error ? validationError.message : 'Unknown validation error'}`
+      );
+    }
+
+    const finalConfig = configSchema.getProperties() as ServerConfig;
+
+    logger.info(
+      {
+        loadedFrom: loadedFrom || 'defaults',
+        serverName: finalConfig.server.name,
+        allowedCommands: Array.isArray(finalConfig.security.allowedCommands)
+          ? finalConfig.security.allowedCommands.length
+          : 'all',
+        safezones: finalConfig.security.safezones.length,
+        logLevel: finalConfig.logging.level
+      },
+      'Configuration loaded and validated'
+    );
+
+    return finalConfig;
   } catch (error) {
-    logger.error({ error }, 'Failed to load configuration');
-    throw error;
+    const errorMessage = error instanceof Error ? error.message : 'Unknown configuration error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+
+    logger.error(
+      {
+        error: errorMessage,
+        stack: errorStack,
+        cwd: process.cwd(),
+        nodeVersion: process.version
+      },
+      'Failed to load configuration'
+    );
+
+    throw new Error(`Configuration loading failed: ${errorMessage}`);
   }
 }

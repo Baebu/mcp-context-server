@@ -3,7 +3,7 @@ import type { SpawnOptions } from 'node:child_process';
 import { injectable, inject } from 'inversify';
 import type { ICLIHandler, CommandResult, CommandOptions } from '@core/interfaces/cli.interface.js';
 import type { ISecurityValidator } from '@core/interfaces/security.interface.js';
-import { logger } from '@utils/logger.js';
+import { logger } from '../../utils/logger.js';
 
 @injectable()
 export class CLIAdapter implements ICLIHandler {

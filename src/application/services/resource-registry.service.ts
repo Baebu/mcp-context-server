@@ -1,6 +1,6 @@
 ﻿import { injectable } from 'inversify';
-import type { IResourceRegistry, MCPResource } from '@core/interfaces/resource-registry.interface.js';
-import { logger } from '@utils/logger.js';
+import type { IResourceRegistry, MCPResource } from '../../core/interfaces/resource-registry.interface.js';
+import { logger } from '../../utils/logger.js';
 
 @injectable()
 export class ResourceRegistry implements IResourceRegistry {
