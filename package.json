@@ -9,9 +9,10 @@
     "npm": ">=8.0.0"
   },
   "scripts": {
-    "build": "npm run fix-imports && tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json",
     "build:simple": "tsc -p tsconfig.build.json",
     "build:watch": "tsc -p tsconfig.build.json --watch",
+    "config": "tsx scripts/config-ui.ts",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "test": "jest",
@@ -37,11 +38,14 @@
     "productivity",
     "context-management"
   ],
-  "author": "Your Name <your.email@example.com>",
-  "license": "MIT",
+  "author": "Baebu <bae.bu.8@gmail.com>",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/mcp-context-server.git"
+    "url": "https://github.com/Baebu/mcp-context-server.git"
+  },
+  "homepage": "https://github.com/Baebu/mcp-context-server#readme",
+  "bugs": {
+    "url": "https://github.com/Baebu/mcp-context-server/issues"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^0.5.0",

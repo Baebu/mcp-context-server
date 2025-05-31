@@ -39,4 +39,4 @@ test-server.js
 test-context-operations.js
 diagnose-mcp.js
 config-fix.js
-
+scripts/config-ui.ts
