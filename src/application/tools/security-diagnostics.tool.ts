@@ -18,26 +18,11 @@ const securityDiagnosticsSchema = z.object({
   args: z.array(z.string()).optional().default([]).describe('Command arguments (for test-command action)')
 });
 
-interface SecurityInfo {
-  safeZones: string[];
-  restrictedZones: string[];
-  safeZoneMode: string;
-  blockedPatterns: number;
-}
-
-interface PathTestResult {
-  allowed: boolean;
-  reason: string;
-  resolvedPath: string;
-  inputPath: string;
-  matchedSafeZone?: string;
-  matchedRestrictedZone?: string;
-}
-
-interface ExtendedSecurityValidator extends ISecurityValidator {
-  getSecurityInfo?(): SecurityInfo;
-  testPathAccess?(path: string): Promise<PathTestResult>;
-}
+// No longer need ExtendedSecurityValidator cast due to interface update
+// interface ExtendedSecurityValidator extends ISecurityValidator {
+//   getSecurityInfo?(): SecurityInfo;
+//   testPathAccess?(path: string): Promise<PathTestResult>;
+// }
 
 interface SafeZoneDetails {
   original: string;
@@ -103,7 +88,7 @@ export class SecurityDiagnosticsTool implements IMCPTool {
   schema = securityDiagnosticsSchema;
 
   async execute(params: z.infer<typeof securityDiagnosticsSchema>, context: ToolContext): Promise<ToolResult> {
-    const securityValidator = context.container.get('SecurityValidator') as ExtendedSecurityValidator;
+    const securityValidator = context.container.get<ISecurityValidator>('SecurityValidator');
 
     const result: SecurityDiagnosticResult = {
       action: params.action,
@@ -167,13 +152,12 @@ export class SecurityDiagnosticsTool implements IMCPTool {
 
   private async getSecurityInfo(
     result: SecurityDiagnosticResult,
-    securityValidator: ExtendedSecurityValidator,
+    securityValidator: ISecurityValidator,
     context: ToolContext
   ): Promise<void> {
-    // Get security configuration info
     const securityInfo = securityValidator.getSecurityInfo?.() || {
-      safeZones: ['Information not available'],
-      restrictedZones: ['Information not available'],
+      safeZones: ['Information not available from validator'],
+      restrictedZones: ['Information not available from validator'],
       safeZoneMode: 'unknown',
       blockedPatterns: 0
     };
@@ -186,7 +170,6 @@ export class SecurityDiagnosticsTool implements IMCPTool {
       blockedPatterns: securityInfo.blockedPatterns
     };
 
-    // Generate general suggestions
     result.suggestions = [
       '🔍 Use "test-path" action to test specific file/directory access',
       '🔍 Use "test-command" action to test command execution',
@@ -195,7 +178,6 @@ export class SecurityDiagnosticsTool implements IMCPTool {
       '⚙️  Use "suggest-config" for configuration recommendations'
     ];
 
-    // Add warnings based on configuration
     result.warnings = [];
     if (Array.isArray(result.securityConfig.allowedCommands) && result.securityConfig.allowedCommands.includes('all')) {
       result.warnings.push('⚠️  All commands are allowed - this is dangerous for production');
@@ -211,56 +193,79 @@ export class SecurityDiagnosticsTool implements IMCPTool {
   private async testPathAccess(
     result: SecurityDiagnosticResult,
     inputPath: string,
-    securityValidator: ExtendedSecurityValidator
+    securityValidator: ISecurityValidator
   ): Promise<void> {
-    let pathResult: PathTestResult;
+    let pathTestResultData: {
+      allowed: boolean;
+      reason: string;
+      resolvedPath: string;
+      inputPath?: string;
+      matchedSafeZone?: string;
+      matchedRestrictedZone?: string;
+    };
 
-    // Use the detailed validation method if available
     if (securityValidator.testPathAccess) {
-      pathResult = await securityValidator.testPathAccess(inputPath);
+      pathTestResultData = await securityValidator.testPathAccess(inputPath);
     } else {
-      // Fallback to basic validation
+      // Fallback to basic validation if testPathAccess is not implemented
       try {
-        const resolvedPath = await securityValidator.validatePath(inputPath);
-        pathResult = {
+        const resolvedPath = await securityValidator.validatePath(inputPath); // This will throw on failure
+        pathTestResultData = {
           allowed: true,
-          reason: 'Path validation succeeded',
+          reason: 'Path validation succeeded (using validatePath)',
           resolvedPath,
           inputPath
         };
       } catch (error) {
-        pathResult = {
+        pathTestResultData = {
           allowed: false,
-          reason: error instanceof Error ? error.message : 'Path validation failed',
-          resolvedPath: path.resolve(inputPath),
+          reason: error instanceof Error ? error.message : 'Path validation failed (using validatePath)',
+          resolvedPath: path.resolve(inputPath), // Best guess for resolvedPath on error
           inputPath
         };
       }
     }
 
     result.pathTest = {
-      inputPath: pathResult.inputPath || inputPath,
-      resolvedPath: pathResult.resolvedPath,
-      allowed: pathResult.allowed,
-      reason: pathResult.reason,
-      matchedSafeZone: pathResult.matchedSafeZone,
-      matchedRestrictedZone: pathResult.matchedRestrictedZone,
+      inputPath: pathTestResultData.inputPath || inputPath,
+      resolvedPath: pathTestResultData.resolvedPath,
+      allowed: pathTestResultData.allowed,
+      reason: pathTestResultData.reason,
+      matchedSafeZone: pathTestResultData.matchedSafeZone,
+      matchedRestrictedZone: pathTestResultData.matchedRestrictedZone,
       suggestions: []
     };
 
     // Generate suggestions based on result
-    if (!pathResult.allowed) {
+    const currentSafeZoneMode = securityValidator.getSecurityInfo?.().safeZoneMode || 'unknown';
+    if (!pathTestResultData.allowed) {
+      let detailedReason = pathTestResultData.reason;
+      if (pathTestResultData.matchedRestrictedZone) {
+        detailedReason = `Path denied because it matches restricted zone: '${pathTestResultData.matchedRestrictedZone}'. Restricted zones override safe zones.`;
+      } else if (pathTestResultData.reason.includes('blocked pattern')) {
+        // The reason already includes "Path matches blocked pattern: ..."
+      } else if (!pathTestResultData.matchedSafeZone) {
+        detailedReason = `Path denied because it is not within any configured or auto-expanded safe zone. Current safe zone mode: ${currentSafeZoneMode}.`;
+      }
+
+      result.pathTest.reason = detailedReason; // Update reason with more detail
       result.pathTest.suggestions = [
-        '💡 Add the parent directory to safe zones in your configuration',
-        '💡 Check if the path is in a restricted zone that needs to be removed',
-        '💡 Ensure the path exists and is accessible',
-        "💡 Try testing the parent directory to see if it's allowed"
+        `Ensure the path '${pathTestResultData.resolvedPath}' or one of its parent directories is in your 'safezones' configuration.`,
+        `Verify it's not part of a 'restrictedZones' entry (check defaults and your config). Restricted zones are evaluated first.`,
+        `Verify it doesn't match any 'blockedPathPatterns' (check defaults and your config). These are also checked before safe zones.`,
+        'Check file system permissions for the path to ensure the server process can access it.',
+        `Current safe zone mode is '${currentSafeZoneMode}'. If 'strict', only exact matches for safe zones are allowed (not subdirectories).`
       ];
+      if (pathTestResultData.matchedRestrictedZone) {
+        result.pathTest.suggestions.push(
+          `To allow, consider removing or refining the restricted zone pattern: '${pathTestResultData.matchedRestrictedZone}' in your configuration.`
+        );
+      }
     } else {
       result.pathTest.suggestions = [
-        '✅ Path access is allowed',
-        '💡 Test specific files within this directory if needed',
-        '💡 Check if subdirectories are also accessible (depends on safeZoneMode)'
+        '✅ Path access is allowed.',
+        `Path is within safe zone: '${pathTestResultData.matchedSafeZone}'.`,
+        'Ensure the file/directory actually exists and has correct permissions for the server process to perform the intended operation (read/write/list).'
       ];
     }
   }
@@ -269,7 +274,7 @@ export class SecurityDiagnosticsTool implements IMCPTool {
     result: SecurityDiagnosticResult,
     command: string,
     args: string[],
-    securityValidator: ExtendedSecurityValidator
+    securityValidator: ISecurityValidator
   ): Promise<void> {
     result.commandTest = {
       command,
@@ -283,28 +288,25 @@ export class SecurityDiagnosticsTool implements IMCPTool {
       result.commandTest.allowed = true;
       result.commandTest.reason = 'Command validation succeeded';
       result.commandTest.suggestions = [
-        '✅ Command execution is allowed',
-        '💡 Test with different arguments if needed',
-        '💡 Be aware of argument pattern restrictions'
+        '✅ Command execution is allowed.',
+        '💡 Test with different arguments if needed.',
+        '💡 Be aware of argument pattern restrictions defined in `unsafeArgumentPatterns`.'
       ];
     } catch (error) {
       result.commandTest.allowed = false;
       result.commandTest.reason = error instanceof Error ? error.message : 'Command validation failed';
       result.commandTest.suggestions = [
-        '💡 Add the command to allowedCommands in your configuration',
-        '💡 Check if arguments contain unsafe patterns',
-        '💡 Review command-specific restrictions (shell injection, etc.)',
-        '💡 Consider if this command is necessary for your use case'
+        "💡 Add the command to 'allowedCommands' in your server configuration if it's safe and necessary.",
+        "💡 Check if arguments contain patterns matching 'unsafeArgumentPatterns' or default dangerous patterns.",
+        '💡 Review command-specific restrictions (e.g., for shell injection, dangerous cmdlets).',
+        '💡 Consider if this command is truly necessary for your intended use case with Claude.'
       ];
     }
   }
 
-  private async listSafeZones(
-    result: SecurityDiagnosticResult,
-    securityValidator: ExtendedSecurityValidator
-  ): Promise<void> {
+  private async listSafeZones(result: SecurityDiagnosticResult, securityValidator: ISecurityValidator): Promise<void> {
     const securityInfo = securityValidator.getSecurityInfo?.() || {
-      safeZones: ['Information not available'],
+      safeZones: ['Information not available from validator'],
       safeZoneMode: 'unknown'
     };
 
@@ -323,7 +325,7 @@ export class SecurityDiagnosticsTool implements IMCPTool {
           resolved: resolvedZone,
           exists,
           isDirectory: stats?.isDirectory() || false,
-          accessible: exists && (stats?.isDirectory() || false)
+          accessible: exists && (stats?.isDirectory() || false) // Simplified, actual accessibility depends on permissions
         });
       } catch (error) {
         expandedSafeZones.push({
@@ -337,43 +339,47 @@ export class SecurityDiagnosticsTool implements IMCPTool {
       }
     }
 
+    // To provide more context, we also get the full security config as known by the validator.
+    const fullSecurityInfo = securityValidator.getSecurityInfo?.();
+
     result.securityConfig = {
       safeZones: securityInfo.safeZones,
-      restrictedZones: [],
+      restrictedZones: fullSecurityInfo?.restrictedZones || [],
       safeZoneMode: securityInfo.safeZoneMode,
-      allowedCommands: [],
-      blockedPatterns: 0
+      allowedCommands: [], // Not the focus here
+      blockedPatterns: fullSecurityInfo?.blockedPatterns || 0
     };
 
     result.safeZoneDetails = expandedSafeZones;
 
     result.suggestions = [
-      `📁 Safe zone mode: ${securityInfo.safeZoneMode}`,
+      `📁 Current safe zone mode: ${securityInfo.safeZoneMode}.`,
       securityInfo.safeZoneMode === 'recursive'
-        ? '✅ Subdirectories of safe zones are automatically allowed'
-        : '⚠️  Only exact safe zone directories are allowed (strict mode)',
-      '💡 Test specific paths using the "test-path" action',
-      '💡 Non-existent directories in safe zones may cause issues'
+        ? '✅ Subdirectories of existing safe zones are generally allowed (unless blocked by restricted zones/patterns).'
+        : "⚠️  Only exact safe zone directories are allowed (strict mode). Subdirectories won't be covered unless explicitly listed or mode is 'recursive'.",
+      '💡 Test specific paths using the "test-path" action to see effective permissions.',
+      '💡 Non-existent or inaccessible directories in safe zones might not provide expected coverage.',
+      "💡 Remember that 'restrictedZones' and 'blockedPathPatterns' can override safe zones."
     ];
   }
 
   private async listRestrictedZones(
     result: SecurityDiagnosticResult,
-    securityValidator: ExtendedSecurityValidator
+    securityValidator: ISecurityValidator
   ): Promise<void> {
     const securityInfo = securityValidator.getSecurityInfo?.() || {
-      restrictedZones: ['Information not available']
+      restrictedZones: ['Information not available from validator']
     };
 
     const expandedRestrictedZones: RestrictedZoneDetails[] = [];
     for (const zone of securityInfo.restrictedZones) {
       try {
-        // Handle glob patterns differently
         if (zone.includes('*')) {
           expandedRestrictedZones.push({
             original: zone,
             type: 'glob-pattern',
-            description: 'Matches files/directories using glob patterns'
+            description:
+              'Matches files/directories using glob-like patterns. `**` matches across directories, `*` within a directory segment.'
           });
         } else {
           const resolvedZone = path.resolve(zone);
@@ -398,39 +404,44 @@ export class SecurityDiagnosticsTool implements IMCPTool {
       }
     }
 
+    const fullSecurityInfo = securityValidator.getSecurityInfo?.();
     result.securityConfig = {
-      safeZones: [],
+      safeZones: fullSecurityInfo?.safeZones || [],
       restrictedZones: securityInfo.restrictedZones,
-      safeZoneMode: 'unknown',
-      allowedCommands: [],
-      blockedPatterns: 0
+      safeZoneMode: fullSecurityInfo?.safeZoneMode || 'unknown',
+      allowedCommands: [], // Not the focus
+      blockedPatterns: fullSecurityInfo?.blockedPatterns || 0
     };
 
     result.restrictedZoneDetails = expandedRestrictedZones;
 
     result.suggestions = [
-      '🚫 Restricted zones override safe zones for security',
-      '🌟 Glob patterns (**) match anywhere in the filesystem',
-      "💡 Test specific paths to see if they're blocked",
-      '💡 Remove restricted zones that are too broad for your use case'
+      '🚫 Restricted zones take precedence and block access even if a path is within a safe zone.',
+      '🌟 Glob patterns (like `**/.ssh`) can match deeply nested paths.',
+      '💡 Test specific paths you expect to be blocked using the "test-path" action to verify.',
+      '💡 Review the default restricted zones added by the server for common sensitive areas.',
+      "💡 If a restricted zone is too broad, consider refining it or removing it from your 'server.yaml' if it's user-defined."
     ];
   }
 
   private async suggestConfiguration(result: SecurityDiagnosticResult, context: ToolContext): Promise<void> {
     const suggestions = [];
     const warnings = [];
+    const serverConfigSecurity = context.config.security;
 
-    // Analyze current working directory
     const cwd = process.cwd();
-    const cwdSafe = context.config.security.safezones.some(
-      zone => path.resolve(zone) === cwd || cwd.startsWith(path.resolve(zone))
+    const isCwdSafe = serverConfigSecurity.safezones.some(
+      zone =>
+        path.resolve(zone) === cwd ||
+        (serverConfigSecurity.safeZoneMode === 'recursive' && cwd.startsWith(path.resolve(zone) + path.sep))
     );
 
-    if (!cwdSafe) {
-      suggestions.push('💡 Add current working directory to safe zones: "."');
+    if (!isCwdSafe) {
+      suggestions.push(
+        "💡 Add current working directory ('.') to safe zones for general operations relative to server start."
+      );
     }
 
-    // Check for common development directories
     const commonDevDirs = [
       path.join(os.homedir(), 'Documents'),
       path.join(os.homedir(), 'Desktop'),
@@ -446,40 +457,64 @@ export class SecurityDiagnosticsTool implements IMCPTool {
           .then(() => true)
           .catch(() => false);
         if (exists) {
-          const inSafeZones = context.config.security.safezones.some(
-            zone => path.resolve(zone) === dir || dir.startsWith(path.resolve(zone))
+          const isDirSafe = serverConfigSecurity.safezones.some(
+            zone =>
+              path.resolve(zone) === path.resolve(dir) ||
+              (serverConfigSecurity.safeZoneMode === 'recursive' &&
+                path.resolve(dir).startsWith(path.resolve(zone) + path.sep))
           );
-          if (!inSafeZones) {
-            suggestions.push(`💡 Consider adding development directory: "${dir}"`);
+          if (!isDirSafe) {
+            suggestions.push(
+              `💡 Consider adding common development directory: "${dir}" to safe zones if you work there frequently.`
+            );
           }
         }
       } catch {
-        // Ignore errors
+        /* Ignore errors */
       }
     }
 
-    // Security recommendations
-    if (context.config.security.allowedCommands === 'all') {
-      warnings.push('⚠️  Consider limiting allowed commands instead of allowing "all"');
-      suggestions.push('💡 Replace "all" with specific commands: ["ls", "cat", "grep", "find", "echo"]');
+    if (serverConfigSecurity.allowedCommands === 'all') {
+      warnings.push(
+        '⚠️  Security Risk: `allowedCommands` is set to "all". This is highly discouraged for production. Specify an explicit list of commands.'
+      );
+      suggestions.push(
+        '💡 Best Practice: Replace "all" with a specific list of commands like ["ls", "cat", "grep", "find", "echo", "git status"].'
+      );
     }
 
-    if (!context.config.security.safeZoneMode || context.config.security.safeZoneMode === 'strict') {
-      suggestions.push('💡 Consider using "recursive" safe zone mode for easier development');
+    if (serverConfigSecurity.safeZoneMode === 'strict') {
+      suggestions.push(
+        "💡 Consider using 'recursive' safe zone mode (default) for easier access to subdirectories within your projects, unless strict control is required."
+      );
     }
 
-    if (!context.config.security.restrictedZones || context.config.security.restrictedZones.length === 0) {
-      suggestions.push('💡 Add restricted zones to protect sensitive areas like "**/.ssh" and "**/.env*"');
+    if (
+      !serverConfigSecurity.restrictedZones ||
+      serverConfigSecurity.restrictedZones.length === (securityDiagnosticsSchema.shape.action.options?.length || 0)
+    ) {
+      // Crude check if only defaults are present
+      suggestions.push(
+        "💡 Add specific 'restrictedZones' to protect sensitive areas (e.g., '**/secrets/**', '**/*.backup.key'). The server adds many defaults for system paths, but project-specific ones are good too."
+      );
     }
 
-    // Generate example configuration
+    if (!serverConfigSecurity.blockedPathPatterns || serverConfigSecurity.blockedPathPatterns.length < 3) {
+      // Arbitrary small number to suggest more
+      suggestions.push(
+        "💡 Augment 'blockedPathPatterns' with patterns specific to your environment, e.g., '.*\\\\.log\\\\.gz$' if you don't want archive logs touched."
+      );
+    }
+
     const exampleConfig = {
       security: {
         safeZoneMode: 'recursive',
-        autoExpandSafezones: true,
-        safezones: ['.', '~/Documents', '~/Desktop', '/tmp'],
-        restrictedZones: ['**/.ssh/**', '**/.env*', '**/secrets/**', '**/*.key', '**/*.pem'],
-        allowedCommands: ['ls', 'cat', 'grep', 'find', 'echo', 'pwd', 'whoami']
+        autoExpandSafezones: true, // Often useful for development
+        safezones: ['.', '~/projects', '~/Documents/ClaudeProjects', '/tmp/claude_work'],
+        restrictedZones: ['**/.git/hooks', '**/.env', '**/node_modules/.bin', '**/*.db-journal'], // Project-specific examples
+        allowedCommands: ['ls -la', 'git status', 'cat package.json', 'grep "TODO" src', 'echo "Test"'], // Examples with args
+        unsafeArgumentPatterns: ['^--(?!help|version)', ';', '&&', '\\|\\|'], // Stricter argument patterns
+        blockedPathPatterns: ['^\\/dev\\/', '^\\/proc\\/'] // Example patterns
       }
     };
 
@@ -487,11 +522,11 @@ export class SecurityDiagnosticsTool implements IMCPTool {
     result.warnings = warnings;
     result.exampleConfiguration = exampleConfig;
     result.configurationTips = [
-      '🔧 Start with restrictive settings and gradually open up as needed',
-      '🔧 Use "recursive" mode for easier access to project subdirectories',
-      '🔧 Always include restricted zones for sensitive files',
-      '🔧 Test your configuration with the diagnostic tools',
-      '🔧 Review security logs regularly for blocked access attempts'
+      '🔧 Start with the "standard" or "developer" security presets and customize from there.',
+      "🔧 Use 'recursive' mode for `safeZoneMode` unless you have specific reasons for 'strict' control.",
+      "🔧 Regularly review and test your 'restrictedZones' and 'blockedPathPatterns' to ensure they are effective and not overly restrictive.",
+      "🔧 Test your configuration changes thoroughly using the 'test-path' and 'test-command' actions of this tool.",
+      '🔧 Keep `autoExpandSafezones: true` for convenience in development, but consider setting to `false` and explicitly listing all zones for production for tighter control.'
     ];
   }
 }

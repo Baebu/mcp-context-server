@@ -15,6 +15,7 @@ A high-performance Model Context Protocol (MCP) server that maximizes productivi
 - **🛠️ Command Execution**: Secure system command execution with timeout and validation
 - **📊 Monitoring**: Built-in metrics and performance monitoring
 - **🎯 Clean Architecture**: Modular design following dependency injection principles
+- **⚙️ Flexible Configuration**: Server behavior configurable via `server.yaml`, path specifiable at launch.
 
 ## 🚀 Quick Start
 
@@ -33,42 +34,37 @@ cd mcp-context-server
 
 # Install dependencies and setup
 npm install
-npm run setup
+npm run setup # This creates default config/server.yaml and .env if they don't exist
 
 # Build the project
 npm run build
 ```
 
-### Configuration
+### Server Configuration (`config/server.yaml`)
 
-The server will create a default configuration at `config/server.yaml`. Customize it for your needs:
+The server's behavior is primarily controlled by a `server.yaml` file, typically located in the `config/` directory. Customize it for your needs:
 
 ```yaml
+# Example config/server.yaml
 security:
   allowedCommands:
     - 'ls'
     - 'cat'
     - 'grep'
-    - 'find'
-    - 'git'
   safezones:
-    - '.'
+    - '.' # Relative to where the server is run, or its configured workingDirectory
     - '/path/to/your/projects'
-  maxExecutionTime: 30000
-  maxFileSize: 10485760
-
+  # ... other settings
 database:
-  path: './data/context.db'
-  backupInterval: 60
-
-logging:
-  level: 'info'
-  pretty: true
+  path: './data/context.db' # Relative paths are resolved from server's working directory
+# ... other settings
 ```
 
 ### Claude Desktop Integration
 
-Add this server to your `claude_desktop_config.json`:
+Add this server to your `claude_desktop_config.json`. This tells Claude Desktop how to launch your MCP server.
+
+**`claude_desktop_config.json` example:**
 
 ```json
 {
@@ -77,18 +73,26 @@ Add this server to your `claude_desktop_config.json`:
       "command": "node",
       "args": ["/absolute/path/to/mcp-context-server/dist/index.js"],
       "env": {
-        "MCP_LOG_LEVEL": "info"
+        "MCP_LOG_LEVEL": "info",
+        "MCP_SERVER_CONFIG_PATH": "/absolute/path/to/mcp-context-server/config/server.yaml"
       }
     }
   }
 }
 ```
 
-**Configuration file locations:**
+**Key paths to update:**
+
+- `args`: The absolute path to the built `dist/index.js` of *this* MCP server project.
+- `MCP_SERVER_CONFIG_PATH` (in `env`): The absolute path to the `server.yaml` (or equivalent JSON/YML config file) that *this* MCP server should use.
+
+**Configuration file locations for `claude_desktop_config.json`:**
 
 - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 - **Linux**: `~/.config/claude/claude_desktop_config.json`
+
+Ensure you restart Claude Desktop after making changes to `claude_desktop_config.json`.
 
 ## 🛠️ Available Tools
 
@@ -118,6 +122,12 @@ Add this server to your `claude_desktop_config.json`:
 
 - `parse_file` - Parse JSON, YAML, and CSV files
 - `get_metrics` - Server performance metrics
+- `security_diagnostics` - Test and diagnose security configurations.
+- `database_health` - Monitor database, manage backups.
+
+### Workspace Management
+
+- `create_workspace`, `list_workspaces`, `switch_workspace`, `sync_workspace`, etc.
 
 ## 📚 Usage Examples
 
@@ -132,23 +142,14 @@ Then retrieve it later:
 Can you get the context for "my_project"?
 ```
 
-### Smart Path Bundles
-
-```
-Create a smart path that bundles related project contexts:
-- Name: "project_bundle"
-- Items: ["my_project", "dependencies", "config"]
-
-Execute the bundle to get all related information at once.
-```
-
 ### Secure Command Execution
 
+(Ensure commands are in `allowedCommands` in your `server.yaml`)
+
 ```
-Run safe commands within configured directories:
+Run safe commands within configured safe zones:
 - List files: "ls -la"
 - Check git status: "git status"
-- Search content: "grep -r 'TODO' src/"
 ```
 
 ## 🏗️ Development
@@ -167,13 +168,16 @@ npm run type-check
 npm run lint
 npm run format
 
-# Health check
+# Health check (validates basic setup)
 npm run health-check
+
+# Generate Claude Desktop config snippet
+npm run claude-config
 ```
 
 ## 🔧 Configuration UI
 
-Access the configuration dashboard at `http://localhost:3001` when running in development mode for an interactive way to manage settings, test commands, and view metrics.
+Access the configuration dashboard at `http://localhost:3001` when running `npm run config` (or if you start it manually). This UI helps manage `claude_desktop_config.json` integration and parts of `server.yaml`.
 
 ## 🏛️ Architecture
 
@@ -187,54 +191,31 @@ src/
 └── presentation/   # MCP protocol interface
 ```
 
-Key architectural decisions:
-
-- **Dependency Injection**: Using Inversify for loose coupling
-- **Security by Design**: Multiple validation layers
-- **Performance Optimized**: Streaming and efficient resource usage
-- **Extensible**: Easy to add new tools and capabilities
-
 ## 🔒 Security
 
-- **Command Whitelisting**: Only approved commands can be executed
-- **Path Validation**: File operations restricted to safe zones
-- **Input Sanitization**: All inputs validated and sanitized
-- **Rate Limiting**: Protection against resource exhaustion
-- **Audit Logging**: Comprehensive security event logging
-
-## 📈 Performance
-
-- **Streaming Operations**: Handle large files efficiently
-- **SQLite Optimization**: WAL mode and proper indexing
-- **Memory Management**: Careful resource allocation
-- **Concurrent Processing**: Optimized for multiple operations
+- **Command Whitelisting**: Only approved commands (from `server.yaml`) can be executed.
+- **Path Validation**: File operations restricted to `safezones` (from `server.yaml`), respecting `restrictedZones` and `blockedPathPatterns`.
+- **Input Sanitization**: All inputs validated and sanitized.
+- **User Consent**: For potentially risky operations, a UI prompt can appear.
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details on our code of conduct and development process.
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md).
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file.
 
 ## 🙏 Acknowledgments
 
-- [Model Context Protocol](https://modelcontextprotocol.io/) for the excellent specification
-- [Anthropic](https://www.anthropic.com/) for Claude Desktop integration
-- The TypeScript and Node.js communities for excellent tooling
+- [Model Context Protocol](https://modelcontextprotocol.io/)
+- [Anthropic](https://www.anthropic.com/)
 
 ## 📞 Support
 
-- 📖 [Documentation](https://github.com/yourusername/mcp-context-server/wiki)
+- 📖 [Documentation](./INSTALLATION.md), [Claude Desktop Config](./CLAUDE_DESKTOP_CONFIG.md)
 - 🐛 [Issue Tracker](https://github.com/yourusername/mcp-context-server/issues)
 - 💬 [Discussions](https://github.com/yourusername/mcp-context-server/discussions)
 
 ---
-
 **Made with ❤️ for the Claude Desktop community**

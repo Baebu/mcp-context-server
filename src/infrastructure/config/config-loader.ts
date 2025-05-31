@@ -241,82 +241,99 @@ export const configSchema = convict({
 
 export async function loadConfig(): Promise<ServerConfig> {
   try {
-    logger.info('Loading enhanced security configuration...');
+    logger.info('Loading configuration...');
 
-    const configPaths = [
-      './config/server.yaml',
-      './config/server.yml',
-      './config/server.json',
-      './mcp-config.yaml',
-      './mcp-config.json'
-    ];
-
+    const explicitConfigPath = process.env.MCP_SERVER_CONFIG_PATH;
     let configLoaded = false;
     let loadedFrom = '';
 
-    for (const configPath of configPaths) {
+    if (explicitConfigPath) {
+      logger.info({ path: explicitConfigPath }, 'Attempting to load configuration from MCP_SERVER_CONFIG_PATH.');
       try {
-        logger.debug(`Attempting to load config from: ${configPath}`);
-        await fs.access(configPath);
-        const ext = path.extname(configPath).toLowerCase();
-        const content = await fs.readFile(configPath, 'utf-8');
-        logger.debug(`Config file content length: ${content.length} characters`);
-
+        await fs.access(explicitConfigPath);
+        const ext = path.extname(explicitConfigPath).toLowerCase();
+        const content = await fs.readFile(explicitConfigPath, 'utf-8');
         let parsed: unknown;
         if (ext === '.yaml' || ext === '.yml') {
-          try {
-            parsed = yaml.parse(content);
-            logger.debug('YAML parsing successful');
-          } catch (yamlError) {
-            logger.error({ yamlError, configPath }, 'YAML parsing failed');
-            throw new Error(
-              `YAML parsing error in ${configPath}: ${yamlError instanceof Error ? yamlError.message : 'Unknown YAML error'}`
-            );
-          }
+          parsed = yaml.parse(content);
         } else if (ext === '.json') {
-          try {
-            parsed = JSON.parse(content);
-            logger.debug('JSON parsing successful');
-          } catch (jsonError) {
-            logger.error({ jsonError, configPath }, 'JSON parsing failed');
-            throw new Error(
-              `JSON parsing error in ${configPath}: ${jsonError instanceof Error ? jsonError.message : 'Unknown JSON error'}`
-            );
-          }
+          parsed = JSON.parse(content);
         } else {
-          logger.warn(`Unsupported config file extension: ${ext}`);
-          continue;
+          throw new Error(`Unsupported file extension for explicit config path: ${ext}. Use .yaml or .json.`);
         }
 
         if (parsed && typeof parsed === 'object') {
-          logger.debug('Loading parsed config into schema...');
           configSchema.load(parsed);
           configLoaded = true;
-          loadedFrom = configPath;
-          logger.info({ path: configPath }, 'Configuration loaded successfully');
-          break;
+          loadedFrom = explicitConfigPath;
+          logger.info({ path: explicitConfigPath }, 'Configuration loaded successfully from explicit path.');
         } else {
-          logger.warn(`Config file ${configPath} did not contain a valid object`);
+          throw new Error(`Configuration file at ${explicitConfigPath} did not contain a valid object.`);
         }
       } catch (error) {
-        if ((error as { code?: string }).code === 'ENOENT') {
-          logger.debug(`Config file not found: ${configPath}`);
-          continue;
-        } else {
-          logger.error({ error, configPath }, `Error loading config from ${configPath}`);
-          throw error;
+        logger.error(
+          { error, path: explicitConfigPath },
+          `Failed to load configuration from explicit path MCP_SERVER_CONFIG_PATH. Server will not start with invalid explicit path.`
+        );
+        throw error; // Rethrow if explicit path is provided but fails
+      }
+    } else {
+      logger.info('MCP_SERVER_CONFIG_PATH not set. Searching default locations...');
+      const defaultSearchPaths = [
+        './config/server.yaml',
+        './config/server.yml',
+        './config/server.json',
+        './mcp-config.yaml',
+        './mcp-config.json'
+      ];
+
+      for (const configPath of defaultSearchPaths) {
+        try {
+          logger.debug(`Attempting to load config from: ${configPath}`);
+          await fs.access(configPath);
+          const ext = path.extname(configPath).toLowerCase();
+          const content = await fs.readFile(configPath, 'utf-8');
+          let parsed: unknown;
+          if (ext === '.yaml' || ext === '.yml') {
+            parsed = yaml.parse(content);
+          } else if (ext === '.json') {
+            parsed = JSON.parse(content);
+          } else {
+            logger.warn(`Unsupported config file extension: ${ext} at ${configPath}`);
+            continue;
+          }
+
+          if (parsed && typeof parsed === 'object') {
+            configSchema.load(parsed);
+            configLoaded = true;
+            loadedFrom = configPath;
+            logger.info({ path: configPath }, 'Configuration loaded successfully from default location.');
+            break;
+          } else {
+            logger.warn(`Config file ${configPath} did not contain a valid object.`);
+          }
+        } catch (error) {
+          if ((error as { code?: string }).code === 'ENOENT') {
+            logger.debug(`Config file not found: ${configPath}`);
+          } else {
+            logger.error({ error, configPath }, `Error loading config from ${configPath}`);
+            // Don't rethrow here, allow fallback to defaults if all default paths fail
+          }
         }
       }
     }
 
-    if (!configLoaded) {
-      logger.warn('No configuration file found, using enhanced defaults');
+    if (!configLoaded && !explicitConfigPath) {
+      logger.warn(
+        'No configuration file found in default locations, using built-in defaults and environment variables.'
+      );
     }
 
+    // Convict automatically loads environment variables that match its schema definitions,
+    // overriding values from files or defaults. This is standard behavior.
+    // We also explicitly call validate to ensure the final configuration is sound.
     try {
-      logger.debug('Validating enhanced configuration schema...');
       configSchema.validate({ allowed: 'strict' });
-      logger.debug('Configuration validation successful');
     } catch (validationError) {
       logger.error({ validationError }, 'Configuration validation failed');
       throw new Error(
@@ -326,18 +343,14 @@ export async function loadConfig(): Promise<ServerConfig> {
 
     const finalConfig = configSchema.getProperties() as ServerConfig;
 
-    // Post-process configuration for enhanced security
-
-    // Change working directory if specified
     if (finalConfig.server.workingDirectory && finalConfig.server.workingDirectory !== process.cwd()) {
       try {
         process.chdir(finalConfig.server.workingDirectory);
         logger.info(
           {
-            oldCwd: process.cwd(),
             newCwd: finalConfig.server.workingDirectory
           },
-          'Changed working directory'
+          'Changed working directory as per configuration.'
         );
       } catch (error) {
         logger.warn(
@@ -345,100 +358,75 @@ export async function loadConfig(): Promise<ServerConfig> {
             error,
             requestedDirectory: finalConfig.server.workingDirectory
           },
-          'Failed to change working directory, continuing with current directory'
+          'Failed to change working directory, continuing with current directory.'
         );
+        finalConfig.server.workingDirectory = process.cwd(); // Reflect actual CWD
       }
+    } else {
+      finalConfig.server.workingDirectory = process.cwd(); // Ensure it's set
     }
 
-    // Initialize restricted zones with platform defaults
     const platformRestrictedZones = getPlatformRestrictedZones();
     const configRestrictedZones = finalConfig.security.restrictedZones || [];
-    finalConfig.security.restrictedZones = [...platformRestrictedZones, ...configRestrictedZones];
+    finalConfig.security.restrictedZones = [...new Set([...platformRestrictedZones, ...configRestrictedZones])]; // Use Set to avoid duplicates
 
-    // Expand safe zones if auto-expansion is enabled
     if (finalConfig.security.autoExpandSafezones) {
       const commonDirs = getCommonDevDirectories();
-      const existingSafezones = new Set(finalConfig.security.safezones.map(zone => path.resolve(zone)));
+      const existingSafezones = new Set(finalConfig.security.safezones.map(zone => path.resolve(process.cwd(), zone)));
 
       for (const dir of commonDirs) {
-        const resolvedDir = path.resolve(dir);
+        const resolvedDir = path.resolve(process.cwd(), dir);
         if (!existingSafezones.has(resolvedDir)) {
-          finalConfig.security.safezones.push(dir);
+          finalConfig.security.safezones.push(dir); // Add relative or absolute as it was
           existingSafezones.add(resolvedDir);
         }
       }
-
       logger.info(
         {
-          originalSafeZoneCount: configSchema.get('security.safezones').length,
-          finalSafeZoneCount: finalConfig.security.safezones.length,
-          restrictedZoneCount: finalConfig.security.restrictedZones.length,
-          safeZoneMode: finalConfig.security.safeZoneMode,
-          safezones: finalConfig.security.safezones
+          finalSafeZoneCount: finalConfig.security.safezones.length
         },
-        'Auto-expanded safe zones with enhanced security'
+        'Auto-expanded safe zones.'
       );
     }
 
-    // Ensure all array properties are properly initialized
-    finalConfig.security.unsafeArgumentPatterns =
-      finalConfig.security.unsafeArgumentPatterns || (configSchema.get('security.unsafeArgumentPatterns') as string[]);
-
-    finalConfig.security.blockedPathPatterns =
-      finalConfig.security.blockedPathPatterns || (configSchema.get('security.blockedPathPatterns') as string[]);
-
-    // Resolve database path relative to working directory
+    // Resolve database path relative to the *final* working directory
     if (!path.isAbsolute(finalConfig.database.path)) {
-      finalConfig.database.path = path.resolve(process.cwd(), finalConfig.database.path);
+      finalConfig.database.path = path.resolve(finalConfig.server.workingDirectory, finalConfig.database.path);
     }
 
-    // Log comprehensive security configuration
     logger.info(
       {
-        loadedFrom: loadedFrom || 'enhanced-defaults',
-        workingDirectory: process.cwd(),
+        loadedFrom: loadedFrom || (explicitConfigPath ? 'MCP_SERVER_CONFIG_PATH (failed)' : 'defaults/env-vars'),
+        workingDirectory: finalConfig.server.workingDirectory,
         serverName: finalConfig.server.name,
         security: {
-          allowedCommands: Array.isArray(finalConfig.security.allowedCommands)
+          allowedCommandsCount: Array.isArray(finalConfig.security.allowedCommands)
             ? finalConfig.security.allowedCommands.length
-            : 'all',
-          safeZones: finalConfig.security.safezones.length,
-          restrictedZones: finalConfig.security.restrictedZones.length,
+            : finalConfig.security.allowedCommands,
+          safeZonesCount: finalConfig.security.safezones.length,
+          restrictedZonesCount: finalConfig.security.restrictedZones.length,
           safeZoneMode: finalConfig.security.safeZoneMode,
           autoExpandSafezones: finalConfig.security.autoExpandSafezones,
-          unsafeArgumentPatterns: finalConfig.security.unsafeArgumentPatterns.length,
-          blockedPathPatterns: finalConfig.security.blockedPathPatterns.length
+          unsafeArgumentPatternsCount: (finalConfig.security.unsafeArgumentPatterns || []).length,
+          blockedPathPatternsCount: (finalConfig.security.blockedPathPatterns || []).length
         },
         logLevel: finalConfig.logging.level,
         databasePath: finalConfig.database.path
       },
-      'Enhanced security configuration loaded and validated'
-    );
-
-    // Log some example safe zones and restricted zones for debugging
-    logger.debug(
-      {
-        exampleSafeZones: finalConfig.security.safezones.slice(0, 5),
-        exampleRestrictedZones: finalConfig.security.restrictedZones.slice(0, 5)
-      },
-      'Example security zones (showing first 5 of each)'
+      'Final configuration loaded and validated.'
     );
 
     return finalConfig;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown configuration error';
-    const errorStack = error instanceof Error ? error.stack : undefined;
-
     logger.error(
       {
         error: errorMessage,
-        stack: errorStack,
-        cwd: process.cwd(),
-        nodeVersion: process.version
+        stack: error instanceof Error ? error.stack : undefined,
+        cwd: process.cwd()
       },
-      'Failed to load enhanced security configuration'
+      'Fatal error during configuration loading.'
     );
-
-    throw new Error(`Enhanced security configuration loading failed: ${errorMessage}`);
+    throw new Error(`Configuration loading failed: ${errorMessage}`);
   }
 }

@@ -82,7 +82,8 @@ claude-config:
 	@echo '      "command": "node",'
 	@echo '      "args": ["$(PWD)/dist/index.js"],'
 	@echo '      "env": {'
-	@echo '        "MCP_LOG_LEVEL": "info"'
+	@echo '        "MCP_LOG_LEVEL": "info",'
+	@echo '        "MCP_SERVER_CONFIG_PATH": "$(PWD)/config/server.yaml"'
 	@echo '      }'
 	@echo '    }'
 	@echo '  }'
@@ -92,6 +93,8 @@ claude-config:
 	@echo "  macOS: ~/Library/Application Support/Claude/claude_desktop_config.json"
 	@echo "  Windows: %APPDATA%\\Claude\\claude_desktop_config.json"
 	@echo "  Linux: ~/.config/claude/claude_desktop_config.json"
+	@echo ""
+	@echo "Note: Ensure MCP_SERVER_CONFIG_PATH points to your actual server configuration file."
 
 # Linting
 lint:

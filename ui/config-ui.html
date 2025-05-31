@@ -14,21 +14,34 @@
 
     :root {
       --primary: #3b82f6;
+      /* Blue */
+      --secondary-accent: #8b5cf6;
+      /* Purple */
+      --tertiary-accent: #ec4899;
+      /* Pink */
+      --quaternary-accent: #f472b6;
+      /* Lighter Pink/Coral */
       --primary-hover: #2563eb;
       --success: #10b981;
       --warning: #f59e0b;
       --danger: #ef4444;
       --info-bg: #3b82f6;
-      /* For info toasts */
       --bg-primary: #0f172a;
+      /* Dark Slate */
       --bg-secondary: #1e293b;
+      /* Lighter Slate */
       --bg-tertiary: #334155;
+      /* Even Lighter Slate */
       --text-primary: #f1f5f9;
+      /* Almost White */
       --text-secondary: #cbd5e1;
+      /* Light Gray */
       --text-muted: #94a3b8;
+      /* Gray */
       --border: #475569;
+      /* Slate Border */
       --radius: 8px;
-      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
     }
 
     body {
@@ -38,7 +51,6 @@
       min-height: 100vh;
       line-height: 1.6;
       overflow-x: hidden;
-      /* Prevent horizontal scroll with toasts */
     }
 
     .container {
@@ -57,14 +69,47 @@
     }
 
     .header h1 {
-      font-size: 2.5rem;
+      font-size: 2.8rem;
       font-weight: 700;
-      margin-bottom: 0.5rem;
-      background: linear-gradient(135deg, var(--primary), #8b5cf6);
+      margin-bottom: 0.75rem;
+
+      /* Animated Gradient Text */
+      background: linear-gradient(120deg,
+          var(--primary) 0%,
+          var(--secondary-accent) 25%,
+          var(--tertiary-accent) 50%,
+          var(--quaternary-accent) 75%,
+          var(--primary) 100%);
+      background-size: 400% 100%;
+      /* Make background wider for smooth animation */
+
       -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+      -moz-background-clip: text;
       background-clip: text;
+
+      -webkit-text-fill-color: transparent;
+      -moz-text-fill-color: transparent;
+      color: transparent;
+      /* General fallback for transparency */
+
+      animation: animateGradientText 12s linear infinite;
+      /* Animation properties */
+
+      text-shadow: 0px 1px 3px rgba(0, 0, 0, 0.1);
+      /* Subtle shadow for definition */
     }
+
+    @keyframes animateGradientText {
+      0% {
+        background-position: 0% 50%;
+      }
+
+      100% {
+        background-position: 400% 50%;
+        /* Match background-size for a full cycle */
+      }
+    }
+
 
     .header p {
       color: var(--text-secondary);
@@ -94,6 +139,7 @@
     .tab.active {
       background: var(--primary);
       color: white;
+      box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
     }
 
     .tab:hover:not(.active) {
@@ -128,15 +174,61 @@
     }
 
     .section-icon {
-      width: 1.5rem;
-      height: 1.5rem;
+      width: 1.75rem;
+      height: 1.75rem;
       background: var(--primary);
-      border-radius: 4px;
+      border-radius: 6px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 0.8rem;
+      font-size: 0.9rem;
+      color: white;
     }
+
+    .main-section>div:not(:first-of-type),
+    .main-section>h3:not(:first-of-type),
+    .main-section>.btn-group:not(:first-of-type),
+    .main-section>.grid-3:not(:first-of-type),
+    /* Ensure grids also get dividers if not first*/
+    .main-section>.grid-2:not(:first-of-type),
+    .main-section>.server-config:not(:first-of-type),
+    .main-section>.form-group.config-preview-container:not(:first-of-type) {
+      /* For config preview if needed */
+      border-top: 1px solid var(--border);
+      padding-top: 2rem;
+      margin-top: 2rem;
+    }
+
+    .main-section>h2.section-title+* {
+      margin-top: 0;
+      padding-top: 0;
+      border-top: none;
+    }
+
+    .main-section>h2.section-title+h3 {
+      margin-top: 1.5rem;
+      padding-top: 0;
+      border-top: none;
+    }
+
+    /* Further ensure specific major blocks get dividers */
+    .main-section .config-status+.form-group,
+    /* After status cards before first real form group */
+    .main-section .server-config+.form-group,
+    /* After server-config grid before config preview */
+    .main-section .grid-3+.btn-group,
+    /* After the main security grid before save buttons */
+    .main-section .grid-2+h3,
+    /* After general server config grid before logging/perf title */
+    .main-section h3+.grid-2
+
+    /* After Logging & Perf title before its grid */
+      {
+      border-top: 1px solid var(--border);
+      padding-top: 2rem;
+      margin-top: 2rem;
+    }
+
 
     .config-status {
       display: grid;
@@ -197,7 +289,7 @@
     .form-control:focus {
       outline: none;
       border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
     }
 
     .form-control:disabled {
@@ -224,6 +316,7 @@
       cursor: pointer;
       transition: all 0.2s;
       text-align: center;
+      box-shadow: var(--shadow);
     }
 
     .btn-primary {
@@ -234,6 +327,7 @@
     .btn-primary:hover:not(:disabled) {
       background: var(--primary-hover);
       transform: translateY(-1px);
+      box-shadow: 0 6px 8px -2px rgba(0, 0, 0, 0.12), 0 3px 5px -2px rgba(0, 0, 0, 0.1);
     }
 
     .btn-success {
@@ -241,14 +335,30 @@
       color: white;
     }
 
+    .btn-success:hover:not(:disabled) {
+      background: #0f9a6c;
+      transform: translateY(-1px);
+    }
+
+
     .btn-warning {
       background: var(--warning);
       color: white;
     }
 
+    .btn-warning:hover:not(:disabled) {
+      background: #e08f0a;
+      transform: translateY(-1px);
+    }
+
     .btn-danger {
       background: var(--danger);
       color: white;
+    }
+
+    .btn-danger:hover:not(:disabled) {
+      background: #d73737;
+      transform: translateY(-1px);
     }
 
     .btn-secondary {
@@ -257,10 +367,18 @@
       border: 1px solid var(--border);
     }
 
+    .btn-secondary:hover:not(:disabled) {
+      background: var(--border);
+      color: var(--text-primary);
+      transform: translateY(-1px);
+    }
+
+
     .btn:disabled {
       opacity: 0.6;
       cursor: not-allowed;
       transform: none;
+      box-shadow: none;
     }
 
     .btn-group {
@@ -275,11 +393,11 @@
     }
 
     .config-preview {
-      background: #000;
-      color: #00ff00;
+      background: #0d1117;
+      color: #a5d6ff;
       padding: 1rem;
       border-radius: var(--radius);
-      font-family: 'Courier New', monospace;
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
       font-size: 0.85rem;
       max-height: 400px;
       overflow-y: auto;
@@ -287,6 +405,10 @@
       margin-top: 1rem;
       border: 1px solid var(--border);
     }
+
+    /* Give the config preview group a class to target for divider */
+    .config-preview-container {}
+
 
     .item-list-container {
       margin-top: 1rem;
@@ -344,15 +466,12 @@
       color: var(--text-primary);
     }
 
-    /* Original Alert styling (can be removed or kept for specific non-toast alerts) */
     .alert {
       padding: 1rem;
       border-radius: var(--radius);
       margin-bottom: 1rem;
       border-left: 4px solid;
     }
-
-    /* ... other .alert-type styles ... */
 
 
     .loading {
@@ -499,7 +618,6 @@
       color: var(--text-secondary);
     }
 
-    /* Toast Notification Styles - NEW */
     .toast-container {
       position: fixed;
       top: 20px;
@@ -533,7 +651,6 @@
     .toast-message {
       flex-grow: 1;
       white-space: pre-wrap;
-      /* Allow newlines in toast messages */
     }
 
     .toast-close-btn {
@@ -565,13 +682,11 @@
     .toast.info {
       border-left-color: var(--info-bg);
     }
-
-    /* Use primary for info */
   </style>
 </head>
 
 <body>
-  <div class="toast-container" id="toastContainer"></div> <!-- NEW Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
 
   <div class="container">
     <div class="header">
@@ -650,7 +765,7 @@
             </div>
           </div>
         </div>
-        <div class="form-group">
+        <div class="form-group config-preview-container">
           <label for="claudeConfigPreview">Current Configuration Preview</label>
           <div class="config-preview" id="claudeConfigPreview">Loading configuration...</div>
         </div>
@@ -781,11 +896,10 @@ echo"></textarea>
           </div>
         </div>
 
-        <div class="btn-group" style="margin-top: 2rem;">
+        <div class="btn-group">
           <button id="saveSecurityBtn" class="btn btn-success" onclick="saveSecurityConfig()">💾 Save Security
             Settings</button>
           <button class="btn btn-secondary" onclick="loadServerConfig()">🔄 Reload Settings</button>
-          <!-- Changed to loadServerConfig -->
           <button class="btn btn-warning" onclick="resetSecurityToDefaults()">↩️ Reset Security to Defaults</button>
         </div>
       </div>
@@ -864,14 +978,14 @@ echo"></textarea>
           </div>
         </div>
 
-        <div class="btn-group" style="margin-top: 2rem;">
+        <div class="btn-group">
           <button id="saveServerBtn" class="btn btn-success" onclick="saveCompleteServerConfig()">💾 Save Server
             Config</button>
           <button class="btn btn-secondary" onclick="loadServerConfig()">🔄 Reload Server Config</button>
           <button class="btn btn-primary" onclick="testServerConfig()">🧪 Test Configuration</button>
         </div>
 
-        <div class="form-group" style="margin-top: 2rem;">
+        <div class="form-group config-preview-container">
           <label for="serverConfigPreview">Server Configuration Preview (YAML)</label>
           <div class="config-preview" id="serverConfigPreview">Loading server configuration...</div>
         </div>
@@ -888,7 +1002,7 @@ echo"></textarea>
         <li><strong>Restart Claude Desktop:</strong> Close and reopen Claude Desktop completely.</li>
         <li><strong>Test Integration:</strong> Ask Claude to list files or execute commands.</li>
       </ol>
-      <div class="alert alert-info" style="margin-top: 1rem;"> <!-- Kept this specific alert -->
+      <div class="alert alert-info" style="margin-top: 1rem;">
         <strong>💡 Pro Tip:</strong> Start with "Standard" security presets and adjust as needed.
       </div>
     </div>
@@ -1131,7 +1245,7 @@ echo"></textarea>
 
     function addToList(inputId, textareaId, updateListFunc, updatePresetsFunc) {
       const inputElement = document.getElementById(inputId);
-      const itemValue = inputElement.value.trim(); // Renamed from pattern to itemValue
+      const itemValue = inputElement.value.trim();
       if (itemValue) {
         const textarea = document.getElementById(textareaId);
         const currentItems = textarea.value.split('\n').filter(item => item.trim());
@@ -1387,7 +1501,7 @@ echo"></textarea>
         setUnsafePatternPreset(null, 'balanced');
         document.getElementById('safezones').value = '.\n/tmp';
         updateSafezoneList();
-        showAlert('Security settings reset to defaults.', 'info'); // Keep as info for non-error
+        showAlert('Security settings reset to defaults.', 'info');
         updateActiveSecurityPresets();
       }
     }
@@ -1415,7 +1529,7 @@ echo"></textarea>
       }
     }
 
-    function showAlert(message, type = 'info', duration = 5000) { // Default type to 'info'
+    function showAlert(message, type = 'info', duration = 5000) {
       const toastContainer = document.getElementById('toastContainer');
       const toast = document.createElement('div');
       toast.className = `toast ${type}`;
@@ -1429,17 +1543,15 @@ echo"></textarea>
       closeButton.innerHTML = '×';
       closeButton.onclick = () => {
         toast.classList.remove('show');
-        setTimeout(() => toast.remove(), 500); // Remove after animation
+        setTimeout(() => toast.remove(), 500);
       };
 
       toast.appendChild(messageSpan);
       toast.appendChild(closeButton);
       toastContainer.appendChild(toast);
 
-      // Trigger the animation
       setTimeout(() => toast.classList.add('show'), 100);
 
-      // Auto-remove after duration, unless it's a danger type
       if (type !== 'danger') {
         setTimeout(() => {
           toast.classList.remove('show');
