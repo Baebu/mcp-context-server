@@ -1,4 +1,5 @@
-﻿import { Container } from 'inversify';
+﻿// src/infrastructure/di/container.ts - Updated with new services
+import { Container } from 'inversify';
 import 'reflect-metadata';
 
 // Interfaces
@@ -10,6 +11,8 @@ import type { IDatabaseHandler } from '../../core/interfaces/database.interface.
 import type { ICLIHandler } from '../../core/interfaces/cli.interface.js';
 import type { ISecurityValidator } from '../../core/interfaces/security.interface.js';
 import type { ISmartPathManager } from '../../core/interfaces/smart-path.interface.js';
+import type { IUserConsentService } from '../../core/interfaces/consent.interface.js';
+import type { IWorkspaceManager } from '../../core/interfaces/workspace.interface.js';
 
 // Implementations
 import { ToolRegistry } from '../../application/services/tool-registry.service.js';
@@ -20,10 +23,15 @@ import { DatabaseAdapter } from '../adapters/database.adapter.js';
 import { CLIAdapter } from '../adapters/cli.adapter.js';
 import { SecurityValidator } from '../../application/services/security-validator.service.js';
 import { SmartPathManager } from '../../application/services/smart-path-manager.service.js';
+import { UserConsentService } from '../../application/services/user-consent.service.js';
+import { WorkspaceManager } from '../../application/services/workspace-manager.service.js';
 
 // Tools, Resources, Prompts
 import { ParseFileTool } from '../../application/tools/file-parsing.tool.js';
 import { ProjectFilesResource } from '../../application/resources/project-files.resource.js';
+
+// UI Bridges
+import { ConsentUIBridge } from '../../presentation/consent-ui-bridge.js';
 
 export const container = new Container({ autoBindInjectable: true });
 
@@ -40,6 +48,11 @@ container.bind<ICLIHandler>('CLIHandler').to(CLIAdapter).inSingletonScope();
 // Application services
 container.bind<ISecurityValidator>('SecurityValidator').to(SecurityValidator).inSingletonScope();
 container.bind<ISmartPathManager>('SmartPathManager').to(SmartPathManager).inSingletonScope();
+container.bind<IUserConsentService>('UserConsentService').to(UserConsentService).inSingletonScope();
+container.bind<IWorkspaceManager>('WorkspaceManager').to(WorkspaceManager).inSingletonScope();
+
+// UI Bridges
+container.bind<ConsentUIBridge>(ConsentUIBridge).to(ConsentUIBridge).inSingletonScope();
 
 // Bind injectable tools and resources
 container.bind<ParseFileTool>(ParseFileTool).to(ParseFileTool).inSingletonScope();

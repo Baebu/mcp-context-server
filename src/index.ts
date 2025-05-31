@@ -1,4 +1,5 @@
-﻿import 'reflect-metadata';
+﻿// src/index.ts - Updated shutdown to include consent UI
+import 'reflect-metadata';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { MCPContextServer } from './presentation/server.js';
@@ -6,6 +7,7 @@ import { container } from './infrastructure/di/container.js';
 import { ContainerInitializer } from './infrastructure/di/container-initializer.js';
 import { loadConfig } from './infrastructure/config/config-loader.js';
 import { logger } from './utils/logger.js';
+import { ConsentUIBridge } from './presentation/consent-ui-bridge.js';
 
 async function ensureDataDirectory(dbPath: string): Promise<void> {
   const dataDir = path.dirname(dbPath);
@@ -38,6 +40,11 @@ async function main() {
     // Handle graceful shutdown
     const shutdown = async () => {
       logger.info('Shutting down gracefully...');
+
+      // Stop consent UI
+      const consentUIBridge = container.get(ConsentUIBridge);
+      consentUIBridge.stop();
+
       await server.shutdown();
 
       // Close database connection

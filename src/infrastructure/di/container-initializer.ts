@@ -1,12 +1,16 @@
-﻿// src/infrastructure/di/container-initializer.ts
+﻿// src/infrastructure/di/container-initializer.ts - Updated
 import type { Container } from 'inversify';
 import type { IToolRegistry } from '../../core/interfaces/tool-registry.interface.js';
 import type { IResourceRegistry } from '../../core/interfaces/resource-registry.interface.js';
 import type { IPromptRegistry } from '../../core/interfaces/prompt-registry.interface.js';
 
 // Tools
-import { ReadFileTool, WriteFileTool, ListDirectoryTool } from '../../application/tools/file-operations.tool.js';
-import { ExecuteCommandTool } from '../../application/tools/command-execution.tool.js';
+import {
+  ReadFileTool,
+  ListDirectoryTool,
+  WriteFileToolWithConsent
+} from '../../application/tools/file-operations.tool.js';
+import { ExecuteCommandToolWithConsent } from '../../application/tools/command-execution.tool.js';
 import {
   StoreContextTool,
   GetContextTool,
@@ -15,10 +19,24 @@ import {
 import {
   CreateSmartPathTool,
   ExecuteSmartPathTool,
-  ListSmartPathsTool // Add the new tool
+  ListSmartPathsTool
 } from '../../application/tools/smart-path.tool.js';
 import { ParseFileTool } from '../../application/tools/file-parsing.tool.js';
 import { GetMetricsTool } from '../../application/tools/metrics.tool.js';
+import { SecurityDiagnosticsTool } from '../../application/tools/security-diagnostics.tool.js';
+import { DatabaseHealthTool } from '../../application/tools/database-health.tool.js';
+
+// New Workspace Tools
+import {
+  CreateWorkspaceTool,
+  ListWorkspacesTool,
+  SwitchWorkspaceTool,
+  SyncWorkspaceTool,
+  TrackFileTool,
+  GetWorkspaceStatsTool,
+  DeleteWorkspaceTool,
+  ExportWorkspaceTemplateTool
+} from '../../application/tools/workspace-management.tools.js';
 
 // Resources
 import { ProjectFilesResource } from '../../application/resources/project-files.resource.js';
@@ -26,11 +44,18 @@ import { ProjectFilesResource } from '../../application/resources/project-files.
 // Prompts
 import { ContextSummaryPrompt } from '../../application/prompts/context-summary.prompt.js';
 
+// UI Bridges
+import { ConsentUIBridge } from '../../presentation/consent-ui-bridge.js'; // Added import
+
 import { logger } from '../../utils/logger.js';
 
 export class ContainerInitializer {
   static async initialize(container: Container): Promise<void> {
-    logger.info('Initializing container with tools, resources, and prompts...');
+    logger.info('Initializing container with enhanced tools, resources, and prompts...');
+
+    // Initialize consent UI bridge
+    const consentUIBridge = container.get<ConsentUIBridge>(ConsentUIBridge);
+    consentUIBridge.start();
 
     // Initialize and register tools
     await this.initializeTools(container);
@@ -41,19 +66,19 @@ export class ContainerInitializer {
     // Initialize and register prompts
     await this.initializePrompts(container);
 
-    logger.info('Container initialization complete');
+    logger.info('Container initialization complete with consent and workspace management');
   }
 
   private static async initializeTools(container: Container): Promise<void> {
     const toolRegistry = container.get<IToolRegistry>('ToolRegistry');
 
-    // File operations
+    // File operations (enhanced with consent)
     toolRegistry.register(new ReadFileTool());
-    toolRegistry.register(new WriteFileTool());
+    toolRegistry.register(new WriteFileToolWithConsent()); // Enhanced version
     toolRegistry.register(new ListDirectoryTool());
 
-    // Command execution
-    toolRegistry.register(new ExecuteCommandTool());
+    // Command execution (enhanced with consent)
+    toolRegistry.register(new ExecuteCommandToolWithConsent()); // Enhanced version
 
     // Database operations
     toolRegistry.register(new StoreContextTool());
@@ -63,15 +88,27 @@ export class ContainerInitializer {
     // Smart paths
     toolRegistry.register(new CreateSmartPathTool());
     toolRegistry.register(new ExecuteSmartPathTool());
-    toolRegistry.register(new ListSmartPathsTool()); // Add the new tool
+    toolRegistry.register(new ListSmartPathsTool());
+
+    // Workspace management tools
+    toolRegistry.register(new CreateWorkspaceTool());
+    toolRegistry.register(new ListWorkspacesTool());
+    toolRegistry.register(new SwitchWorkspaceTool());
+    toolRegistry.register(new SyncWorkspaceTool());
+    toolRegistry.register(new TrackFileTool());
+    toolRegistry.register(new GetWorkspaceStatsTool());
+    toolRegistry.register(new DeleteWorkspaceTool());
+    toolRegistry.register(new ExportWorkspaceTemplateTool());
 
     // File parsing
     toolRegistry.register(container.get(ParseFileTool));
 
-    // Metrics
+    // Metrics and diagnostics
     toolRegistry.register(new GetMetricsTool());
+    toolRegistry.register(new SecurityDiagnosticsTool());
+    toolRegistry.register(new DatabaseHealthTool());
 
-    logger.debug('Tools registered successfully');
+    logger.debug('Tools registered successfully including workspace management');
   }
 
   private static async initializeResources(container: Container): Promise<void> {

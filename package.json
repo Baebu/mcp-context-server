@@ -59,6 +59,7 @@
     "reflect-metadata": "^0.2.1",
     "stream-json": "^1.8.0",
     "winston": "^3.17.0",
+    "ws": "^8.18.2",
     "yaml": "^2.3.4",
     "zod": "^3.22.4",
     "zod-to-json-schema": "^3.24.5"
@@ -69,6 +70,7 @@
     "@types/convict": "^6.1.6",
     "@types/jest": "^29.5.14",
     "@types/node": "^20.11.5",
+    "@types/ws": "^8.18.1",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",
     "cross-env": "^7.0.3",

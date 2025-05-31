@@ -298,10 +298,8 @@ export class SmartPathManager implements ISmartPathManager {
           for (const [key, value] of Object.entries(params)) {
             if (typeof value === 'string') {
               // Remove dangerous path characters
-              const sanitizedValue = value
-                .replace(/[<>:"|?*]/g, '') // Remove potentially dangerous filename characters
-                .replace(/\.\.+[/\\]?/g, '');
-              resolvedPath = resolvedPath.replace(new RegExp(`{{${key}}}`, 'g'), sanitizedValue);
+              const sanitizedValue = value.replace(/[<>:"|?*\x00-\x1f]/g, '').replace(/\.\.+[/\\]?/g, '');
+              resolvedPath = resolvedPath.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), sanitizedValue);
             }
           }
 

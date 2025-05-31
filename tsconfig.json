@@ -6,15 +6,15 @@
     "moduleResolution": "NodeNext",
     "allowJs": false,
     "outDir": "./dist",
-    "rootDir": ".",
-    "removeComments": false,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
+    "rootDir": "./src",
+    "removeComments": true,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
     "composite": false,
-    "incremental": true,
-    "tsBuildInfoFile": "./dist/.tsbuildinfo",
-    "isolatedModules": true,
+    "incremental": false,
+
+    // Strict Type Checking (Production)
     "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
@@ -30,6 +30,8 @@
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": false,
+
+    // Module Resolution
     "moduleDetection": "force",
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
@@ -37,9 +39,16 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "verbatimModuleSyntax": true,
+
+    // Experimental Features
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "types": ["node", "jest"],
+
+    // Type Definitions
+    "types": ["node"],
+    "typeRoots": ["./node_modules/@types"],
+
+    // Path Mapping
     "baseUrl": "./src",
     "paths": {
       "@core/*": ["core/*"],
@@ -49,10 +58,17 @@
       "@utils/*": ["utils/*"]
     }
   },
-  "include": ["src/**/*", "tests/**/*"],
-  "exclude": ["node_modules", "dist", "build", "coverage"],
-  "ts-node": {
-    "esm": true,
-    "experimentalSpecifierResolution": "node"
-  }
+  "include": ["src/**/*"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "build",
+    "coverage",
+    "tests/**/*",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "**/__tests__/**/*",
+    "**/*.backup",
+    "scripts/config-ui.ts"
+  ]
 }

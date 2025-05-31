@@ -131,6 +131,17 @@ performance:
   maxConcurrency: 5   # Lower concurrency for development
   queueSize: 100      # Smaller queue for development
 
+consent:
+  alwaysAllow:
+    - 'file_write:*.log'
+    - 'file_write:*.tmp'
+    - 'command_execute:ls'
+  alwaysDeny:
+    - 'command_execute:rm -rf /*'
+    - 'file_delete:**/.ssh/**'
+  requireConsent:
+    - 'recursive_delete:*'
+    - 'file_write:**/*.key'
 # 📝 CONFIGURATION NOTES:
 #
 # 1. SAFE ZONES are directories where the AI can read/write files

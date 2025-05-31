@@ -8,15 +8,29 @@
     "tsconfigRootDir": "."
   },
   "plugins": ["@typescript-eslint", "prettier"],
-  "extends": ["eslint:recommended", "prettier"],
+  "extends": ["eslint:recommended", "@typescript-eslint/recommended", "prettier"],
   "env": {
     "node": true,
     "es2022": true,
     "jest": true
   },
+  "globals": {
+    "NodeJS": "readonly",
+    "Buffer": "readonly",
+    "process": "readonly",
+    "global": "readonly",
+    "__dirname": "readonly",
+    "__filename": "readonly",
+    "setTimeout": "readonly",
+    "clearTimeout": "readonly",
+    "setInterval": "readonly",
+    "clearInterval": "readonly"
+  },
   "rules": {
+    // Prettier Integration
     "prettier/prettier": "error",
 
+    // TypeScript Specific Rules
     "@typescript-eslint/no-unused-vars": [
       "error",
       {
@@ -38,7 +52,13 @@
         "disallowTypeAnnotations": false
       }
     ],
+    "@typescript-eslint/no-floating-promises": "error",
+    "@typescript-eslint/await-thenable": "error",
+    "@typescript-eslint/no-misused-promises": "error",
+    "@typescript-eslint/prefer-nullish-coalescing": "error",
+    "@typescript-eslint/prefer-optional-chain": "error",
 
+    // General ESLint Rules
     "no-console": "warn",
     "no-debugger": "error",
     "no-eval": "error",
@@ -51,7 +71,35 @@
     "prefer-arrow-callback": "error",
     "eqeqeq": ["error", "always", { "null": "ignore" }],
     "curly": ["error", "all"],
-    "no-case-declarations": "error"
+    "no-case-declarations": "error",
+
+    // Security and Best Practices
+    "no-control-regex": "warn",
+    "no-unsafe-regex": "error",
+    "no-prototype-builtins": "error",
+    "no-script-url": "error",
+    "no-self-compare": "error",
+    "no-sequences": "error",
+    "no-throw-literal": "error",
+    "no-unmodified-loop-condition": "error",
+    "no-unused-expressions": ["error", { "allowShortCircuit": true, "allowTernary": true }],
+    "no-useless-call": "error",
+    "no-useless-concat": "error",
+    "no-useless-return": "error",
+    "prefer-promise-reject-errors": "error",
+    "require-await": "error",
+
+    // Import/Export Rules
+    "no-duplicate-imports": "error",
+    "sort-imports": ["error", { "ignoreDeclarationSort": true }],
+
+    // Node.js Specific Rules
+    "no-process-env": "off",
+    "no-process-exit": "warn",
+    "no-sync": "warn",
+
+    // Disable conflicting rules
+    "no-undef": "off" // TypeScript handles this better
   },
   "overrides": [
     {
@@ -62,11 +110,13 @@
       "rules": {
         "@typescript-eslint/no-explicit-any": "off",
         "@typescript-eslint/no-non-null-assertion": "off",
-        "no-console": "off"
+        "@typescript-eslint/no-floating-promises": "off",
+        "no-console": "off",
+        "prefer-promise-reject-errors": "off"
       }
     },
     {
-      "files": ["*.config.js", "jest.config.js", "**/*.config.js"],
+      "files": ["*.config.js", "jest.config.js", "**/*.config.js", "scripts/**/*.js"],
       "env": {
         "node": true
       },
@@ -76,9 +126,39 @@
         "sourceType": "module"
       },
       "rules": {
-        "@typescript-eslint/no-var-requires": "off"
+        "@typescript-eslint/no-var-requires": "off",
+        "@typescript-eslint/no-explicit-any": "off",
+        "no-console": "off"
+      }
+    },
+    {
+      "files": ["scripts/**/*.ts", "scripts/**/*.js"],
+      "rules": {
+        "no-console": "off",
+        "@typescript-eslint/no-floating-promises": "off",
+        "no-process-exit": "off"
+      }
+    },
+    {
+      "files": ["src/utils/error-handler.ts", "src/infrastructure/adapters/*.ts"],
+      "rules": {
+        "@typescript-eslint/no-explicit-any": "off",
+        "no-control-regex": "off"
+      }
+    },
+    {
+      "files": ["src/application/services/smart-path-manager.service.ts"],
+      "rules": {
+        "no-control-regex": "off"
+      }
+    },
+    {
+      "files": ["src/application/tools/database-health.tool.ts"],
+      "rules": {
+        "@typescript-eslint/no-non-null-assertion": "off",
+        "@typescript-eslint/strict-boolean-expressions": "off"
       }
     }
   ],
-  "ignorePatterns": ["dist/", "build/", "node_modules/", "coverage/", "*.d.ts", "**/*.js.map"]
+  "ignorePatterns": ["dist/", "build/", "node_modules/", "coverage/", "*.d.ts", "**/*.js.map", "**/*.backup"]
 }
