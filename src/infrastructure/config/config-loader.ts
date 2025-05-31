@@ -108,6 +108,49 @@ function getPlatformRestrictedZones(): string[] {
   return restrictedZones;
 }
 
+const allToolNames = [
+  'read_file',
+  'write_file',
+  'list_directory',
+  'execute_command',
+  'store_context',
+  'get_context',
+  'query_context',
+  'create_smart_path',
+  'execute_smart_path',
+  'list_smart_paths',
+  'create_workspace',
+  'list_workspaces',
+  'switch_workspace',
+  'sync_workspace',
+  'track_file',
+  'get_workspace_stats',
+  'delete_workspace',
+  'export_workspace_template',
+  'parse_file',
+  'get_metrics',
+  'security_diagnostics',
+  'database_health'
+];
+
+const commonOsCommands = [
+  'ls',
+  'cat',
+  'grep',
+  'find',
+  'echo',
+  'pwd',
+  'whoami',
+  'dir',
+  'type',
+  'where',
+  'git',
+  'npm',
+  'node',
+  'python',
+  'python3'
+];
+
 export const configSchema = convict({
   server: {
     name: {
@@ -133,7 +176,7 @@ export const configSchema = convict({
     allowedCommands: {
       doc: 'List of allowed commands or "all"',
       format: Array,
-      default: ['ls', 'cat', 'grep', 'find', 'echo', 'pwd', 'whoami', 'dir', 'type', 'where'], // Added Windows commands
+      default: [...new Set([...commonOsCommands, ...allToolNames])], // Default to OS commands + all tools
       env: 'MCP_ALLOWED_COMMANDS'
     },
     safezones: {
@@ -329,9 +372,6 @@ export async function loadConfig(): Promise<ServerConfig> {
       );
     }
 
-    // Convict automatically loads environment variables that match its schema definitions,
-    // overriding values from files or defaults. This is standard behavior.
-    // We also explicitly call validate to ensure the final configuration is sound.
     try {
       configSchema.validate({ allowed: 'strict' });
     } catch (validationError) {

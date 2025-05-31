@@ -406,8 +406,7 @@
       border: 1px solid var(--border);
     }
 
-    /* Give the config preview group a class to target for divider */
-    .config-preview-container {}
+    /* Removed empty ruleset for .config-preview-container */
 
 
     .item-list-container {
@@ -806,16 +805,16 @@
               <div class="help-text">Choose a security level for allowed commands</div>
               <div class="presets-grid" id="commandPresetsContainer">
                 <div class="preset-btn" onclick="setSecurityPreset(event, 'minimal')">
-                  <div class="preset-title">🛡️ Minimal</div>
-                  <div class="preset-desc">Basic commands only</div>
+                  <div class="preset-title">🛡️ Minimal OS</div>
+                  <div class="preset-desc">Basic OS commands</div>
                 </div>
                 <div class="preset-btn" onclick="setSecurityPreset(event, 'standard')">
-                  <div class="preset-title">⚖️ Standard</div>
-                  <div class="preset-desc">Common dev commands</div>
+                  <div class="preset-title">⚖️ Standard OS + Tools</div>
+                  <div class="preset-desc">Common OS & All Tools</div>
                 </div>
                 <div class="preset-btn" onclick="setSecurityPreset(event, 'developer')">
-                  <div class="preset-title">🔧 Developer</div>
-                  <div class="preset-desc">Full dev toolkit</div>
+                  <div class="preset-title">🔧 Developer OS + Tools</div>
+                  <div class="preset-desc">Extended OS & All Tools</div>
                 </div>
                 <div class="preset-btn" onclick="setSecurityPreset(event, 'custom')">
                   <div class="preset-title">⚙️ Custom</div>
@@ -827,14 +826,13 @@
               <label for="allowedCommands">Allowed Commands (one per line)</label>
               <textarea id="allowedCommands" class="form-control" rows="5" placeholder="ls
 cat
-grep
-find
-echo"></textarea>
+read_file
+execute_command"></textarea>
             </div>
             <div class="form-group">
               <label for="addCommandInput">Add Command</label>
               <div style="display: flex; gap: 0.5rem;">
-                <input type="text" id="addCommandInput" class="form-control" placeholder="e.g., python3">
+                <input type="text" id="addCommandInput" class="form-control" placeholder="e.g., python3 or a_tool_name">
                 <button id="addCommandBtn" class="btn btn-primary" onclick="addCommand()">Add</button>
               </div>
             </div>
@@ -1015,10 +1013,23 @@ echo"></textarea>
     let claudeConfigPath = '';
     let platformInfo = {};
 
+    const allToolNames = [
+      'read_file', 'write_file', 'list_directory', 'execute_command',
+      'store_context', 'get_context', 'query_context',
+      'create_smart_path', 'execute_smart_path', 'list_smart_paths',
+      'create_workspace', 'list_workspaces', 'switch_workspace', 'sync_workspace',
+      'track_file', 'get_workspace_stats', 'delete_workspace', 'export_workspace_template',
+      'parse_file', 'get_metrics', 'security_diagnostics', 'database_health'
+    ];
+
+    const commonOsCommands = ['ls', 'cat', 'grep', 'find', 'echo', 'pwd', 'whoami', 'dir', 'type', 'where'];
+    const developerOsCommands = [...commonOsCommands, 'git', 'npm', 'node', 'python', 'python3'];
+
+
     const commandSecurityPresets = {
-      minimal: { commands: ['echo', 'pwd'], description: 'Basic commands only' },
-      standard: { commands: ['ls', 'cat', 'grep', 'find', 'echo', 'pwd', 'whoami'], description: 'Common dev commands' },
-      developer: { commands: ['ls', 'cat', 'grep', 'find', 'echo', 'pwd', 'whoami', 'node', 'npm', 'git', 'python', 'python3'], description: 'Full dev toolkit' },
+      minimal: { commands: [...commonOsCommands], description: 'Basic OS commands' },
+      standard: { commands: [...new Set([...commonOsCommands, ...allToolNames])], description: 'Common OS & All Tools' },
+      developer: { commands: [...new Set([...developerOsCommands, ...allToolNames])], description: 'Extended OS & All Tools' },
       custom: { commands: [], description: 'Configure manually' }
     };
 
@@ -1497,7 +1508,7 @@ echo"></textarea>
 
     function resetSecurityToDefaults() {
       if (confirm('Reset all security settings to defaults? This will overwrite your current configuration.')) {
-        setSecurityPreset(null, 'standard');
+        setSecurityPreset(null, 'standard'); // "Standard" preset now includes tools
         setUnsafePatternPreset(null, 'balanced');
         document.getElementById('safezones').value = '.\n/tmp';
         updateSafezoneList();
