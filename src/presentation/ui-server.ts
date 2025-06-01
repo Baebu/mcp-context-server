@@ -8,37 +8,63 @@ import { readFileSync, promises as fs } from 'fs';
 import { join, resolve, dirname } from 'path';
 import { homedir, platform } from 'os';
 import * as yaml from 'yaml';
-import type { Container } from 'inversify';
+// import type { Container } from 'inversify'; // No longer needed here
 import type { ServerConfig } from '../infrastructure/config/types.js';
 import { logger } from '../utils/logger.js';
 import { configSchema } from '../infrastructure/config/config-loader.js';
 
+interface ClaudeDesktopServerEntry {
+  command: string;
+  args: string[];
+  env?: Record<string, string>;
+}
+
 interface ClaudeDesktopConfig {
-  mcpServers?: Record<
-    string,
-    {
-      command: string;
-      args: string[];
-      env?: Record<string, string>;
-    }
-  >;
+  mcpServers?: Record<string, ClaudeDesktopServerEntry>;
 }
 
 interface CompleteServerConfig extends ServerConfig {}
 
+// Helper function to get Claude Desktop config path
+function getClaudeDesktopConfigPathInternal(): string {
+  const currentPlatform = platform();
+  const home = homedir();
+  switch (currentPlatform) {
+    case 'win32':
+      return join(process.env.APPDATA || join(home, 'AppData', 'Roaming'), 'Claude', 'claude_desktop_config.json');
+    case 'darwin':
+      return join(home, 'Library', 'Application Support', 'Claude', 'claude_desktop_config.json');
+    default: // Linux and other Unix-like
+      return join(home, '.config', 'claude', 'claude_desktop_config.json');
+  }
+}
+
 export class UIServer {
   private server: Server | null = null;
   private serverConfigPath: string;
+  private projectRoot: string;
 
   constructor(
-    private container: Container, // container is used
-    _initialConfig: ServerConfig, // Mark as unused or remove if not needed for future ref
+    // Container removed as it's not used by UIServer directly
+    // private container: Container,
+    _initialConfig: ServerConfig,
     private port: number = 3001
   ) {
-    this.serverConfigPath = join(process.cwd(), 'config', 'server.yaml');
-    // The _initialConfig was passed but not stored on `this` for later use by UIServer itself.
-    // It's primarily used by the calling script (scripts/config-ui.ts) to bind to the container.
-    logger.debug({ configPath: this.serverConfigPath }, 'UI Server initialized');
+    // Determine project root relative to this file's location
+    // Assumes this file is in src/presentation/ and project root is two levels up.
+    // Using import.meta.url requires Node.js to be in ESM mode for this file.
+    let currentFilePath = '';
+    try {
+      currentFilePath = dirname(decodeURI(new URL(import.meta.url).pathname));
+    } catch (e) {
+      // Fallback for environments where import.meta.url might not behave as expected
+      // or if running in a context where it's not available (e.g. certain bundlers/transpilers without proper config)
+      currentFilePath = __dirname;
+      logger.warn('Using __dirname as fallback for UIServer path resolution. Ensure ESM context if issues arise.');
+    }
+    this.projectRoot = resolve(currentFilePath, '..', '..');
+    this.serverConfigPath = join(this.projectRoot, 'config', 'server.yaml');
+    logger.debug({ configPath: this.serverConfigPath, projectRoot: this.projectRoot }, 'UI Server initialized');
   }
 
   start(): void {
@@ -63,15 +89,17 @@ export class UIServer {
 
       if (url.pathname === '/' || url.pathname === '/ui' || url.pathname === '/config') {
         res.setHeader('Content-Type', 'text/html');
-        const uiPath = join(process.cwd(), 'ui', 'config-ui.html');
+        const uiPath = join(this.projectRoot, 'ui', 'config-ui.html');
         try {
           const html = readFileSync(uiPath, 'utf8');
           res.writeHead(200);
           res.end(html);
         } catch (error) {
-          logger.error({ error }, 'Failed to read UI file');
+          logger.error({ error, uiPath }, 'Failed to read UI file');
           res.writeHead(404);
-          res.end('Configuration UI not found. Please ensure config-ui.html is in the ui/ directory.');
+          res.end(
+            'Configuration UI not found. Please ensure config-ui.html is in the ui/ directory relative to project root.'
+          );
         }
         return;
       }
@@ -124,8 +152,12 @@ export class UIServer {
         });
         req.on('end', async () => {
           try {
-            const newConfig = JSON.parse(body) as ClaudeDesktopConfig;
-            const result = await this.saveClaudeDesktopConfig(newConfig);
+            const serverDetails = JSON.parse(body) as {
+              serverName: string;
+              serverExecutablePath: string;
+              logLevel: string;
+            };
+            const result = await this.updateAndSaveClaudeDesktopConfig(serverDetails);
             res.writeHead(200);
             res.end(JSON.stringify(result));
           } catch (error: unknown) {
@@ -133,6 +165,33 @@ export class UIServer {
             res.writeHead(500);
             res.end(
               JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Config save failed' })
+            );
+          }
+        });
+        return;
+      }
+
+      if (url.pathname === '/api/claude-config/remove' && req.method === 'POST') {
+        // New endpoint for removal
+        let body = '';
+        req.on('data', chunk => {
+          body += chunk.toString();
+        });
+        req.on('end', async () => {
+          try {
+            const { serverName } = JSON.parse(body);
+            if (!serverName) throw new Error('serverName is required for removal.');
+            const result = await this.removeServerFromClaudeDesktopConfig(serverName);
+            res.writeHead(200);
+            res.end(JSON.stringify(result));
+          } catch (error) {
+            logger.error({ error }, 'Claude config remove server error');
+            res.writeHead(500);
+            res.end(
+              JSON.stringify({
+                success: false,
+                error: error instanceof Error ? error.message : 'Server removal failed'
+              })
             );
           }
         });
@@ -201,29 +260,13 @@ export class UIServer {
   private getPlatformInfo() {
     const currentPlatform = platform();
     const home = homedir();
-    let configPath: string;
-
-    switch (currentPlatform) {
-      case 'win32':
-        configPath = join(
-          process.env.APPDATA || join(home, 'AppData', 'Roaming'),
-          'Claude',
-          'claude_desktop_config.json'
-        );
-        break;
-      case 'darwin':
-        configPath = join(home, 'Library', 'Application Support', 'Claude', 'claude_desktop_config.json');
-        break;
-      default:
-        configPath = join(home, '.config', 'claude', 'claude_desktop_config.json');
-        break;
-    }
     return {
       platform: currentPlatform,
       platformName: this.getPlatformDisplayName(currentPlatform),
-      configPath,
+      claudeConfigPath: getClaudeDesktopConfigPathInternal(),
       home,
-      serverConfigPath: this.serverConfigPath
+      serverConfigPath: this.serverConfigPath,
+      projectRoot: this.projectRoot
     };
   }
 
@@ -241,36 +284,106 @@ export class UIServer {
   }
 
   private async getClaudeDesktopConfig(): Promise<{ exists: boolean; config?: ClaudeDesktopConfig; error?: string }> {
-    const platformInfo = this.getPlatformInfo();
+    const claudeConfigPath = getClaudeDesktopConfigPathInternal();
     try {
-      await fs.access(platformInfo.configPath);
-      const configContent = await fs.readFile(platformInfo.configPath, 'utf8');
-      const configData = JSON.parse(configContent) as ClaudeDesktopConfig; // Renamed to avoid conflict
+      await fs.access(claudeConfigPath);
+      const configContent = await fs.readFile(claudeConfigPath, 'utf8');
+      const configData = JSON.parse(configContent) as ClaudeDesktopConfig;
       return { exists: true, config: configData };
     } catch (error) {
       if ((error as { code?: string }).code === 'ENOENT') {
         return { exists: false, config: { mcpServers: {} } };
       }
-      logger.error({ error, path: platformInfo.configPath }, 'Failed to read Claude Desktop config');
-      return { exists: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      logger.error({ error, path: claudeConfigPath }, 'Failed to read Claude Desktop config');
+      return { exists: false, error: error instanceof Error ? error.message : 'Unknown error reading Claude config' };
     }
   }
 
-  private async saveClaudeDesktopConfig(
-    configData: ClaudeDesktopConfig
-  ): Promise<{ success: boolean; error?: string }> {
-    // Renamed to avoid conflict
-    const platformInfo = this.getPlatformInfo();
+  private async updateAndSaveClaudeDesktopConfig(serverDetails: {
+    serverName: string;
+    serverExecutablePath: string;
+    logLevel: string;
+  }): Promise<{ success: boolean; config?: ClaudeDesktopConfig; error?: string }> {
+    const claudeConfigPath = getClaudeDesktopConfigPathInternal();
     try {
-      const configDir = dirname(platformInfo.configPath);
+      let currentConfigData: ClaudeDesktopConfig;
+      try {
+        const configContent = await fs.readFile(claudeConfigPath, 'utf8');
+        currentConfigData = JSON.parse(configContent);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+          currentConfigData = { mcpServers: {} };
+        } else {
+          throw error;
+        }
+      }
+
+      if (!currentConfigData.mcpServers) {
+        currentConfigData.mcpServers = {};
+      }
+
+      const defaultMcpServerConfigPath = resolve(this.projectRoot, 'config', 'server.yaml');
+
+      currentConfigData.mcpServers[serverDetails.serverName] = {
+        command: 'node',
+        args: [serverDetails.serverExecutablePath],
+        env: {
+          MCP_LOG_LEVEL: serverDetails.logLevel,
+          MCP_SERVER_CONFIG_PATH: defaultMcpServerConfigPath
+        }
+      };
+
+      const configDir = dirname(claudeConfigPath);
       await fs.mkdir(configDir, { recursive: true });
-      const configContent = JSON.stringify(configData, null, 2);
-      await fs.writeFile(platformInfo.configPath, configContent, 'utf8');
-      logger.info({ path: platformInfo.configPath }, 'Claude Desktop configuration saved');
-      return { success: true };
+      await fs.writeFile(claudeConfigPath, JSON.stringify(currentConfigData, null, 2), 'utf8');
+      logger.info(
+        { path: claudeConfigPath, serverName: serverDetails.serverName },
+        'Claude Desktop configuration updated and saved'
+      );
+      return { success: true, config: currentConfigData };
     } catch (error) {
-      logger.error({ error, path: platformInfo.configPath }, 'Failed to save Claude Desktop config');
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      logger.error({ error, path: claudeConfigPath }, 'Failed to update and save Claude Desktop config');
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error during save' };
+    }
+  }
+
+  private async removeServerFromClaudeDesktopConfig(
+    serverName: string
+  ): Promise<{ success: boolean; config?: ClaudeDesktopConfig; error?: string }> {
+    const claudeConfigPath = getClaudeDesktopConfigPathInternal();
+    try {
+      let currentConfigData: ClaudeDesktopConfig;
+      try {
+        const configContent = await fs.readFile(claudeConfigPath, 'utf8');
+        currentConfigData = JSON.parse(configContent);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+          logger.warn(
+            { path: claudeConfigPath, serverName },
+            "Tried to remove server, but Claude config file doesn't exist."
+          );
+          return { success: true, config: { mcpServers: {} } };
+        }
+        throw error;
+      }
+
+      if (currentConfigData.mcpServers && currentConfigData.mcpServers[serverName]) {
+        delete currentConfigData.mcpServers[serverName];
+        const configDir = dirname(claudeConfigPath);
+        await fs.mkdir(configDir, { recursive: true });
+        await fs.writeFile(claudeConfigPath, JSON.stringify(currentConfigData, null, 2), 'utf8');
+        logger.info({ path: claudeConfigPath, serverName }, 'Server removed from Claude Desktop configuration');
+        return { success: true, config: currentConfigData };
+      } else {
+        logger.warn(
+          { path: claudeConfigPath, serverName },
+          'Server to remove not found in Claude Desktop configuration.'
+        );
+        return { success: true, config: currentConfigData };
+      }
+    } catch (error) {
+      logger.error({ error, path: claudeConfigPath, serverName }, 'Failed to remove server from Claude Desktop config');
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error during server removal' };
     }
   }
 
@@ -278,7 +391,7 @@ export class UIServer {
     try {
       await fs.access(this.serverConfigPath);
       const configContent = await fs.readFile(this.serverConfigPath, 'utf8');
-      const configData = yaml.parse(configContent) as CompleteServerConfig; // Renamed
+      const configData = yaml.parse(configContent) as CompleteServerConfig;
 
       if (!configData.security.unsafeArgumentPatterns) {
         configData.security.unsafeArgumentPatterns = configSchema.get('security.unsafeArgumentPatterns') as string[];
@@ -300,7 +413,7 @@ export class UIServer {
   ): Promise<{ success: boolean; error?: string }> {
     try {
       const currentResult = await this.getServerConfig();
-      const currentConfigData = currentResult.config || (configSchema.getProperties() as CompleteServerConfig); // Renamed
+      const currentConfigData = currentResult.config || (configSchema.getProperties() as CompleteServerConfig);
 
       const mergedConfig: CompleteServerConfig = {
         ...currentConfigData,
@@ -334,7 +447,7 @@ export class UIServer {
 
   private async autoDetectServerPath(): Promise<{ found: boolean; path?: string; error?: string }> {
     try {
-      const currentDir = process.cwd();
+      const currentDir = this.projectRoot;
       const possiblePaths = [
         join(currentDir, 'dist', 'index.js'),
         join(currentDir, 'build', 'index.js'),
@@ -344,14 +457,17 @@ export class UIServer {
         try {
           await fs.access(p);
           const content = await fs.readFile(p, 'utf8');
-          if (content.includes('MCP') || content.includes('context') || content.includes('server')) {
+          if (content.includes('MCPContextServer') || content.includes('@modelcontextprotocol/sdk')) {
             return { found: true, path: resolve(p) };
           }
         } catch {
           /* Path doesn't exist or not our server, continue */
         }
       }
-      return { found: false, error: 'Could not find built server. Please run "npm run build" first.' };
+      return {
+        found: false,
+        error: 'Could not find built server (e.g., dist/index.js). Please run "npm run build" first.'
+      };
     } catch (error) {
       return { found: false, error: error instanceof Error ? error.message : 'Auto-detection failed' };
     }
@@ -363,37 +479,49 @@ export class UIServer {
     try {
       const serverConfigResult = await this.getServerConfig();
       if (!serverConfigResult.exists) {
-        warnings.push('Server configuration file not found - using defaults');
+        warnings.push('Server configuration file (e.g., config/server.yaml) not found - using defaults.');
       }
-      const serverConfigData = serverConfigResult.config; // Renamed
+      const serverConfigData = serverConfigResult.config;
 
-      const claudeConfigResult = await this.getClaudeDesktopConfig(); // Renamed
+      const claudeConfigResult = await this.getClaudeDesktopConfig();
       if (!claudeConfigResult.exists) {
-        warnings.push('Claude Desktop configuration not found');
+        warnings.push(`Claude Desktop configuration file (${this.getPlatformInfo().claudeConfigPath}) not found.`);
+      } else if (
+        claudeConfigResult.config &&
+        (!claudeConfigResult.config.mcpServers || Object.keys(claudeConfigResult.config.mcpServers).length === 0)
+      ) {
+        warnings.push('Claude Desktop configuration found, but no MCP servers are defined in it.');
       }
+
       const pathTest = await this.autoDetectServerPath();
       if (!pathTest.found) {
-        errors.push('Server executable not found - please build the server first');
+        errors.push(
+          'Server executable (e.g., dist/index.js) not found. Please build the server first (`npm run build`).'
+        );
       }
       if (serverConfigData?.database?.path) {
-        const dbDir = dirname(resolve(serverConfigData.database.path));
+        const dbDir = dirname(serverConfigData.database.path);
         try {
           await fs.access(dbDir);
         } catch {
           try {
             await fs.mkdir(dbDir, { recursive: true });
             warnings.push(`Created database directory: ${dbDir}`);
-          } catch {
-            errors.push(`Cannot access or create database directory: ${dbDir}`);
+          } catch (mkdirError) {
+            errors.push(
+              `Cannot access or create database directory: ${dbDir}. Error: ${mkdirError instanceof Error ? mkdirError.message : String(mkdirError)}`
+            );
           }
         }
       }
       if (serverConfigData?.security?.safezones) {
         for (const safezone of serverConfigData.security.safezones) {
           try {
-            await fs.access(resolve(safezone));
+            await fs.access(resolve(this.projectRoot, safezone));
           } catch {
-            warnings.push(`Safezone directory not accessible: ${safezone}`);
+            warnings.push(
+              `Configured safezone directory not accessible from project root: ${safezone} (resolved to ${resolve(this.projectRoot, safezone)})`
+            );
           }
         }
       }
@@ -408,7 +536,6 @@ export class UIServer {
   }
 
   private async getServerMetrics(): Promise<Record<string, unknown>> {
-    const hasContainer = this.container !== null;
     return {
       uptime: process.uptime(),
       memoryUsage: process.memoryUsage(),
@@ -416,11 +543,10 @@ export class UIServer {
       timestamp: new Date().toISOString(),
       nodeVersion: process.version,
       platform: platform(),
-      containerServices: hasContainer,
       configUI: {
-        version: '2.1.0',
+        version: '2.2.0',
         features: [
-          'claude-desktop-config',
+          'claude-desktop-config-read-write',
           'server-security-config',
           'command-management',
           'safezone-management',

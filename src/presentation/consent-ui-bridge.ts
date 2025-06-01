@@ -1,14 +1,14 @@
 ﻿// src/presentation/consent-ui-bridge.ts
 import { injectable, inject } from 'inversify';
-import { createServer, Server } from 'node:http';
+import { createServer, Server as HttpServer } from 'node:http'; // Renamed Server to avoid conflict
 import { WebSocket, WebSocketServer } from 'ws';
 import type { ConsentRequest, ConsentResponse } from '@core/interfaces/consent.interface.js';
 import { logger } from '../utils/logger.js';
-import type { UserConsentService } from '../application/services/user-consent.service.js'; // Added import
+import type { UserConsentService } from '../application/services/user-consent.service.js';
 
 @injectable()
 export class ConsentUIBridge {
-  private server?: Server;
+  private httpServer?: HttpServer; // Use renamed import
   private wss?: WebSocketServer;
   private clients = new Set<WebSocket>();
   private port = 3002; // Different from config UI port
@@ -17,7 +17,7 @@ export class ConsentUIBridge {
 
   start(): void {
     // Create HTTP server for the consent UI
-    this.server = createServer((req, res) => {
+    this.httpServer = createServer((req, res) => {
       if (req.url === '/consent-ui') {
         res.writeHead(200, { 'Content-Type': 'text/html' });
         res.end(this.getConsentUIHTML());
@@ -27,8 +27,33 @@ export class ConsentUIBridge {
       }
     });
 
+    // Add crucial error handling for the HTTP server
+    this.httpServer.on('error', (err: Error) => {
+      console.error(
+        `ConsentUIBridge HTTP Server Error on port ${this.port}:`,
+        err.message,
+        (err as NodeJS.ErrnoException).code
+      ); // Direct console log
+      logger.error(
+        {
+          error: { message: err.message, stack: err.stack, code: (err as NodeJS.ErrnoException).code },
+          port: this.port
+        },
+        'Consent UI HTTP server error'
+      );
+      if ((err as NodeJS.ErrnoException).code === 'EADDRINUSE') {
+        logger.fatal(
+          { port: this.port },
+          `Consent UI port ${this.port} is already in use. This will prevent user consent from functioning. Please ensure port ${this.port} is free or configure a different port for the consent UI if this feature becomes configurable.`
+        );
+        // Consider if the application should exit or attempt recovery if consent is critical.
+        // For now, logging fatal should highlight the issue.
+      }
+      // Other errors might also be critical.
+    });
+
     // Create WebSocket server for real-time communication
-    this.wss = new WebSocketServer({ server: this.server });
+    this.wss = new WebSocketServer({ server: this.httpServer });
 
     this.wss.on('connection', ws => {
       this.clients.add(ws);
@@ -49,6 +74,14 @@ export class ConsentUIBridge {
         this.clients.delete(ws);
         logger.info('Consent UI client disconnected');
       });
+
+      ws.on('error', (wsError: Error) => {
+        logger.error({ error: wsError }, 'Consent UI WebSocket client error');
+      });
+    });
+
+    this.wss.on('error', (wssError: Error) => {
+      logger.error({ error: wssError }, 'Consent UI WebSocketServer error');
     });
 
     // Forward consent requests to UI
@@ -59,7 +92,7 @@ export class ConsentUIBridge {
       });
     });
 
-    this.server.listen(this.port, () => {
+    this.httpServer.listen(this.port, () => {
       logger.info(`Consent UI available at http://localhost:${this.port}/consent-ui`);
     });
   }
@@ -67,14 +100,27 @@ export class ConsentUIBridge {
   stop(): void {
     this.clients.forEach(client => client.close());
     this.wss?.close();
-    this.server?.close();
+    this.httpServer?.close(err => {
+      if (err) {
+        logger.error({ error: err }, 'Error closing ConsentUIBridge HTTP server');
+      } else {
+        logger.info('ConsentUIBridge HTTP server closed.');
+      }
+    });
   }
 
   private broadcastToClients(message: any): void {
     const data = JSON.stringify(message);
     this.clients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
-        client.send(data);
+        client.send(data, err => {
+          if (err) {
+            logger.warn(
+              { error: err, clientId: /* if you have client id */ '' },
+              'Failed to send message to a consent UI client'
+            );
+          }
+        });
       }
     });
   }
@@ -106,6 +152,10 @@ export class ConsentUIBridge {
   <script>
     const ws = new WebSocket('ws://localhost:${this.port}');
     const requests = new Map();
+
+    ws.onopen = () => console.log('Consent UI WebSocket connected.');
+    ws.onerror = (error) => console.error('Consent UI WebSocket error:', error);
+    ws.onclose = () => console.log('Consent UI WebSocket disconnected.');
 
     ws.onmessage = (event) => {
       const message = JSON.parse(event.data);
@@ -169,5 +219,5 @@ export class ConsentUIBridge {
   </script>
 </body>
 </html>`;
-    }
-};
+  }
+}

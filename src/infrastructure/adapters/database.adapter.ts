@@ -3,7 +3,7 @@
 
 import { injectable, inject } from 'inversify';
 import Database from 'better-sqlite3';
-import { promises as fs } from 'node:fs';
+import { promises as fs, mkdirSync as fsMkdirSync } from 'node:fs'; // Added fsMkdirSync
 import path from 'node:path';
 import type { IDatabaseHandler, ContextItem, QueryOptions } from '@core/interfaces/database.interface.js';
 import { logger } from '../../utils/logger.js';
@@ -28,36 +28,42 @@ export class DatabaseAdapter implements IDatabaseHandler {
   private lastIntegrityCheck?: IntegrityCheckResult;
 
   constructor(@inject('Config') private config: ServerConfig) {
-    this.initializeDatabase();
-    this.schedulePeriodicBackups();
+    this.initializeDatabase(); // This is synchronous
+    this.schedulePeriodicBackups(); // This involves async ops but schedules them
   }
 
   private initializeDatabase(): void {
-    const dbPath = this.config.database.path || './data/context.db';
+    // config.database.path is already resolved to absolute by loadConfig
+    const dbPath = this.config.database.path;
 
-    // Ensure directory exists
+    // Ensure directory exists (synchronously, as this is in constructor path)
     const dbDir = path.dirname(dbPath);
     try {
-      require('fs').mkdirSync(dbDir, { recursive: true });
+      // Using require('fs').mkdirSync was fine, but to use imported module:
+      fsMkdirSync(dbDir, { recursive: true });
     } catch (error) {
-      logger.warn({ error, dbDir }, 'Failed to create database directory');
+      // Log as warning if dir already exists, error otherwise
+      if ((error as NodeJS.ErrnoException)?.code !== 'EEXIST') {
+        logger.error({ error, dbDir }, 'Failed to create database directory during initialization.');
+        // This could be a fatal error depending on policy.
+        // For now, we let better-sqlite3 potentially fail if dir is truly inaccessible.
+      } else {
+        logger.debug({ dbDir }, 'Database directory already exists.');
+      }
     }
 
     this.db = new Database(dbPath);
 
-    // Configure for optimal performance and reliability
     this.db.pragma('journal_mode = WAL');
     this.db.pragma('synchronous = NORMAL');
     this.db.pragma('cache_size = 1000000');
     this.db.pragma('temp_store = memory');
     this.db.pragma('foreign_keys = ON');
-
-    // Enable WAL checkpoint optimization
     this.db.pragma('wal_autocheckpoint = 1000');
 
     this.createTables();
 
-    // Perform initial integrity check
+    // Perform initial integrity check asynchronously without blocking constructor
     this.performIntegrityCheck()
       .then(result => {
         if (!result.isHealthy) {
@@ -115,7 +121,6 @@ export class DatabaseAdapter implements IDatabaseHandler {
         FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
       );
 
-      -- NEW: Table for tracking database operations and health
       CREATE TABLE IF NOT EXISTS db_health_log (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         check_type TEXT NOT NULL,
@@ -126,7 +131,6 @@ export class DatabaseAdapter implements IDatabaseHandler {
     `);
   }
 
-  // NEW: Comprehensive integrity check
   async performIntegrityCheck(): Promise<IntegrityCheckResult> {
     const result: IntegrityCheckResult = {
       isHealthy: true,
@@ -135,26 +139,27 @@ export class DatabaseAdapter implements IDatabaseHandler {
     };
 
     try {
-      // 1. SQLite built-in integrity check
       const integrityResult = this.db.pragma('integrity_check');
       if (Array.isArray(integrityResult)) {
         const issues = integrityResult.filter(
-          item => typeof item === 'object' && 'integrity_check' in item && item.integrity_check !== 'ok'
+          item =>
+            typeof item === 'object' &&
+            item !== null &&
+            'integrity_check' in item &&
+            (item as { integrity_check: string }).integrity_check !== 'ok'
         );
         if (issues.length > 0) {
           result.isHealthy = false;
-          result.issues.push(...issues.map(issue => String(issue.integrity_check)));
+          result.issues.push(...issues.map(issue => String((issue as { integrity_check: string }).integrity_check)));
         }
       }
 
-      // 2. Foreign key constraint check
       const fkResult = this.db.pragma('foreign_key_check');
       if (Array.isArray(fkResult) && fkResult.length > 0) {
         result.isHealthy = false;
         result.issues.push(`Foreign key violations: ${fkResult.length}`);
       }
 
-      // 3. Check for orphaned records
       const orphanedWorkspaceFiles = this.db
         .prepare(
           `
@@ -171,17 +176,14 @@ export class DatabaseAdapter implements IDatabaseHandler {
         result.issues.push(`Orphaned workspace files: ${orphanedWorkspaceFiles.count}`);
       }
 
-      // 4. Check for data consistency
       const contextItemsCount = this.db.prepare('SELECT COUNT(*) as count FROM context_items').get() as {
         count: number;
       };
       if (contextItemsCount.count < 0) {
-        // This shouldn't happen, but just in case
         result.isHealthy = false;
         result.issues.push('Invalid context items count');
       }
 
-      // Log the check
       this.db
         .prepare(
           `
@@ -200,19 +202,18 @@ export class DatabaseAdapter implements IDatabaseHandler {
       }
     } catch (error) {
       result.isHealthy = false;
-      result.issues.push(`Integrity check failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      logger.error({ error }, 'Database integrity check failed');
+      const message = error instanceof Error ? error.message : String(error);
+      result.issues.push(`Integrity check failed: ${message}`);
+      logger.error({ error: message }, 'Database integrity check failed');
     }
 
     return result;
   }
 
-  // NEW: Get the last integrity check result
   getLastIntegrityCheck(): IntegrityCheckResult | null {
     return this.lastIntegrityCheck || null;
   }
 
-  // NEW: Automated backup scheduling
   private schedulePeriodicBackups(): void {
     const backupInterval = this.config.database.backupInterval;
 
@@ -221,7 +222,7 @@ export class DatabaseAdapter implements IDatabaseHandler {
       return;
     }
 
-    const intervalMs = backupInterval * 60 * 1000; // Convert minutes to milliseconds
+    const intervalMs = backupInterval * 60 * 1000;
 
     this.backupTimer = setInterval(async () => {
       try {
@@ -234,44 +235,29 @@ export class DatabaseAdapter implements IDatabaseHandler {
     logger.info({ intervalMinutes: backupInterval }, 'Automated database backups scheduled');
   }
 
-  // NEW: Perform automated backup
   private async performAutomatedBackup(): Promise<BackupInfo> {
     const timestamp = new Date();
-    const backupDir = path.join(path.dirname(this.config.database.path), 'backups');
+    // Use the server's working directory (which might have been changed by config) as the base for relative backup paths
+    const serverWorkingDirectory = this.config.server.workingDirectory || process.cwd();
+    const backupDir = path.resolve(serverWorkingDirectory, path.dirname(this.config.database.path), 'backups');
+
     const backupFilename = `context-${timestamp.toISOString().replace(/[:.]/g, '-')}.db`;
     const backupPath = path.join(backupDir, backupFilename);
 
-    // Ensure backup directory exists
     await fs.mkdir(backupDir, { recursive: true });
-
-    // Perform the backup
-    await this.backup(backupPath);
-
-    // Get backup file size
+    await this.backup(backupPath); // backupPath is now absolute or relative to serverWorkingDirectory
     const stats = await fs.stat(backupPath);
 
-    const backupInfo: BackupInfo = {
-      path: backupPath,
-      timestamp,
-      size: stats.size
-    };
-
-    // Clean up old backups (keep last 10)
+    const backupInfo: BackupInfo = { path: backupPath, timestamp, size: stats.size };
     await this.cleanupOldBackups(backupDir);
 
     logger.info(
-      {
-        backupPath,
-        sizeBytes: stats.size,
-        timestamp: timestamp.toISOString()
-      },
+      { backupPath, sizeBytes: stats.size, timestamp: timestamp.toISOString() },
       'Automated database backup completed'
     );
-
     return backupInfo;
   }
 
-  // NEW: Clean up old backup files
   private async cleanupOldBackups(backupDir: string, keepCount: number = 10): Promise<void> {
     try {
       const files = await fs.readdir(backupDir);
@@ -282,11 +268,8 @@ export class DatabaseAdapter implements IDatabaseHandler {
           path: path.join(backupDir, file)
         }));
 
-      if (backupFiles.length <= keepCount) {
-        return; // No cleanup needed
-      }
+      if (backupFiles.length <= keepCount) return;
 
-      // Sort by name (which includes timestamp) and keep the most recent ones
       backupFiles.sort((a, b) => b.name.localeCompare(a.name));
       const filesToDelete = backupFiles.slice(keepCount);
 
@@ -294,11 +277,10 @@ export class DatabaseAdapter implements IDatabaseHandler {
         await fs.unlink(file.path);
         logger.debug({ deletedBackup: file.name }, 'Cleaned up old backup file');
       }
-
       logger.info(
         {
           deletedCount: filesToDelete.length,
-          keptCount: keepCount
+          keepCount // Corrected from keptCount to keepCount
         },
         'Old backup files cleaned up'
       );
@@ -307,39 +289,30 @@ export class DatabaseAdapter implements IDatabaseHandler {
     }
   }
 
-  // NEW: List available backups
   async listBackups(): Promise<BackupInfo[]> {
-    const backupDir = path.join(path.dirname(this.config.database.path), 'backups');
+    // Use the server's working directory as the base for relative backup paths
+    const serverWorkingDirectory = this.config.server.workingDirectory || process.cwd();
+    const backupDir = path.resolve(serverWorkingDirectory, path.dirname(this.config.database.path), 'backups');
 
     try {
       const files = await fs.readdir(backupDir);
       const backupFiles = files.filter(file => file.startsWith('context-') && file.endsWith('.db'));
-
       const backups: BackupInfo[] = [];
 
       for (const file of backupFiles) {
         const filePath = path.join(backupDir, file);
         const stats = await fs.stat(filePath);
-
-        // Extract timestamp from filename
         const timestampStr = file.replace('context-', '').replace('.db', '').replace(/-/g, ':');
         let timestamp: Date;
         try {
           timestamp = new Date(timestampStr);
+          if (isNaN(timestamp.getTime())) throw new Error('Invalid date from filename');
         } catch {
-          timestamp = stats.mtime; // Fallback to file modification time
+          timestamp = stats.mtime;
         }
-
-        backups.push({
-          path: filePath,
-          timestamp,
-          size: stats.size
-        });
+        backups.push({ path: filePath, timestamp, size: stats.size });
       }
-
-      // Sort by timestamp (newest first)
       backups.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-
       return backups;
     } catch (error) {
       logger.warn({ error, backupDir }, 'Failed to list backups');
@@ -347,52 +320,46 @@ export class DatabaseAdapter implements IDatabaseHandler {
     }
   }
 
-  // NEW: Restore from backup
   async restoreFromBackup(backupPath: string): Promise<void> {
-    // Verify backup file exists and is valid
-    await fs.access(backupPath);
+    const absoluteBackupPath = path.resolve(this.config.server.workingDirectory || process.cwd(), backupPath);
+    await fs.access(absoluteBackupPath);
 
-    // Test the backup database integrity before restoring
-    const testDb = new Database(backupPath, { readonly: true });
+    const testDb = new Database(absoluteBackupPath, { readonly: true });
     try {
       const integrityResult = testDb.pragma('integrity_check');
-      testDb.close();
-
       if (Array.isArray(integrityResult)) {
         const issues = integrityResult.filter(
-          item => typeof item === 'object' && 'integrity_check' in item && item.integrity_check !== 'ok'
+          item =>
+            typeof item === 'object' &&
+            item !== null &&
+            'integrity_check' in item &&
+            (item as { integrity_check: string }).integrity_check !== 'ok'
         );
         if (issues.length > 0) {
           throw new Error(`Backup file has integrity issues: ${issues.join(', ')}`);
         }
       }
     } catch (error) {
+      throw new Error(`Backup file validation failed: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
       testDb.close();
-      throw new Error(`Backup file validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 
-    // Close current database
-    this.close();
+    this.close(); // Close current DB
 
-    // Create backup of current database before restore
-    const currentBackupPath = `${this.config.database.path}.pre-restore-${Date.now()}.bak`;
+    const currentDbPath = this.config.database.path; // This is already absolute
+    const preRestoreBackupPath = `${currentDbPath}.pre-restore-${Date.now()}.bak`;
     try {
-      await fs.copyFile(this.config.database.path, currentBackupPath);
-      logger.info({ backupPath: currentBackupPath }, 'Created backup of current database before restore');
+      await fs.copyFile(currentDbPath, preRestoreBackupPath);
+      logger.info({ backupPath: preRestoreBackupPath }, 'Created backup of current database before restore');
     } catch (error) {
       logger.warn({ error }, 'Failed to backup current database before restore');
     }
 
-    // Restore from backup
-    await fs.copyFile(backupPath, this.config.database.path);
-
-    // Reinitialize database
-    this.initializeDatabase();
-
-    logger.info({ restoredFrom: backupPath }, 'Database restored from backup');
+    await fs.copyFile(absoluteBackupPath, currentDbPath);
+    this.initializeDatabase(); // Reinitialize with the restored DB
+    logger.info({ restoredFrom: absoluteBackupPath }, 'Database restored from backup');
   }
-
-  // Enhanced existing methods with additional error handling and logging
 
   async storeContext(key: string, value: unknown, type?: string): Promise<void> {
     try {
@@ -400,17 +367,11 @@ export class DatabaseAdapter implements IDatabaseHandler {
         INSERT OR REPLACE INTO context_items (key, value, type, updated_at)
         VALUES (?, ?, ?, CURRENT_TIMESTAMP)
       `);
-
       const serializedValue = JSON.stringify(value);
-
-      // Basic validation
       if (serializedValue.length > 1048576) {
-        // 1MB limit
         throw new Error('Context value too large (max 1MB)');
       }
-
       stmt.run(key, serializedValue, type || 'generic');
-
       logger.debug({ key, type, valueLength: serializedValue.length }, 'Context item stored');
     } catch (error) {
       logger.error({ error, key, type }, 'Failed to store context item');
@@ -427,11 +388,8 @@ export class DatabaseAdapter implements IDatabaseHandler {
         logger.debug({ key }, 'Context item not found');
         return null;
       }
-
       try {
-        const parsed = JSON.parse(row.value);
-        logger.debug({ key, found: true }, 'Context item retrieved');
-        return parsed;
+        return JSON.parse(row.value);
       } catch (error) {
         logger.warn({ key, error }, 'Failed to parse context item value, returning as string');
         return row.value;
@@ -446,7 +404,6 @@ export class DatabaseAdapter implements IDatabaseHandler {
     try {
       const stmt = this.db.prepare('DELETE FROM context_items WHERE key = ?');
       const result = stmt.run(key);
-
       logger.debug({ key, deleted: result.changes > 0 }, 'Context item deletion attempted');
       return result.changes > 0;
     } catch (error) {
@@ -464,21 +421,24 @@ export class DatabaseAdapter implements IDatabaseHandler {
         query += ' AND type = ?';
         params.push(options.type);
       }
-
       if (options.keyPattern) {
         query += ' AND key LIKE ?';
         params.push(`%${options.keyPattern}%`);
       }
-
       query += ' ORDER BY updated_at DESC';
-
       if (options.limit) {
         query += ' LIMIT ?';
         params.push(options.limit);
       }
 
       const stmt = this.db.prepare(query);
-      const rows = stmt.all(...params) as DatabaseRow[];
+      const rows = stmt.all(...params) as Array<{
+        key: string;
+        value: string;
+        type: string;
+        created_at: string;
+        updated_at: string;
+      }>;
 
       return rows.map(row => {
         let parsedValue: unknown;
@@ -487,7 +447,6 @@ export class DatabaseAdapter implements IDatabaseHandler {
         } catch {
           parsedValue = row.value;
         }
-
         return {
           key: row.key,
           value: parsedValue,
@@ -503,29 +462,33 @@ export class DatabaseAdapter implements IDatabaseHandler {
   }
 
   async backup(backupPath: string): Promise<void> {
+    // Ensure backupPath is absolute based on the server's CWD,
+    // as better-sqlite3 resolves paths relative to CWD for its backup operations.
+    const serverWorkingDirectory = this.config.server.workingDirectory || process.cwd();
+    const absoluteBackupPath = path.resolve(serverWorkingDirectory, backupPath);
+
     try {
-      await this.db.backup(backupPath);
-      logger.info({ backupPath }, 'Database backup completed');
+      const destDir = path.dirname(absoluteBackupPath);
+      await fs.mkdir(destDir, { recursive: true }); // Ensure directory exists
+      await this.db.backup(absoluteBackupPath); // Use the now absolute path
+      logger.info({ backupPath: absoluteBackupPath }, 'Database backup completed');
     } catch (error) {
-      logger.error({ error, backupPath }, 'Database backup failed');
+      logger.error({ error, backupPath: absoluteBackupPath }, 'Database backup failed');
       throw error;
     }
   }
 
   close(): void {
-    // Clear backup timer
     if (this.backupTimer) {
       clearInterval(this.backupTimer);
       this.backupTimer = undefined;
     }
-
     if (this.db) {
       this.db.close();
       logger.info('Database connection closed');
     }
   }
 
-  // Raw SQL methods for smart path management with enhanced error handling
   async executeQuery(sql: string, params: unknown[]): Promise<unknown[]> {
     try {
       const stmt = this.db.prepare(sql);
@@ -561,13 +524,4 @@ export class DatabaseAdapter implements IDatabaseHandler {
       throw error;
     }
   }
-}
-
-// Database row interface
-interface DatabaseRow {
-  key: string;
-  value: string;
-  type: string;
-  created_at: string;
-  updated_at: string;
 }

@@ -406,9 +406,6 @@
       border: 1px solid var(--border);
     }
 
-    /* Removed empty ruleset for .config-preview-container */
-
-
     .item-list-container {
       margin-top: 1rem;
     }
@@ -723,28 +720,33 @@
         <div class="form-group">
           <label for="claudeConfigPath">Claude Desktop Config File Location</label>
           <div class="path-display" id="claudeConfigPath">Detecting...</div>
+          <div class="help-text">This is where your Claude Desktop configuration is stored.</div>
         </div>
         <div class="server-config">
           <div>
             <div class="form-group">
-              <label for="serverName">Server Name</label>
+              <label for="serverName">Server Name in Claude Desktop</label>
               <input type="text" id="serverName" class="form-control" value="context-server"
                 placeholder="context-server">
-              <div class="help-text">Unique name for your MCP server in Claude Desktop</div>
+              <div class="help-text">Unique name for this MCP server as it will appear in Claude Desktop.</div>
             </div>
             <div class="form-group">
-              <label for="serverPath">Server Path</label>
+              <label for="serverPath">Server Executable Path</label>
               <input type="text" id="serverPath" class="form-control" placeholder="/absolute/path/to/dist/index.js">
-              <div class="help-text">Absolute path to your built server (index.js)</div>
+              <div class="help-text">Absolute path to your built server (e.g., `dist/index.js`). Click "Auto-Detect" if
+                unsure.</div>
             </div>
             <div class="form-group">
-              <label for="logLevel">Log Level</label>
+              <label for="logLevel">Server Log Level (for this MCP Server)</label>
               <select id="logLevel" class="form-control">
-                <option value="error">Error</option>
-                <option value="warn">Warning</option>
-                <option value="info" selected>Info</option>
+                <option value="trace">Trace</option>
                 <option value="debug">Debug</option>
+                <option value="info" selected>Info</option>
+                <option value="warn">Warning</option>
+                <option value="error">Error</option>
+                <option value="fatal">Fatal</option>
               </select>
+              <div class="help-text">Log level for this MCP server when launched by Claude Desktop.</div>
             </div>
           </div>
           <div>
@@ -758,15 +760,18 @@
             <div class="form-group">
               <label>Configuration Actions</label>
               <div class="btn-group">
-                <button class="btn btn-success" onclick="saveClaudeConfiguration()">💾 Save Config</button>
-                <button class="btn btn-warning" onclick="removeServer()">🗑️ Remove Server</button>
+                <button class="btn btn-success" onclick="saveClaudeDesktopEntry()">💾 Save to Claude Config</button>
+                <button class="btn btn-warning" onclick="removeClaudeDesktopEntry()">🗑️ Remove from Claude
+                  Config</button>
               </div>
+              <div class="help-text">These actions directly modify your `claude_desktop_config.json` file.</div>
             </div>
           </div>
         </div>
         <div class="form-group config-preview-container">
-          <label for="claudeConfigPreview">Current Configuration Preview</label>
+          <label for="claudeConfigPreview">Current `claude_desktop_config.json` Preview</label>
           <div class="config-preview" id="claudeConfigPreview">Loading configuration...</div>
+          <div class="help-text">This shows the current content of your Claude Desktop configuration file.</div>
         </div>
       </div>
     </div>
@@ -776,7 +781,7 @@
       <div class="main-section">
         <h2 class="section-title">
           <span class="section-icon">🔒</span>
-          Security Configuration
+          Security Configuration (`config/server.yaml`)
         </h2>
         <div class="config-status">
           <div class="status-card">
@@ -913,7 +918,7 @@ execute_command"></textarea>
         <div class="grid-2">
           <div>
             <div class="form-group">
-              <label for="serverName2">Server Name</label>
+              <label for="serverName2">Server Name (in `server.yaml`)</label>
               <input type="text" id="serverName2" class="form-control" value="mcp-context-server">
             </div>
             <div class="form-group">
@@ -931,7 +936,7 @@ execute_command"></textarea>
             <div class="form-group">
               <label for="databasePath">Database Path</label>
               <input type="text" id="databasePath" class="form-control" value="./data/context.db">
-              <div class="help-text">Path to SQLite database file</div>
+              <div class="help-text">Path to SQLite database file (relative to server CWD or absolute)</div>
             </div>
             <div class="form-group">
               <label for="backupInterval">Backup Interval (minutes)</label>
@@ -944,7 +949,7 @@ execute_command"></textarea>
         <div class="grid-2">
           <div>
             <div class="form-group">
-              <label for="serverLogLevel">Server Log Level</label>
+              <label for="serverLogLevel">Server Log Level (for `server.yaml`)</label>
               <select id="serverLogLevel" class="form-control">
                 <option value="trace">Trace</option>
                 <option value="debug">Debug</option>
@@ -977,14 +982,14 @@ execute_command"></textarea>
         </div>
 
         <div class="btn-group">
-          <button id="saveServerBtn" class="btn btn-success" onclick="saveCompleteServerConfig()">💾 Save Server
-            Config</button>
-          <button class="btn btn-secondary" onclick="loadServerConfig()">🔄 Reload Server Config</button>
+          <button id="saveServerBtn" class="btn btn-success" onclick="saveCompleteServerConfig()">💾 Save
+            `server.yaml`</button>
+          <button class="btn btn-secondary" onclick="loadServerConfig()">🔄 Reload `server.yaml`</button>
           <button class="btn btn-primary" onclick="testServerConfig()">🧪 Test Configuration</button>
         </div>
 
         <div class="form-group config-preview-container">
-          <label for="serverConfigPreview">Server Configuration Preview (YAML)</label>
+          <label for="serverConfigPreview">Current `server.yaml` Preview</label>
           <div class="config-preview" id="serverConfigPreview">Loading server configuration...</div>
         </div>
       </div>
@@ -993,15 +998,21 @@ execute_command"></textarea>
     <div class="instructions">
       <h3>🚀 Complete Setup Guide</h3>
       <ol>
-        <li><strong>Configure Security:</strong> Set allowed commands, safe zones, and unsafe argument patterns.</li>
-        <li><strong>Adjust Server Settings:</strong> Configure timeouts, file sizes, database, and logging.</li>
-        <li><strong>Setup Claude Desktop:</strong> Configure the integration path and settings.</li>
-        <li><strong>Save All Changes:</strong> Apply configurations.</li>
-        <li><strong>Restart Claude Desktop:</strong> Close and reopen Claude Desktop completely.</li>
+        <li><strong>Configure Security (Server-Side):</strong> Use the "Security Settings" tab to adjust
+          `allowedCommands`, `safezones`, etc. in your `config/server.yaml`. Save these changes.</li>
+        <li><strong>Adjust General Server Settings:</strong> Use the "Server Configuration" tab for timeouts, database
+          path, logging in `config/server.yaml`. Save these changes.</li>
+        <li><strong>Setup Claude Desktop Integration:</strong> Use the "Claude Desktop" tab. Ensure "Server Executable
+          Path" is correct (use Auto-Detect). Click "Save to Claude Config". This directly modifies your
+          `claude_desktop_config.json`.</li>
+        <li><strong>Restart Claude Desktop:</strong> Close and reopen Claude Desktop completely for changes to take
+          effect.</li>
         <li><strong>Test Integration:</strong> Ask Claude to list files or execute commands.</li>
       </ol>
       <div class="alert alert-info" style="margin-top: 1rem;">
-        <strong>💡 Pro Tip:</strong> Start with "Standard" security presets and adjust as needed.
+        <strong>💡 Pro Tip:</strong> The `MCP_SERVER_CONFIG_PATH` environment variable in `claude_desktop_config.json`
+        tells this server which `config/server.yaml` (or equivalent) to use. The UI helps set this up with a default
+        path.
       </div>
     </div>
   </div>
@@ -1009,9 +1020,8 @@ execute_command"></textarea>
   <script>
     // Global state
     let currentClaudeConfig = {};
-    let currentServerConfig = {};
-    let claudeConfigPath = '';
-    let platformInfo = {};
+    let currentServerConfig = {}; // For server.yaml
+    let platformInfo = {}; // Will hold claudeConfigPath, projectRoot etc.
 
     const allToolNames = [
       'read_file', 'write_file', 'list_directory', 'execute_command',
@@ -1027,9 +1037,9 @@ execute_command"></textarea>
 
 
     const commandSecurityPresets = {
-      minimal: { commands: [...commonOsCommands], description: 'Basic OS commands' },
-      standard: { commands: [...new Set([...commonOsCommands, ...allToolNames])], description: 'Common OS & All Tools' },
-      developer: { commands: [...new Set([...developerOsCommands, ...allToolNames])], description: 'Extended OS & All Tools' },
+      minimal: { commands: [...commonOsCommands], description: 'Basic OS commands only' },
+      standard: { commands: [...new Set([...commonOsCommands, ...allToolNames])], description: 'Common OS commands & All Tools' },
+      developer: { commands: [...new Set([...developerOsCommands, ...allToolNames])], description: 'Extended OS commands & All Tools' },
       custom: { commands: [], description: 'Configure manually' }
     };
 
@@ -1056,7 +1066,7 @@ execute_command"></textarea>
     };
 
     document.addEventListener('DOMContentLoaded', async () => {
-      await detectPlatform();
+      await detectPlatform(); // This sets platformInfo globally
       await loadClaudeConfig();
       await loadServerConfig();
       await autoDetectPath();
@@ -1087,10 +1097,9 @@ execute_command"></textarea>
     async function detectPlatform() {
       try {
         const response = await fetch('/api/platform-info');
-        platformInfo = await response.json();
+        platformInfo = await response.json(); // platformInfo is now global
         document.getElementById('platformInfo').textContent = platformInfo.platformName;
-        claudeConfigPath = platformInfo.configPath;
-        document.getElementById('claudeConfigPath').textContent = claudeConfigPath;
+        document.getElementById('claudeConfigPath').textContent = platformInfo.claudeConfigPath; // Updated field for claudeConfigPath
       } catch (error) {
         showAlert('Failed to detect platform: ' + error.message, 'danger');
       }
@@ -1101,31 +1110,49 @@ execute_command"></textarea>
         showLoading('claudeConfigStatus');
         const response = await fetch('/api/claude-config');
         const result = await response.json();
-        if (result.exists) {
+        if (result.config) { // Check if config object is present
           currentClaudeConfig = result.config;
+          document.getElementById('claudeConfigStatus').textContent = result.exists ? '✅ Found' : '📄 Not Found (Using Defaults)';
           updateClaudeConfigPreview();
+          updateClaudeDesktopFormFields();
           updateClaudeServerStatus();
-          const servers = currentClaudeConfig.mcpServers || {};
-          const contextServer = Object.values(servers).find(server =>
-            server.args && server.args.some(arg => arg.includes('context-server') || arg.includes('index.js'))
-          );
-          if (contextServer) {
-            const serverName = Object.keys(servers).find(name => servers[name] === contextServer);
-            document.getElementById('serverName').value = serverName || 'context-server';
-            document.getElementById('serverPath').value = contextServer.args[contextServer.args.length - 1] || '';
-            document.getElementById('logLevel').value = contextServer.env?.MCP_LOG_LEVEL || 'info';
-          }
-          document.getElementById('claudeConfigStatus').textContent = '✅ Found';
         } else {
-          document.getElementById('claudeConfigStatus').textContent = '📄 Not Found';
-          currentClaudeConfig = { mcpServers: {} };
-          updateClaudeConfigPreview();
+          document.getElementById('claudeConfigStatus').textContent = '❌ Error Loading';
+          showAlert('Error loading Claude Desktop configuration: ' + (result.error || 'No config data returned'), 'danger');
+          currentClaudeConfig = { mcpServers: {} }; // Ensure it's an object
+          updateClaudeConfigPreview(); // Show empty or default
         }
       } catch (error) {
         document.getElementById('claudeConfigStatus').textContent = '❌ Error';
         showAlert('Failed to load Claude Desktop configuration: ' + error.message, 'danger');
+        currentClaudeConfig = { mcpServers: {} };
+        updateClaudeConfigPreview();
       }
     }
+
+    function updateClaudeDesktopFormFields() {
+      const servers = currentClaudeConfig.mcpServers || {};
+      // Try to find a server entry that looks like ours, or default to 'context-server'
+      const serverKeys = Object.keys(servers);
+      let ourServerName = 'context-server'; // Default
+      let ourServerEntry = servers[ourServerName];
+
+      if (!ourServerEntry) {
+        // Attempt to find by looking at args, if only one server is configured or common path element exists
+        const potentialServerKey = serverKeys.find(key =>
+          servers[key]?.args?.some(arg => arg.includes('mcp-context-server') || arg.includes('dist/index.js'))
+        );
+        if (potentialServerKey) {
+          ourServerName = potentialServerKey;
+          ourServerEntry = servers[ourServerName];
+        }
+      }
+
+      document.getElementById('serverName').value = ourServerName;
+      document.getElementById('serverPath').value = ourServerEntry?.args?.[ourServerEntry.args.length - 1] || '';
+      document.getElementById('logLevel').value = ourServerEntry?.env?.MCP_LOG_LEVEL || 'info';
+    }
+
 
     async function loadServerConfig() {
       try {
@@ -1152,7 +1179,7 @@ execute_command"></textarea>
           document.getElementById('databasePath').value = currentServerConfig.database?.path || './data/context.db';
           document.getElementById('backupInterval').value = currentServerConfig.database?.backupInterval || 60;
           document.getElementById('serverLogLevel').value = currentServerConfig.logging?.level || 'info';
-          document.getElementById('prettyLogging').value = String(currentServerConfig.logging?.pretty !== false);
+          document.getElementById('prettyLogging').value = String(currentServerConfig.logging?.pretty !== false); // Default to true if undefined
           document.getElementById('maxConcurrency').value = currentServerConfig.performance?.maxConcurrency || 10;
           document.getElementById('queueSize').value = currentServerConfig.performance?.queueSize || 1000;
 
@@ -1182,7 +1209,7 @@ execute_command"></textarea>
     }
 
     function updateActiveSecurityPresets() {
-      const currentCommands = document.getElementById('allowedCommands').value.split('\n').filter(c => c.trim());
+      const currentCommands = document.getElementById('allowedCommands').value.split('\n').map(c => c.trim()).filter(c => c);
       document.querySelectorAll('#commandPresetsContainer .preset-btn').forEach(btn => {
         const presetNameMatch = btn.onclick.toString().match(/setSecurityPreset\(\s*event\s*,\s*['"](.*?)['"]\)/);
         if (!presetNameMatch) return;
@@ -1201,7 +1228,7 @@ execute_command"></textarea>
         }
       });
 
-      const currentUnsafePatterns = document.getElementById('unsafeArgumentPatterns').value.split('\n').filter(p => p.trim());
+      const currentUnsafePatterns = document.getElementById('unsafeArgumentPatterns').value.split('\n').map(p => p.trim()).filter(p => p);
       document.querySelectorAll('#unsafePatternPresetsContainer .preset-btn').forEach(btn => {
         const presetNameMatch = btn.onclick.toString().match(/setUnsafePatternPreset\(\s*event\s*,\s*['"](.*?)['"]\)/);
         if (!presetNameMatch) return;
@@ -1228,8 +1255,9 @@ execute_command"></textarea>
         const result = await response.json();
         if (result.found) {
           document.getElementById('serverPath').value = result.path;
+          showAlert('Server executable path auto-detected.', 'info');
         } else {
-          showAlert('Could not auto-detect server path. Please enter manually.', 'warning');
+          showAlert(result.error || 'Could not auto-detect server path. Please enter manually or ensure the project is built (`npm run build`).', 'warning');
         }
       } catch (error) {
         showAlert('Auto-detection failed: ' + error.message, 'warning');
@@ -1348,13 +1376,32 @@ execute_command"></textarea>
           if (Array.isArray(value)) {
             yamlString += `${spaces}${key}:\n`;
             value.forEach(item => {
-              yamlString += `${spaces}  - ${typeof item === 'string' ? item.replace(/'/g, "''") : JSON.stringify(item)}\n`;
+              // Ensure strings with special characters are quoted if necessary for YAML
+              let formattedItem = JSON.stringify(item); // Good starting point for correct string representation
+              if (typeof item === 'string' && !/[:{}\[\],&*#?|\-<>=!%@`]/.test(item) && item.trim() === item && !/^\s|\s$/.test(item)) {
+                // If it's a "simple" string, don't quote it unless it looks like a number/boolean but should be a string
+                if (!isNaN(parseFloat(item)) && isFinite(item) && item.toString() === parseFloat(item).toString()) formattedItem = `'${item}'`;
+                else if (item === 'true' || item === 'false' || item === 'null') formattedItem = `'${item}'`;
+                else formattedItem = item; // use as is for simple strings
+              } else if (typeof item === 'string') {
+                // if it's not simple or has special chars, ensure it's properly quoted
+                formattedItem = `'${item.replace(/'/g, "''")}'`;
+              }
+              yamlString += `${spaces}  - ${formattedItem}\n`;
             });
           } else if (typeof value === 'object' && value !== null) {
             yamlString += `${spaces}${key}:\n`;
             yamlString += jsToYaml(value, indent + 1);
           } else {
-            yamlString += `${spaces}${key}: ${typeof value === 'string' ? value.replace(/'/g, "''") : value}\n`;
+            let formattedValue = JSON.stringify(value);
+            if (typeof value === 'string' && !/[:{}\[\],&*#?|\-<>=!%@`]/.test(value) && value.trim() === value && !/^\s|\s$/.test(value)) {
+              if (!isNaN(parseFloat(value)) && isFinite(value) && value.toString() === parseFloat(value).toString()) formattedValue = `'${value}'`;
+              else if (value === 'true' || value === 'false' || value === 'null') formattedValue = `'${value}'`;
+              else formattedValue = value;
+            } else if (typeof value === 'string') {
+              formattedValue = `'${value.replace(/'/g, "''")}'`;
+            }
+            yamlString += `${spaces}${key}: ${formattedValue}\n`;
           }
         }
       }
@@ -1365,58 +1412,96 @@ execute_command"></textarea>
     function updateClaudeServerStatus() {
       const servers = currentClaudeConfig.mcpServers || {};
       const serverCount = Object.keys(servers).length;
-      const hasContextServer = Object.values(servers).some(server =>
-        server.args && server.args.some(arg => arg.includes('context-server') || arg.includes('index.js'))
-      );
+      const serverNameInput = document.getElementById('serverName').value.trim() || 'context-server';
+      const hasThisServer = !!servers[serverNameInput];
+
       let status = '🔴 Not Configured';
-      if (hasContextServer) status = '🟢 Configured';
-      else if (serverCount > 0) status = '🟡 Other Servers';
+      if (hasThisServer) status = '🟢 Configured';
+      else if (serverCount > 0) status = '🟡 Other Servers Only';
       document.getElementById('claudeServerStatus').textContent = status;
     }
 
-    async function saveClaudeConfiguration() {
+    async function saveClaudeDesktopEntry() {
       const serverName = document.getElementById('serverName').value.trim();
-      const serverPath = document.getElementById('serverPath').value.trim();
+      const serverExecutablePath = document.getElementById('serverPath').value.trim();
       const logLevel = document.getElementById('logLevel').value;
-      if (!serverName || !serverPath) {
-        showAlert('Please enter both server name and path', 'danger');
+
+      if (!serverName || !serverExecutablePath) {
+        showAlert('Please enter both Server Name and Server Executable Path for Claude Desktop.', 'danger');
         return;
       }
       try {
-        showLoading('claudeConfigStatus');
-        const newConfig = {
-          ...currentClaudeConfig,
-          mcpServers: {
-            ...(currentClaudeConfig.mcpServers || {}),
-            [serverName]: { command: 'node', args: [serverPath], env: { MCP_LOG_LEVEL: logLevel } }
-          }
-        };
+        showLoading('claudeConfigStatus'); // Use a more specific loading indicator if available
+        const payload = { serverName, serverExecutablePath, logLevel };
+
         const response = await fetch('/api/claude-config', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newConfig)
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
         });
         const result = await response.json();
+
         if (result.success) {
-          currentClaudeConfig = newConfig;
+          currentClaudeConfig = result.config; // Backend now returns the full, merged config
           updateClaudeConfigPreview();
           updateClaudeServerStatus();
-          document.getElementById('claudeConfigStatus').textContent = '✅ Saved';
           showAlert('Claude Desktop configuration saved! Please restart Claude Desktop.', 'success');
         } else { throw new Error(result.error || 'Save failed'); }
       } catch (error) {
-        document.getElementById('claudeConfigStatus').textContent = '❌ Error';
         showAlert('Failed to save Claude Desktop configuration: ' + error.message, 'danger');
+      } finally {
+        // Reload to reflect any status changes
+        const statusEl = document.getElementById('claudeConfigStatus');
+        if (statusEl.innerHTML.includes('loading')) await loadClaudeConfig();
       }
     }
+
+    async function removeClaudeDesktopEntry() {
+      const serverName = document.getElementById('serverName').value.trim();
+      if (!serverName) { showAlert('Please enter the Server Name to remove from Claude Desktop.', 'danger'); return; }
+      if (!confirm(`Are you sure you want to remove the server "${serverName}" from your Claude Desktop configuration?`)) return;
+
+      try {
+        showLoading('claudeConfigStatus');
+        const response = await fetch('/api/claude-config/remove', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ serverName })
+        });
+        const result = await response.json();
+
+        if (result.success) {
+          currentClaudeConfig = result.config; // Backend returns the updated config
+          updateClaudeConfigPreview();
+          updateClaudeServerStatus();
+          // Optionally clear serverPath input if this was the only/main server
+          // document.getElementById('serverPath').value = '';
+          showAlert(`Server "${serverName}" removed from Claude Desktop configuration. Please restart Claude Desktop.`, 'success');
+        } else { throw new Error(result.error || 'Remove failed'); }
+      } catch (error) {
+        showAlert(`Failed to remove server "${serverName}" from Claude Desktop configuration: ` + error.message, 'danger');
+      } finally {
+        const statusEl = document.getElementById('claudeConfigStatus');
+        if (statusEl.innerHTML.includes('loading')) await loadClaudeConfig();
+      }
+    }
+
 
     async function saveSecurityConfig() {
       try {
         const securitySettings = {
-          allowedCommands: document.getElementById('allowedCommands').value.split('\n').filter(c => c.trim()),
-          safezones: document.getElementById('safezones').value.split('\n').filter(s => s.trim()),
-          unsafeArgumentPatterns: document.getElementById('unsafeArgumentPatterns').value.split('\n').filter(p => p.trim()),
-          maxExecutionTime: parseInt(document.getElementById('maxExecutionTime').value) || 30000,
-          maxFileSize: parseInt(document.getElementById('maxFileSize').value) || 10485760
+          allowedCommands: document.getElementById('allowedCommands').value.split('\n').map(c => c.trim()).filter(c => c),
+          safezones: document.getElementById('safezones').value.split('\n').map(s => s.trim()).filter(s => s),
+          unsafeArgumentPatterns: document.getElementById('unsafeArgumentPatterns').value.split('\n').map(p => p.trim()).filter(p => p),
+          // These are part of general server config, but often tweaked with security:
+          maxExecutionTime: parseInt(document.getElementById('maxExecutionTime').value) || undefined, // Use undefined if parsing fails or 0
+          maxFileSize: parseInt(document.getElementById('maxFileSize').value) || undefined
         };
+
+        // Filter out undefined values if they were not valid numbers
+        if (securitySettings.maxExecutionTime === undefined) delete securitySettings.maxExecutionTime;
+        if (securitySettings.maxFileSize === undefined) delete securitySettings.maxFileSize;
+
 
         const payload = { security: securitySettings };
 
@@ -1427,11 +1512,11 @@ execute_command"></textarea>
         });
         const result = await response.json();
         if (result.success) {
-          showAlert('Security configuration saved successfully!', 'success');
-          await loadServerConfig();
+          showAlert('Security related settings in `server.yaml` saved successfully!', 'success');
+          await loadServerConfig(); // Reload to reflect changes from server
         } else { throw new Error(result.error || 'Save failed'); }
       } catch (error) {
-        showAlert('Failed to save security configuration: ' + error.message, 'danger');
+        showAlert('Failed to save security settings: ' + error.message, 'danger');
       }
     }
 
@@ -1440,14 +1525,19 @@ execute_command"></textarea>
         const configToSave = {
           server: {
             name: document.getElementById('serverName2').value || 'mcp-context-server',
-            version: currentServerConfig.server?.version || '1.0.0'
+            version: currentServerConfig.server?.version || '1.0.0' // Preserve existing if not editable here
           },
-          security: {
-            allowedCommands: document.getElementById('allowedCommands').value.split('\n').filter(c => c.trim()),
-            safezones: document.getElementById('safezones').value.split('\n').filter(s => s.trim()),
-            unsafeArgumentPatterns: document.getElementById('unsafeArgumentPatterns').value.split('\n').filter(p => p.trim()),
+          security: { // Include all security fields from the security tab
+            allowedCommands: document.getElementById('allowedCommands').value.split('\n').map(c => c.trim()).filter(c => c),
+            safezones: document.getElementById('safezones').value.split('\n').map(s => s.trim()).filter(s => s),
+            unsafeArgumentPatterns: document.getElementById('unsafeArgumentPatterns').value.split('\n').map(p => p.trim()).filter(p => p),
             maxExecutionTime: parseInt(document.getElementById('maxExecutionTime').value) || 30000,
-            maxFileSize: parseInt(document.getElementById('maxFileSize').value) || 10485760
+            maxFileSize: parseInt(document.getElementById('maxFileSize').value) || 10485760,
+            // Include other security fields from currentServerConfig if they exist and are not on UI
+            autoExpandSafezones: currentServerConfig.security?.autoExpandSafezones,
+            safeZoneMode: currentServerConfig.security?.safeZoneMode,
+            restrictedZones: currentServerConfig.security?.restrictedZones,
+            blockedPathPatterns: currentServerConfig.security?.blockedPathPatterns
           },
           database: {
             path: document.getElementById('databasePath').value || './data/context.db',
@@ -1463,6 +1553,14 @@ execute_command"></textarea>
           }
         };
 
+        // Clean up undefined optional fields from security
+        Object.keys(configToSave.security).forEach(key => {
+          if (configToSave.security[key] === undefined) {
+            delete configToSave.security[key];
+          }
+        });
+
+
         const response = await fetch('/api/server-config', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1470,73 +1568,55 @@ execute_command"></textarea>
         });
         const result = await response.json();
         if (result.success) {
-          currentServerConfig = configToSave;
-          updateServerConfigPreview();
-          updateActiveSecurityPresets();
-          showAlert('Server configuration saved successfully!', 'success');
+          // currentServerConfig = configToSave; // Backend is source of truth, so reload
+          // updateServerConfigPreview();
+          // updateActiveSecurityPresets();
+          showAlert('Full `server.yaml` configuration saved successfully!', 'success');
+          await loadServerConfig(); // Reload to get the exact representation from server
         } else { throw new Error(result.error || 'Save failed'); }
       } catch (error) {
-        showAlert('Failed to save server configuration: ' + error.message, 'danger');
-      }
-    }
-
-
-    async function removeServer() {
-      const serverName = document.getElementById('serverName').value.trim();
-      if (!serverName) { showAlert('Please enter the server name to remove', 'danger'); return; }
-      if (!confirm('Are you sure you want to remove the server "' + serverName + '"?')) return;
-      try {
-        const newConfig = { ...currentClaudeConfig };
-        if (newConfig.mcpServers && newConfig.mcpServers[serverName]) {
-          delete newConfig.mcpServers[serverName];
-        }
-        const response = await fetch('/api/claude-config', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newConfig)
-        });
-        const result = await response.json();
-        if (result.success) {
-          currentClaudeConfig = newConfig;
-          updateClaudeConfigPreview();
-          updateClaudeServerStatus();
-          document.getElementById('serverPath').value = '';
-          showAlert('Server removed successfully! Please restart Claude Desktop.', 'success');
-        } else { throw new Error(result.error || 'Remove failed'); }
-      } catch (error) {
-        showAlert('Failed to remove server: ' + error.message, 'danger');
+        showAlert('Failed to save `server.yaml` configuration: ' + error.message, 'danger');
       }
     }
 
     function resetSecurityToDefaults() {
-      if (confirm('Reset all security settings to defaults? This will overwrite your current configuration.')) {
-        setSecurityPreset(null, 'standard'); // "Standard" preset now includes tools
+      if (confirm('Reset security settings in `server.yaml` to their defaults? This will overwrite your current settings in this tab.')) {
+        setSecurityPreset(null, 'standard'); // "Standard" preset now includes tools + common OS
         setUnsafePatternPreset(null, 'balanced');
-        document.getElementById('safezones').value = '.\n/tmp';
+        document.getElementById('safezones').value = '.\n/tmp'; // A very basic default
         updateSafezoneList();
-        showAlert('Security settings reset to defaults.', 'info');
+        // Note: maxExecutionTime and maxFileSize are on a different tab but part of security.
+        // Consider if these should be reset here or handled by a full server config reset.
+        // For now, this focuses on the visible fields in the Security tab.
+        showAlert('Security fields reset to UI defaults. Save to apply to `server.yaml`.', 'info');
         updateActiveSecurityPresets();
       }
     }
 
     async function testServerConfig() {
       try {
+        showLoading('serverConfigStatus'); // Indicate testing
         const response = await fetch('/api/test-config', { method: 'POST' });
         const result = await response.json();
         if (result.success) {
           let message = 'Configuration test passed!';
           if (result.warnings && result.warnings.length > 0) {
-            message += '\nWarnings:\n' + result.warnings.join('\n');
-            showAlert(message, 'warning');
+            message += '\n\nWarnings:\n' + result.warnings.join('\n');
+            showAlert(message, 'warning', 10000); // Longer for warnings
           } else {
             showAlert(message, 'success');
           }
         } else {
           let errMessage = 'Configuration test failed.';
-          if (result.errors && result.errors.length > 0) errMessage += '\nErrors:\n' + result.errors.join('\n');
-          if (result.warnings && result.warnings.length > 0) errMessage += '\nWarnings:\n' + result.warnings.join('\n');
-          showAlert(errMessage, 'danger');
+          if (result.errors && result.errors.length > 0) errMessage += '\n\nErrors:\n' + result.errors.join('\n');
+          if (result.warnings && result.warnings.length > 0) errMessage += '\n\nWarnings:\n' + result.warnings.join('\n');
+          showAlert(errMessage, 'danger', 15000); // Longer for errors
         }
       } catch (error) {
         showAlert('Failed to test configuration: ' + error.message, 'danger');
+      } finally {
+        const statusEl = document.getElementById('serverConfigStatus');
+        if (statusEl.innerHTML.includes('loading')) await loadServerConfig(); // Reload to clear loading
       }
     }
 
@@ -1561,21 +1641,26 @@ execute_command"></textarea>
       toast.appendChild(closeButton);
       toastContainer.appendChild(toast);
 
-      setTimeout(() => toast.classList.add('show'), 100);
+      setTimeout(() => toast.classList.add('show'), 100); // Delay to allow CSS transition
 
-      if (type !== 'danger') {
+      // Auto-dismiss for non-danger toasts
+      if (duration > 0 && type !== 'danger') {
         setTimeout(() => {
           toast.classList.remove('show');
-          setTimeout(() => toast.remove(), 500);
+          setTimeout(() => toast.remove(), 500); // Remove from DOM after transition
         }, duration);
       }
     }
 
 
     function showLoading(elementId) {
-      document.getElementById(elementId).innerHTML = '<span class="loading"></span> Loading...';
+      const el = document.getElementById(elementId);
+      if (el) {
+        el.innerHTML = '<span class="loading"></span> Loading...';
+      }
     }
 
+    // Update lists and presets on textarea input
     ['allowedCommands', 'safezones', 'unsafeArgumentPatterns'].forEach(textareaId => {
       const el = document.getElementById(textareaId);
       if (el) {
@@ -1583,7 +1668,11 @@ execute_command"></textarea>
           if (textareaId === 'allowedCommands') updateCommandList();
           else if (textareaId === 'safezones') updateSafezoneList();
           else if (textareaId === 'unsafeArgumentPatterns') updateUnsafePatternList();
-          updateActiveSecurityPresets();
+
+          // Only update security presets if allowedCommands or unsafeArgumentPatterns changed
+          if (textareaId === 'allowedCommands' || textareaId === 'unsafeArgumentPatterns') {
+            updateActiveSecurityPresets();
+          }
         });
       }
     });

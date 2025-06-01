@@ -108,6 +108,37 @@ function getPlatformRestrictedZones(): string[] {
   return restrictedZones;
 }
 
+// Helper function to get Claude Desktop config path
+function getClaudeDesktopConfigDir(): string | null {
+  const currentPlatform = os.platform(); // Corrected: os.platform()
+  const home = os.homedir(); // Corrected: os.homedir()
+  let configPath: string;
+  switch (currentPlatform) {
+    case 'win32':
+      configPath = path.join(
+        process.env.APPDATA || path.join(home, 'AppData', 'Roaming'),
+        'Claude',
+        'claude_desktop_config.json'
+      ); // Corrected: path.join()
+      break;
+    case 'darwin':
+      configPath = path.join(home, 'Library', 'Application Support', 'Claude', 'claude_desktop_config.json'); // Corrected: path.join()
+      break;
+    default: // Linux and other Unix-like
+      configPath = path.join(home, '.config', 'claude', 'claude_desktop_config.json'); // Corrected: path.join()
+      break;
+  }
+  try {
+    // Check if the directory exists
+    const dir = path.dirname(configPath);
+    require('fs').accessSync(dir); // Use sync access here as it's part of config loading
+    return dir;
+  } catch (e) {
+    logger.debug({ error: e, path: configPath }, 'Claude Desktop config directory not accessible or does not exist.');
+    return null;
+  }
+}
+
 const allToolNames = [
   'read_file',
   'write_file',
@@ -182,13 +213,13 @@ export const configSchema = convict({
     safezones: {
       doc: 'Allowed directories for file operations (recursive by default)',
       format: Array,
-      default: [process.cwd()], // Will be expanded later if autoExpandSafezones is true
+      default: [process.cwd()],
       env: 'MCP_SAFEZONES'
     },
     restrictedZones: {
       doc: 'Directories to block even if they are within safe zones',
       format: Array,
-      default: [], // Will be populated with platform defaults
+      default: [],
       env: 'MCP_RESTRICTED_ZONES'
     },
     autoExpandSafezones: {
@@ -200,7 +231,7 @@ export const configSchema = convict({
     safeZoneMode: {
       doc: 'How to handle subdirectories of safe zones',
       format: ['strict', 'recursive'],
-      default: 'recursive', // Allow subdirectories by default
+      default: 'recursive',
       env: 'MCP_SAFE_ZONE_MODE'
     },
     maxExecutionTime: {
@@ -289,13 +320,15 @@ export async function loadConfig(): Promise<ServerConfig> {
     const explicitConfigPath = process.env.MCP_SERVER_CONFIG_PATH;
     let configLoaded = false;
     let loadedFrom = '';
+    let serverConfigDir: string | null = null;
 
     if (explicitConfigPath) {
-      logger.info({ path: explicitConfigPath }, 'Attempting to load configuration from MCP_SERVER_CONFIG_PATH.');
+      const resolvedExplicitPath = path.resolve(process.cwd(), explicitConfigPath); // Resolve relative to CWD if not absolute
+      logger.info({ path: resolvedExplicitPath }, 'Attempting to load configuration from MCP_SERVER_CONFIG_PATH.');
       try {
-        await fs.access(explicitConfigPath);
-        const ext = path.extname(explicitConfigPath).toLowerCase();
-        const content = await fs.readFile(explicitConfigPath, 'utf-8');
+        await fs.access(resolvedExplicitPath);
+        const ext = path.extname(resolvedExplicitPath).toLowerCase();
+        const content = await fs.readFile(resolvedExplicitPath, 'utf-8');
         let parsed: unknown;
         if (ext === '.yaml' || ext === '.yml') {
           parsed = yaml.parse(content);
@@ -308,17 +341,18 @@ export async function loadConfig(): Promise<ServerConfig> {
         if (parsed && typeof parsed === 'object') {
           configSchema.load(parsed);
           configLoaded = true;
-          loadedFrom = explicitConfigPath;
-          logger.info({ path: explicitConfigPath }, 'Configuration loaded successfully from explicit path.');
+          loadedFrom = resolvedExplicitPath;
+          serverConfigDir = path.dirname(resolvedExplicitPath);
+          logger.info({ path: resolvedExplicitPath }, 'Configuration loaded successfully from explicit path.');
         } else {
-          throw new Error(`Configuration file at ${explicitConfigPath} did not contain a valid object.`);
+          throw new Error(`Configuration file at ${resolvedExplicitPath} did not contain a valid object.`);
         }
       } catch (error) {
         logger.error(
-          { error, path: explicitConfigPath },
+          { error, path: resolvedExplicitPath },
           `Failed to load configuration from explicit path MCP_SERVER_CONFIG_PATH. Server will not start with invalid explicit path.`
         );
-        throw error; // Rethrow if explicit path is provided but fails
+        throw error;
       }
     } else {
       logger.info('MCP_SERVER_CONFIG_PATH not set. Searching default locations...');
@@ -330,37 +364,42 @@ export async function loadConfig(): Promise<ServerConfig> {
         './mcp-config.json'
       ];
 
-      for (const configPath of defaultSearchPaths) {
+      for (const configPathItem of defaultSearchPaths) {
+        // Renamed configPath to configPathItem to avoid conflict
+        const resolvedDefaultPath = path.resolve(process.cwd(), configPathItem);
         try {
-          logger.debug(`Attempting to load config from: ${configPath}`);
-          await fs.access(configPath);
-          const ext = path.extname(configPath).toLowerCase();
-          const content = await fs.readFile(configPath, 'utf-8');
+          logger.debug(`Attempting to load config from: ${resolvedDefaultPath}`);
+          await fs.access(resolvedDefaultPath);
+          const ext = path.extname(resolvedDefaultPath).toLowerCase();
+          const content = await fs.readFile(resolvedDefaultPath, 'utf-8');
           let parsed: unknown;
           if (ext === '.yaml' || ext === '.yml') {
             parsed = yaml.parse(content);
           } else if (ext === '.json') {
             parsed = JSON.parse(content);
           } else {
-            logger.warn(`Unsupported config file extension: ${ext} at ${configPath}`);
+            logger.warn(`Unsupported config file extension: ${ext} at ${resolvedDefaultPath}`);
             continue;
           }
 
           if (parsed && typeof parsed === 'object') {
             configSchema.load(parsed);
             configLoaded = true;
-            loadedFrom = configPath;
-            logger.info({ path: configPath }, 'Configuration loaded successfully from default location.');
+            loadedFrom = resolvedDefaultPath;
+            serverConfigDir = path.dirname(resolvedDefaultPath);
+            logger.info({ path: resolvedDefaultPath }, 'Configuration loaded successfully from default location.');
             break;
           } else {
-            logger.warn(`Config file ${configPath} did not contain a valid object.`);
+            logger.warn(`Config file ${resolvedDefaultPath} did not contain a valid object.`);
           }
         } catch (error) {
           if ((error as { code?: string }).code === 'ENOENT') {
-            logger.debug(`Config file not found: ${configPath}`);
+            logger.debug(`Config file not found: ${resolvedDefaultPath}`);
           } else {
-            logger.error({ error, configPath }, `Error loading config from ${configPath}`);
-            // Don't rethrow here, allow fallback to defaults if all default paths fail
+            logger.error(
+              { error, configPath: resolvedDefaultPath },
+              `Error loading config from ${resolvedDefaultPath}`
+            );
           }
         }
       }
@@ -370,6 +409,7 @@ export async function loadConfig(): Promise<ServerConfig> {
       logger.warn(
         'No configuration file found in default locations, using built-in defaults and environment variables.'
       );
+      serverConfigDir = process.cwd();
     }
 
     try {
@@ -383,67 +423,112 @@ export async function loadConfig(): Promise<ServerConfig> {
 
     const finalConfig = configSchema.getProperties() as ServerConfig;
 
-    if (finalConfig.server.workingDirectory && finalConfig.server.workingDirectory !== process.cwd()) {
+    const requestedWorkingDirectory = finalConfig.server.workingDirectory;
+    const initialCwd = process.cwd();
+    if (requestedWorkingDirectory && path.resolve(initialCwd, requestedWorkingDirectory) !== initialCwd) {
       try {
-        process.chdir(finalConfig.server.workingDirectory);
-        logger.info(
-          {
-            newCwd: finalConfig.server.workingDirectory
-          },
-          'Changed working directory as per configuration.'
-        );
+        const newCwd = path.resolve(initialCwd, requestedWorkingDirectory);
+        process.chdir(newCwd);
+        finalConfig.server.workingDirectory = newCwd;
+        logger.info({ oldCwd: initialCwd, newCwd }, 'Changed working directory as per configuration.');
       } catch (error) {
         logger.warn(
           {
             error,
-            requestedDirectory: finalConfig.server.workingDirectory
+            requestedDirectory: requestedWorkingDirectory,
+            resolvedTo: path.resolve(initialCwd, requestedWorkingDirectory)
           },
-          'Failed to change working directory, continuing with current directory.'
+          'Failed to change working directory, continuing with initial CWD.'
         );
-        finalConfig.server.workingDirectory = process.cwd(); // Reflect actual CWD
+        finalConfig.server.workingDirectory = initialCwd;
       }
     } else {
-      finalConfig.server.workingDirectory = process.cwd(); // Ensure it's set
+      finalConfig.server.workingDirectory = initialCwd;
+    }
+
+    const currentWorkingDirectory = finalConfig.server.workingDirectory!; // Guaranteed to be string by above logic
+
+    if (serverConfigDir && !path.isAbsolute(serverConfigDir) && initialCwd !== currentWorkingDirectory) {
+      serverConfigDir = path.resolve(
+        currentWorkingDirectory,
+        serverConfigDir.startsWith(initialCwd) ? path.relative(initialCwd, serverConfigDir) : serverConfigDir
+      );
+    } else if (serverConfigDir) {
+      serverConfigDir = path.resolve(currentWorkingDirectory, serverConfigDir);
     }
 
     const platformRestrictedZones = getPlatformRestrictedZones();
     const configRestrictedZones = finalConfig.security.restrictedZones || [];
-    finalConfig.security.restrictedZones = [...new Set([...platformRestrictedZones, ...configRestrictedZones])]; // Use Set to avoid duplicates
+    finalConfig.security.restrictedZones = [...new Set([...platformRestrictedZones, ...configRestrictedZones])];
+
+    const safezonesToAdd = new Set<string>();
 
     if (finalConfig.security.autoExpandSafezones) {
       const commonDirs = getCommonDevDirectories();
-      const existingSafezones = new Set(finalConfig.security.safezones.map(zone => path.resolve(process.cwd(), zone)));
+      commonDirs.forEach(dir => safezonesToAdd.add(path.resolve(currentWorkingDirectory, dir)));
 
-      for (const dir of commonDirs) {
-        const resolvedDir = path.resolve(process.cwd(), dir);
-        if (!existingSafezones.has(resolvedDir)) {
-          finalConfig.security.safezones.push(dir); // Add relative or absolute as it was
-          existingSafezones.add(resolvedDir);
-        }
+      const claudeConfigDir = getClaudeDesktopConfigDir();
+      if (claudeConfigDir) {
+        safezonesToAdd.add(claudeConfigDir);
       }
-      logger.info(
-        {
-          finalSafeZoneCount: finalConfig.security.safezones.length
-        },
-        'Auto-expanded safe zones.'
-      );
+    }
+    if (serverConfigDir) {
+      safezonesToAdd.add(serverConfigDir);
     }
 
-    // Resolve database path relative to the *final* working directory
+    safezonesToAdd.add(initialCwd);
+    safezonesToAdd.add(currentWorkingDirectory);
+
+    const existingSafezonesResolved = new Set(
+      finalConfig.security.safezones.map(zone => path.resolve(currentWorkingDirectory, zone))
+    );
+
+    safezonesToAdd.forEach(zonePathToAdd => {
+      // Renamed zoneToAdd to zonePathToAdd for clarity
+      const resolvedZone = path.resolve(zonePathToAdd); // zonePathToAdd is already absolute or resolved relative to CWD
+      if (!existingSafezonesResolved.has(resolvedZone)) {
+        // Store paths relative to the final working directory if possible, or absolute.
+        const relativeOrAbsoluteZone = path.isAbsolute(zonePathToAdd)
+          ? zonePathToAdd
+          : path.relative(currentWorkingDirectory, resolvedZone) || '.';
+        finalConfig.security.safezones.push(relativeOrAbsoluteZone);
+        existingSafezonesResolved.add(resolvedZone);
+      }
+    });
+
+    const uniqueResolvedSafezones = new Map<string, string>();
+    finalConfig.security.safezones.forEach(z => {
+      // z instead of zone
+      const resolved = path.resolve(currentWorkingDirectory, z);
+      if (!uniqueResolvedSafezones.has(resolved)) {
+        uniqueResolvedSafezones.set(resolved, z);
+      }
+    });
+    finalConfig.security.safezones = Array.from(uniqueResolvedSafezones.values());
+
+    logger.info(
+      {
+        finalSafeZoneCount: finalConfig.security.safezones.length,
+        restrictedZoneCount: finalConfig.security.restrictedZones.length
+      },
+      'Processed safe and restricted zones.'
+    );
+
     if (!path.isAbsolute(finalConfig.database.path)) {
-      finalConfig.database.path = path.resolve(finalConfig.server.workingDirectory, finalConfig.database.path);
+      finalConfig.database.path = path.resolve(currentWorkingDirectory, finalConfig.database.path);
     }
 
     logger.info(
       {
-        loadedFrom: loadedFrom || (explicitConfigPath ? 'MCP_SERVER_CONFIG_PATH (failed)' : 'defaults/env-vars'),
+        loadedFrom:
+          loadedFrom || (explicitConfigPath ? 'MCP_SERVER_CONFIG_PATH (failed or defaults used)' : 'defaults/env-vars'),
         workingDirectory: finalConfig.server.workingDirectory,
         serverName: finalConfig.server.name,
         security: {
           allowedCommandsCount: Array.isArray(finalConfig.security.allowedCommands)
             ? finalConfig.security.allowedCommands.length
             : finalConfig.security.allowedCommands,
-          safeZonesCount: finalConfig.security.safezones.length,
+          safeZones: finalConfig.security.safezones,
           restrictedZonesCount: finalConfig.security.restrictedZones.length,
           safeZoneMode: finalConfig.security.safeZoneMode,
           autoExpandSafezones: finalConfig.security.autoExpandSafezones,
