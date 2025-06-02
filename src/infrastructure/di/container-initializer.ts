@@ -1,15 +1,26 @@
-﻿// src/infrastructure/di/container-initializer.ts - Updated
+// src/infrastructure/di/container-initializer.ts - Updated with Enhanced File Operations
 import type { Container } from 'inversify';
 import type { IToolRegistry } from '../../core/interfaces/tool-registry.interface.js';
 import type { IResourceRegistry } from '../../core/interfaces/resource-registry.interface.js';
 import type { IPromptRegistry } from '../../core/interfaces/prompt-registry.interface.js';
+import type { IEmbeddingService } from '../../core/interfaces/semantic-context.interface.js';
 
-// Tools
+// Basic File Operations Tools
 import {
   ReadFileTool,
   ListDirectoryTool,
   WriteFileToolWithConsent
 } from '../../application/tools/file-operations.tool.js';
+
+// Enhanced File Operations Tools
+import {
+  EditFileTool,
+  BatchEditFileTool,
+  SearchFilesTool,
+  FindFilesTool
+} from '../../application/tools/enhanced-file-operations.tool.js';
+
+// Other Tools
 import { ExecuteCommandToolWithConsent } from '../../application/tools/command-execution.tool.js';
 import {
   StoreContextTool,
@@ -26,7 +37,7 @@ import { GetMetricsTool } from '../../application/tools/metrics.tool.js';
 import { SecurityDiagnosticsTool } from '../../application/tools/security-diagnostics.tool.js';
 import { DatabaseHealthTool } from '../../application/tools/database-health.tool.js';
 
-// New Workspace Tools
+// Workspace Tools
 import {
   CreateWorkspaceTool,
   ListWorkspacesTool,
@@ -38,6 +49,19 @@ import {
   ExportWorkspaceTemplateTool
 } from '../../application/tools/workspace-management.tools.js';
 
+// Semantic Tools
+import {
+  SemanticSearchTool,
+  FindRelatedContextTool,
+  CreateContextRelationshipTool,
+  UpdateEmbeddingsTool,
+  SemanticStatsTool
+} from '../../application/tools/semantic-search.tool.js';
+import {
+  EnhancedStoreContextTool,
+  EnhancedQueryContextTool
+} from '../../application/tools/enhanced-database-operations.tool.js';
+
 // Resources
 import { ProjectFilesResource } from '../../application/resources/project-files.resource.js';
 
@@ -45,17 +69,20 @@ import { ProjectFilesResource } from '../../application/resources/project-files.
 import { ContextSummaryPrompt } from '../../application/prompts/context-summary.prompt.js';
 
 // UI Bridges
-import { ConsentUIBridge } from '../../presentation/consent-ui-bridge.js'; // Added import
+import { ConsentUIBridge } from '../../presentation/consent-ui-bridge.js';
 
 import { logger } from '../../utils/logger.js';
 
 export class ContainerInitializer {
   static async initialize(container: Container): Promise<void> {
-    logger.info('Initializing container with enhanced tools, resources, and prompts...');
+    logger.info('Initializing container with enhanced file operations and semantic search capabilities...');
 
     // Initialize consent UI bridge
     const consentUIBridge = container.get<ConsentUIBridge>(ConsentUIBridge);
     consentUIBridge.start();
+
+    // Initialize embedding service
+    await this.initializeSemanticServices(container);
 
     // Initialize and register tools
     await this.initializeTools(container);
@@ -66,31 +93,60 @@ export class ContainerInitializer {
     // Initialize and register prompts
     await this.initializePrompts(container);
 
-    logger.info('Container initialization complete with consent and workspace management');
+    logger.info('Container initialization complete with enhanced file operations and semantic search capabilities');
+  }
+
+  private static async initializeSemanticServices(container: Container): Promise<void> {
+    try {
+      logger.info('Initializing semantic services...');
+      const embeddingService = container.get<IEmbeddingService>('EmbeddingService');
+      await embeddingService.initialize();
+      logger.info('Semantic services initialized successfully');
+    } catch (error) {
+      logger.error({ error }, 'Failed to initialize semantic services');
+      // Don't throw - allow server to start without semantic features
+    }
   }
 
   private static async initializeTools(container: Container): Promise<void> {
     const toolRegistry = container.get<IToolRegistry>('ToolRegistry');
 
-    // File operations (enhanced with consent)
+    // Basic file operations (enhanced with consent)
     toolRegistry.register(new ReadFileTool());
-    toolRegistry.register(new WriteFileToolWithConsent()); // Enhanced version
+    toolRegistry.register(new WriteFileToolWithConsent());
     toolRegistry.register(new ListDirectoryTool());
 
-    // Command execution (enhanced with consent)
-    toolRegistry.register(new ExecuteCommandToolWithConsent()); // Enhanced version
+    // Enhanced file operations (NEW)
+    toolRegistry.register(container.get<EditFileTool>(EditFileTool));
+    toolRegistry.register(container.get<BatchEditFileTool>(BatchEditFileTool));
+    toolRegistry.register(container.get<SearchFilesTool>(SearchFilesTool));
+    toolRegistry.register(container.get<FindFilesTool>(FindFilesTool));
 
-    // Database operations
+    // Command execution (enhanced with consent)
+    toolRegistry.register(new ExecuteCommandToolWithConsent());
+
+    // Database operations (original tools)
     toolRegistry.register(new StoreContextTool());
     toolRegistry.register(new GetContextTool());
     toolRegistry.register(new QueryContextTool());
 
-    // Smart paths
+    // Enhanced database operations with semantic features
+    toolRegistry.register(container.get<EnhancedStoreContextTool>(EnhancedStoreContextTool));
+    toolRegistry.register(container.get<EnhancedQueryContextTool>(EnhancedQueryContextTool));
+
+    // Semantic search tools
+    toolRegistry.register(container.get<SemanticSearchTool>(SemanticSearchTool));
+    toolRegistry.register(container.get<FindRelatedContextTool>(FindRelatedContextTool));
+    toolRegistry.register(container.get<CreateContextRelationshipTool>(CreateContextRelationshipTool));
+    toolRegistry.register(container.get<UpdateEmbeddingsTool>(UpdateEmbeddingsTool));
+    toolRegistry.register(container.get<SemanticStatsTool>(SemanticStatsTool));
+
+    // Smart path operations
     toolRegistry.register(new CreateSmartPathTool());
     toolRegistry.register(new ExecuteSmartPathTool());
     toolRegistry.register(new ListSmartPathsTool());
 
-    // Workspace management tools
+    // Workspace management
     toolRegistry.register(new CreateWorkspaceTool());
     toolRegistry.register(new ListWorkspacesTool());
     toolRegistry.register(new SwitchWorkspaceTool());
@@ -101,31 +157,46 @@ export class ContainerInitializer {
     toolRegistry.register(new ExportWorkspaceTemplateTool());
 
     // File parsing
-    toolRegistry.register(container.get(ParseFileTool));
+    toolRegistry.register(container.get<ParseFileTool>(ParseFileTool));
 
-    // Metrics and diagnostics
+    // System monitoring
     toolRegistry.register(new GetMetricsTool());
     toolRegistry.register(new SecurityDiagnosticsTool());
     toolRegistry.register(new DatabaseHealthTool());
 
-    logger.debug('Tools registered successfully including workspace management');
+    try {
+      const allTools = await toolRegistry.getAllTools();
+      logger.info(`Registered ${allTools.length} tools including enhanced file operations and semantic search capabilities`);
+    } catch (error) {
+      logger.warn({ error }, 'Could not get tool count, but registration completed');
+    }
   }
 
   private static async initializeResources(container: Container): Promise<void> {
     const resourceRegistry = container.get<IResourceRegistry>('ResourceRegistry');
 
-    // Project files resource
-    resourceRegistry.register(container.get(ProjectFilesResource));
+    // Project files
+    resourceRegistry.register(container.get<ProjectFilesResource>(ProjectFilesResource));
 
-    logger.debug('Resources registered successfully');
+    try {
+      const allResources = await resourceRegistry.getAllResources();
+      logger.info(`Registered ${allResources.length} resources`);
+    } catch (error) {
+      logger.warn({ error }, 'Could not get resource count, but registration completed');
+    }
   }
 
   private static async initializePrompts(container: Container): Promise<void> {
     const promptRegistry = container.get<IPromptRegistry>('PromptRegistry');
 
-    // Context summary prompt
+    // Context summary
     promptRegistry.register(new ContextSummaryPrompt());
 
-    logger.debug('Prompts registered successfully');
+    try {
+      const allPrompts = await promptRegistry.getAllPrompts();
+      logger.info(`Registered ${allPrompts.length} prompts`);
+    } catch (error) {
+      logger.warn({ error }, 'Could not get prompt count, but registration completed');
+    }
   }
 }

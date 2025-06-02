@@ -83,8 +83,8 @@ Add this server to your `claude_desktop_config.json`. This tells Claude Desktop 
 
 **Key paths to update:**
 
-- `args`: The absolute path to the built `dist/index.js` of *this* MCP server project.
-- `MCP_SERVER_CONFIG_PATH` (in `env`): The absolute path to the `server.yaml` (or equivalent JSON/YML config file) that *this* MCP server should use.
+- `args`: The absolute path to the built `dist/index.js` of _this_ MCP server project.
+- `MCP_SERVER_CONFIG_PATH` (in `env`): The absolute path to the `server.yaml` (or equivalent JSON/YML config file) that _this_ MCP server should use.
 
 **Configuration file locations for `claude_desktop_config.json`:**
 
@@ -218,4 +218,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - 💬 [Discussions](https://github.com/yourusername/mcp-context-server/discussions)
 
 ---
+
 **Made with ❤️ for the Claude Desktop community**

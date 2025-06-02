@@ -109,7 +109,7 @@ Press Ctrl+C to stop the test run.
 
 ### 4. Configure Claude Desktop (`claude_desktop_config.json`)
 
-This step tells Claude Desktop how to launch *your* MCP Context Server.
+This step tells Claude Desktop how to launch _your_ MCP Context Server.
 
 #### Find Your Claude Desktop Configuration File
 
@@ -140,7 +140,7 @@ Create or edit the file with this content. **Crucially, update the paths to be a
 **⚠️ Important Path Details**:
 
 - **`args`**: The array's last element must be the **absolute path** to the `dist/index.js` file within your cloned `mcp-context-server` project directory (after you've run `npm run build`).
-- **`MCP_SERVER_CONFIG_PATH` (in `env`)**: This must be the **absolute path** to the `server.yaml` (or `server.json`, etc.) file that you configured in Step 2. This tells the MCP server which configuration file *it* should use when it starts.
+- **`MCP_SERVER_CONFIG_PATH` (in `env`)**: This must be the **absolute path** to the `server.yaml` (or `server.json`, etc.) file that you configured in Step 2. This tells the MCP server which configuration file _it_ should use when it starts.
 
 #### How to Get Your Absolute Paths
 
@@ -161,15 +161,15 @@ pwd # Copy this output, then append /config/server.yaml (or your actual config f
 3. **Start a new conversation** in Claude Desktop.
 4. **Test the connection** by asking Claude to use a tool. For example, if `ls` is in your `allowedCommands` and `.` is a safe zone (or your project dir is):
 
-    ```
-    Can you list the files in the current directory?
-    ```
+   ```
+   Can you list the files in the current directory?
+   ```
 
-    Or, to test reading a specific file (if `cat` is allowed and the file is in a safe zone):
+   Or, to test reading a specific file (if `cat` is allowed and the file is in a safe zone):
 
-    ```
-    Can you read the package.json file from my project?
-    ```
+   ```
+   Can you read the package.json file from my project?
+   ```
 
 If working correctly, Claude will use your MCP Context Server to execute these requests, respecting the security settings defined in your `server.yaml` (as pointed to by `MCP_SERVER_CONFIG_PATH`).
 
@@ -184,7 +184,7 @@ If working correctly, Claude will use your MCP Context Server to execute these r
 Key things to check if it's not working:
 
 - **Absolute Paths**: Double-check all paths in `claude_desktop_config.json` are absolute and correct.
-- **`MCP_SERVER_CONFIG_PATH`**: Ensure this environment variable in `claude_desktop_config.json` correctly points to your *actual* `server.yaml` (or equivalent) and that the MCP server process has permissions to read it.
+- **`MCP_SERVER_CONFIG_PATH`**: Ensure this environment variable in `claude_desktop_config.json` correctly points to your _actual_ `server.yaml` (or equivalent) and that the MCP server process has permissions to read it.
 - **Server Logs**: Check the MCP Context Server's own logs. When Claude Desktop starts it, these logs might go to Claude Desktop's internal logs or to a place configured by your `server.yaml`'s logging settings. If running `npm run dev`, logs are in your terminal.
 - **Safe Zones & Allowed Commands**: Ensure the operations you're trying are permitted by your `server.yaml` configuration. Use the `security_diagnostics` tool if unsure.
 

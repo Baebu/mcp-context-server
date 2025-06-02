@@ -14,11 +14,12 @@
     "build:watch": "tsc -p tsconfig.build.json --watch",
     "config": "tsx scripts/config-ui.ts",
     "dev": "tsx watch src/index.ts",
-    "start": "node dist/index.js",
+    "start": "node -r tsconfig-paths/register dist/index.js",
     "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest",
     "test:watch": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --watch",
     "test:coverage": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --coverage",
     "test:integration": "cross-env NODE_OPTIONS=--experimental-vm-modules jest tests/integration/comprehensive.test.ts",
+    "test:semantic": "cross-env NODE_OPTIONS=--experimental-vm-modules jest tests/integration/semantic-search.test.ts",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "format": "prettier --write \"src/**/*.{ts,js,json}\" \"config/**/*.{yaml,json}\" \"*.{json,md}\"",
@@ -28,8 +29,10 @@
     "clean": "rimraf dist",
     "prepare": "husky install || true",
     "setup": "node scripts/setup.js",
+    "setup:semantic": "node scripts/setup-semantic.js",
     "health-check": "node scripts/health-check.js",
-    "claude-config": "node scripts/claude-config.js"
+    "claude-config": "node scripts/claude-config.js",
+    "migrate": "tsx scripts/migrate.ts"
   },
   "keywords": [
     "mcp",
@@ -37,7 +40,9 @@
     "claude",
     "typescript",
     "productivity",
-    "context-management"
+    "context-management",
+    "semantic-search",
+    "vector-embeddings"
   ],
   "author": "Baebu <bae.bu.8@gmail.com>",
   "repository": {
@@ -50,14 +55,18 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "0.5.0",
+    "@tensorflow/tfjs-node": "^4.15.0",
     "better-sqlite3": "^9.2.2",
     "convict": "^6.2.4",
+    "glob": "^10.3.10",
     "inversify": "^6.0.2",
+    "lru-cache": "^10.1.0",
     "p-queue": "^8.0.1",
     "pino": "^9.7.0",
     "pino-pretty": "^13.0.0",
     "reflect-metadata": "^0.2.1",
     "stream-json": "^1.8.0",
+    "uuid": "^9.0.1",
     "winston": "^3.17.0",
     "ws": "^8.18.2",
     "yaml": "^2.3.4",
@@ -69,7 +78,9 @@
     "@types/better-sqlite3": "^7.6.8",
     "@types/convict": "^6.1.6",
     "@types/jest": "^29.5.14",
+    "@types/lru-cache": "^7.10.10",
     "@types/node": "^20.11.5",
+    "@types/uuid": "^9.0.7",
     "@types/ws": "^8.18.1",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",
@@ -83,6 +94,7 @@
     "prettier": "^3.3.3",
     "rimraf": "^5.0.5",
     "ts-jest": "^29.3.4",
+    "tsconfig-paths": "^4.2.0",
     "tsx": "^4.7.0",
     "typescript": "^5.3.3"
   },

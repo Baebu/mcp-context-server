@@ -2,7 +2,7 @@
 import { injectable, inject } from 'inversify';
 import { createServer, Server as HttpServer } from 'node:http'; // Renamed Server to avoid conflict
 import { WebSocket, WebSocketServer } from 'ws';
-import type { ConsentRequest, ConsentResponse } from '@core/interfaces/consent.interface.js';
+import type { ConsentRequest, ConsentResponse } from '../core/interfaces/consent.interface.js';
 import { logger } from '../utils/logger.js';
 import type { UserConsentService } from '../application/services/user-consent.service.js';
 

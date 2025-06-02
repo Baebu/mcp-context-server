@@ -1,4 +1,4 @@
-﻿// src/infrastructure/di/container.ts - Updated with new services
+// src/infrastructure/di/container.ts - Updated with Enhanced File Operations
 import { Container } from 'inversify';
 import 'reflect-metadata';
 
@@ -13,6 +13,7 @@ import type { ISecurityValidator } from '../../core/interfaces/security.interfac
 import type { ISmartPathManager } from '../../core/interfaces/smart-path.interface.js';
 import type { IUserConsentService } from '../../core/interfaces/consent.interface.js';
 import type { IWorkspaceManager } from '../../core/interfaces/workspace.interface.js';
+import type { IEmbeddingService } from '../../core/interfaces/semantic-context.interface.js';
 
 // Implementations
 import { ToolRegistry } from '../../application/services/tool-registry.service.js';
@@ -25,10 +26,32 @@ import { SecurityValidator } from '../../application/services/security-validator
 import { SmartPathManager } from '../../application/services/smart-path-manager.service.js';
 import { UserConsentService } from '../../application/services/user-consent.service.js';
 import { WorkspaceManager } from '../../application/services/workspace-manager.service.js';
+import { EmbeddingService } from '../../application/services/embedding.service.js';
+
+// Enhanced File Operations Tools
+import {
+  EditFileTool,
+  BatchEditFileTool,
+  SearchFilesTool,
+  FindFilesTool
+} from '../../application/tools/enhanced-file-operations.tool.js';
 
 // Tools, Resources, Prompts
 import { ParseFileTool } from '../../application/tools/file-parsing.tool.js';
 import { ProjectFilesResource } from '../../application/resources/project-files.resource.js';
+
+// Semantic Tools
+import { 
+  SemanticSearchTool, 
+  FindRelatedContextTool, 
+  CreateContextRelationshipTool,
+  UpdateEmbeddingsTool,
+  SemanticStatsTool
+} from '../../application/tools/semantic-search.tool.js';
+import {
+  EnhancedStoreContextTool,
+  EnhancedQueryContextTool
+} from '../../application/tools/enhanced-database-operations.tool.js';
 
 // UI Bridges
 import { ConsentUIBridge } from '../../presentation/consent-ui-bridge.js';
@@ -51,9 +74,29 @@ container.bind<ISmartPathManager>('SmartPathManager').to(SmartPathManager).inSin
 container.bind<IUserConsentService>('UserConsentService').to(UserConsentService).inSingletonScope();
 container.bind<IWorkspaceManager>('WorkspaceManager').to(WorkspaceManager).inSingletonScope();
 
+// Semantic services
+container.bind<IEmbeddingService>('EmbeddingService').to(EmbeddingService).inSingletonScope();
+
 // UI Bridges
 container.bind<ConsentUIBridge>(ConsentUIBridge).to(ConsentUIBridge).inSingletonScope();
+
+// Enhanced File Operations Tools
+container.bind<EditFileTool>(EditFileTool).to(EditFileTool).inSingletonScope();
+container.bind<BatchEditFileTool>(BatchEditFileTool).to(BatchEditFileTool).inSingletonScope();
+container.bind<SearchFilesTool>(SearchFilesTool).to(SearchFilesTool).inSingletonScope();
+container.bind<FindFilesTool>(FindFilesTool).to(FindFilesTool).inSingletonScope();
 
 // Bind injectable tools and resources
 container.bind<ParseFileTool>(ParseFileTool).to(ParseFileTool).inSingletonScope();
 container.bind<ProjectFilesResource>(ProjectFilesResource).to(ProjectFilesResource).inSingletonScope();
+
+// Semantic tools
+container.bind<SemanticSearchTool>(SemanticSearchTool).to(SemanticSearchTool).inSingletonScope();
+container.bind<FindRelatedContextTool>(FindRelatedContextTool).to(FindRelatedContextTool).inSingletonScope();
+container.bind<CreateContextRelationshipTool>(CreateContextRelationshipTool).to(CreateContextRelationshipTool).inSingletonScope();
+container.bind<UpdateEmbeddingsTool>(UpdateEmbeddingsTool).to(UpdateEmbeddingsTool).inSingletonScope();
+container.bind<SemanticStatsTool>(SemanticStatsTool).to(SemanticStatsTool).inSingletonScope();
+
+// Enhanced database operation tools
+container.bind<EnhancedStoreContextTool>(EnhancedStoreContextTool).to(EnhancedStoreContextTool).inSingletonScope();
+container.bind<EnhancedQueryContextTool>(EnhancedQueryContextTool).to(EnhancedQueryContextTool).inSingletonScope();

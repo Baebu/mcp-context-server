@@ -21,23 +21,24 @@ To use this MCP Context Server with Claude Desktop, you need to add it to your C
 Add the following to your `claude_desktop_config.json` file. **Replace the paths with the correct absolute paths for your system.**
 
 {
-  "mcpServers": {
-    "context-server": {
-      "command": "node",
-      "args": ["/absolute/path/to/mcp-context-server/dist/index.js"],
-      "env": {
-        "MCP_LOG_LEVEL": "info",
-        "MCP_SERVER_CONFIG_PATH": "/absolute/path/to/mcp-context-server/config/server.yaml"
-      }
-    }
-  }
+"mcpServers": {
+"context-server": {
+"command": "node",
+"args": ["/absolute/path/to/mcp-context-server/dist/index.js"],
+"env": {
+"MCP_LOG_LEVEL": "info",
+"MCP_SERVER_CONFIG_PATH": "/absolute/path/to/mcp-context-server/config/server.yaml"
+}
+}
+}
 }
 
 ## Important Notes
 
 1. **Replace paths**:
-    * Change `/absolute/path/to/mcp-context-server/dist/index.js` to the actual absolute path where you cloned this repository and built the project (specifically, the `dist/index.js` file).
-    * Change `/absolute/path/to/mcp-context-server/config/server.yaml` to the actual absolute path of your server's configuration file (e.g., `server.yaml`). This file tells the MCP server itself how to behave (security settings, database path, etc.).
+
+   - Change `/absolute/path/to/mcp-context-server/dist/index.js` to the actual absolute path where you cloned this repository and built the project (specifically, the `dist/index.js` file).
+   - Change `/absolute/path/to/mcp-context-server/config/server.yaml` to the actual absolute path of your server's configuration file (e.g., `server.yaml`). This file tells the MCP server itself how to behave (security settings, database path, etc.).
 
 2. **Build first**: Make sure you've built the project with `npm run build` before adding to Claude Desktop.
 
@@ -52,20 +53,20 @@ Add the following to your `claude_desktop_config.json` file. **Replace the paths
 If you have other MCP servers, your configuration might look like this:
 
 {
-  "mcpServers": {
-    "context-server": {
-      "command": "node",
-      "args": ["/Users/yourname/projects/mcp-context-server/dist/index.js"],
-      "env": {
-        "MCP_LOG_LEVEL": "info",
-        "MCP_SERVER_CONFIG_PATH": "/Users/yourname/projects/mcp-context-server/config/server.yaml"
-      }
-    },
-    "other-server": {
-      "command": "node",
-      "args": ["/path/to/other-server/index.js"]
-    }
-  }
+"mcpServers": {
+"context-server": {
+"command": "node",
+"args": ["/Users/yourname/projects/mcp-context-server/dist/index.js"],
+"env": {
+"MCP_LOG_LEVEL": "info",
+"MCP_SERVER_CONFIG_PATH": "/Users/yourname/projects/mcp-context-server/config/server.yaml"
+}
+},
+"other-server": {
+"command": "node",
+"args": ["/path/to/other-server/index.js"]
+}
+}
 }
 
 ## Verification
@@ -79,9 +80,9 @@ After configuration:
 
 ## Troubleshooting
 
-* Check Claude Desktop logs for connection errors.
-* Verify all paths in `claude_desktop_config.json` are absolute and correct.
-* Ensure the server builds successfully with `npm run build`.
-* Make sure Node.js is in your system PATH.
-* Verify that the `MCP_SERVER_CONFIG_PATH` points to a valid `server.yaml` (or `.json`) file and that the server process has read access to it.
-* Check the MCP Context Server's own logs (stdout/stderr where it's launched from, or as configured in its `server.yaml`) for errors related to configuration loading.
+- Check Claude Desktop logs for connection errors.
+- Verify all paths in `claude_desktop_config.json` are absolute and correct.
+- Ensure the server builds successfully with `npm run build`.
+- Make sure Node.js is in your system PATH.
+- Verify that the `MCP_SERVER_CONFIG_PATH` points to a valid `server.yaml` (or `.json`) file and that the server process has read access to it.
+- Check the MCP Context Server's own logs (stdout/stderr where it's launched from, or as configured in its `server.yaml`) for errors related to configuration loading.

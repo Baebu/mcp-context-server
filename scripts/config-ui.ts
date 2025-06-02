@@ -30,7 +30,7 @@ async function startConfigUI() {
     const container = new Container();
     container.bind('Config').toConstantValue(config);
 
-    const uiServer = new UIServer(container, config, 3001);
+    const uiServer = new UIServer(container, config, 3003);
     uiServer.start();
 
     const shutdown = () => {

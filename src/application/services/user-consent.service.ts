@@ -19,8 +19,7 @@ export class UserConsentService extends EventEmitter implements IUserConsentServ
   private rememberedDecisions = new Map<string, ConsentResponse>();
   private policy: ConsentPolicy;
 
-  constructor() // @inject('SecurityValidator') private _security: ISecurityValidator // Removed as unused // @inject('Config') private _config: ServerConfig, // Removed as unused
-  {
+  constructor() { // @inject('SecurityValidator') private _security: ISecurityValidator // Removed as unused // @inject('Config') private _config: ServerConfig, // Removed as unused
     super();
 
     // Initialize default policy
