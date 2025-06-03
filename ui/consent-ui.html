@@ -66,6 +66,29 @@
       font-size: 1.1rem;
     }
 
+    .connection-status {
+      display: inline-block;
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      margin-top: 1rem;
+    }
+
+    .connection-status.connected {
+      background: var(--success);
+      color: white;
+    }
+
+    .connection-status.disconnected {
+      background: var(--danger);
+      color: white;
+    }
+
+    .connection-status.connecting {
+      background: var(--warning);
+      color: white;
+    }
+
     .tabs {
       display: flex;
       background: var(--bg-secondary);
@@ -544,6 +567,7 @@
     <div class="header">
       <h1>🛡️ User Consent Manager</h1>
       <p>Real-time consent management and security oversight for your MCP Context Server</p>
+      <div class="connection-status connecting" id="connectionStatus">Connecting...</div>
     </div>
 
     <div class="tabs">
@@ -765,6 +789,8 @@
     let currentPolicy = {};
     let sessionStats = {};
     let socket = null;
+    let connectionAttempts = 0;
+    const maxReconnectAttempts = 10;
 
     // Initialize the consent UI
     document.addEventListener('DOMContentLoaded', () => {
@@ -774,48 +800,93 @@
       loadPolicy();
       loadAuditLog();
       
-      // Refresh data every 5 seconds
+      // Refresh data every 10 seconds
       setInterval(() => {
         loadSessionStats();
         if (document.querySelector('.tab.active').textContent.includes('Pending')) {
           // Only refresh pending if we're on that tab to avoid disrupting user
           loadPendingRequests();
         }
-      }, 5000);
+      }, 10000);
     });
 
     function initializeWebSocket() {
       try {
-        socket = new WebSocket(`ws://${window.location.host}/consent-ws`);
+        updateConnectionStatus('connecting');
+        
+        // Get the current page's host and construct WebSocket URL
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsHost = window.location.host;
+        const wsUrl = `${wsProtocol}//${wsHost}/consent-ws`;
+        
+        console.log('Connecting to WebSocket:', wsUrl);
+        socket = new WebSocket(wsUrl);
         
         socket.onopen = () => {
           console.log('Consent WebSocket connected');
+          connectionAttempts = 0;
+          updateConnectionStatus('connected');
           showToast('Connected to consent service', 'success');
         };
         
         socket.onmessage = (event) => {
-          const data = JSON.parse(event.data);
-          handleConsentEvent(data);
+          try {
+            const data = JSON.parse(event.data);
+            handleConsentEvent(data);
+          } catch (error) {
+            console.error('Failed to parse WebSocket message:', error);
+          }
         };
         
-        socket.onclose = () => {
-          console.log('Consent WebSocket disconnected');
-          showToast('Disconnected from consent service', 'warning');
-          // Attempt to reconnect after 5 seconds
-          setTimeout(initializeWebSocket, 5000);
+        socket.onclose = (event) => {
+          console.log('Consent WebSocket disconnected', event.code, event.reason);
+          updateConnectionStatus('disconnected');
+          
+          if (!event.wasClean && connectionAttempts < maxReconnectAttempts) {
+            showToast('Connection lost, attempting to reconnect...', 'warning');
+            // Exponential backoff for reconnection
+            setTimeout(() => {
+              connectionAttempts++;
+              initializeWebSocket();
+            }, Math.min(1000 * Math.pow(2, connectionAttempts), 30000));
+          } else if (connectionAttempts >= maxReconnectAttempts) {
+            showToast('Failed to reconnect after multiple attempts', 'danger');
+          }
         };
         
         socket.onerror = (error) => {
           console.error('WebSocket error:', error);
+          updateConnectionStatus('disconnected');
           showToast('Consent service connection error', 'danger');
         };
+        
       } catch (error) {
         console.error('Failed to initialize WebSocket:', error);
+        updateConnectionStatus('disconnected');
         showToast('Failed to connect to consent service', 'danger');
       }
     }
 
+    function updateConnectionStatus(status) {
+      const statusElement = document.getElementById('connectionStatus');
+      statusElement.className = `connection-status ${status}`;
+      
+      switch (status) {
+        case 'connected':
+          statusElement.textContent = '🟢 Connected';
+          break;
+        case 'connecting':
+          statusElement.textContent = '🟡 Connecting...';
+          break;
+        case 'disconnected':
+          statusElement.textContent = '🔴 Disconnected';
+          break;
+      }
+    }
+
     function handleConsentEvent(data) {
+      console.log('Received consent event:', data.type, data);
+      
       switch (data.type) {
         case 'consent-request':
           addPendingRequest(data.request);
@@ -829,6 +900,11 @@
           break;
         case 'audit-entry':
           addAuditEntry(data.entry);
+          break;
+        case 'policy-updated':
+          currentPolicy = data.policy;
+          displayPolicy();
+          showToast('Policy updated', 'info');
           break;
         default:
           console.log('Unknown consent event:', data);
@@ -845,8 +921,10 @@
     async function loadSessionStats() {
       try {
         const response = await fetch('/api/consent/session-stats');
-        const stats = await response.json();
-        updateSessionStats(stats);
+        if (response.ok) {
+          const stats = await response.json();
+          updateSessionStats(stats);
+        }
       } catch (error) {
         console.error('Failed to load session stats:', error);
       }
@@ -863,24 +941,25 @@
     async function loadPendingRequests() {
       try {
         const response = await fetch('/api/consent/pending');
-        const requests = await response.json();
-        
-        const container = document.getElementById('pendingRequests');
-        if (requests.length === 0) {
-          container.innerHTML = `
-            <div class="empty-state">
-              <div class="empty-state-icon">✅</div>
-              <h3>No Pending Requests</h3>
-              <p>All operations are currently being handled automatically based on your consent policy.</p>
-            </div>
-          `;
-          return;
-        }
+        if (response.ok) {
+          const requests = await response.json();
+          
+          const container = document.getElementById('pendingRequests');
+          if (requests.length === 0) {
+            container.innerHTML = `
+              <div class="empty-state">
+                <div class="empty-state-icon">✅</div>
+                <h3>No Pending Requests</h3>
+                <p>All operations are currently being handled automatically based on your consent policy.</p>
+              </div>
+            `;
+            return;
+          }
 
-        container.innerHTML = requests.map(req => createConsentRequestElement(req)).join('');
+          container.innerHTML = requests.map(req => createConsentRequestElement(req)).join('');
+        }
       } catch (error) {
         console.error('Failed to load pending requests:', error);
-        showToast('Failed to load pending requests', 'danger');
       }
     }
 
@@ -1015,7 +1094,8 @@
             requestId,
             decision,
             remember,
-            scope: remember ? 'session' : undefined
+            scope: remember ? 'session' : undefined,
+            timestamp: new Date()
           })
         });
 
@@ -1034,11 +1114,12 @@
     async function loadHistory() {
       try {
         const response = await fetch('/api/consent/history');
-        consentHistory = await response.json();
-        displayHistory();
+        if (response.ok) {
+          consentHistory = await response.json();
+          displayHistory();
+        }
       } catch (error) {
         console.error('Failed to load history:', error);
-        showToast('Failed to load consent history', 'danger');
       }
     }
 
@@ -1057,23 +1138,18 @@
       }
 
       container.innerHTML = consentHistory.map(item => `
-        <div class="history-item ${item.decision}">
+        <div class="history-item ${item.decision || 'unknown'}">
           <div class="history-header">
-            <div class="history-operation">${item.operation} - ${item.decision.toUpperCase()}</div>
+            <div class="history-operation">${item.operation} - ${(item.decision || 'UNKNOWN').toUpperCase()}</div>
             <div class="history-time">${new Date(item.timestamp).toLocaleString()}</div>
           </div>
-          <div class="history-reason">${item.reason || 'No reason provided'}</div>
+          <div class="history-reason">${item.reason || item.details?.description || 'No reason provided'}</div>
         </div>
       `).join('');
     }
 
     function filterHistory() {
       // Implement history filtering based on selected filters
-      const decisionFilter = document.getElementById('historyDecisionFilter').value;
-      const operationFilter = document.getElementById('historyOperationFilter').value;
-      const timeFilter = document.getElementById('historyTimeFilter').value;
-      
-      // This would filter the consentHistory array and redisplay
       displayHistory();
     }
 
@@ -1100,11 +1176,12 @@
     async function loadPolicy() {
       try {
         const response = await fetch('/api/consent/policy');
-        currentPolicy = await response.json();
-        displayPolicy();
+        if (response.ok) {
+          currentPolicy = await response.json();
+          displayPolicy();
+        }
       } catch (error) {
         console.error('Failed to load policy:', error);
-        showToast('Failed to load consent policy', 'danger');
       }
     }
 
@@ -1173,11 +1250,12 @@
     async function loadAuditLog() {
       try {
         const response = await fetch('/api/consent/audit');
-        auditLog = await response.json();
-        displayAuditLog();
+        if (response.ok) {
+          auditLog = await response.json();
+          displayAuditLog();
+        }
       } catch (error) {
         console.error('Failed to load audit log:', error);
-        showToast('Failed to load audit log', 'danger');
       }
     }
 
@@ -1196,16 +1274,16 @@
       }
 
       container.innerHTML = auditLog.map(entry => `
-        <div class="history-item ${entry.response.decision}">
+        <div class="history-item ${entry.response?.decision || 'unknown'}">
           <div class="history-header">
             <div class="history-operation">
-              ${entry.request.operation} - Risk Score: ${entry.riskAssessment.score}
+              ${entry.request?.operation || 'Unknown'} - Risk Score: ${entry.riskAssessment?.score || 'N/A'}
             </div>
             <div class="history-time">${new Date(entry.timestamp).toLocaleString()}</div>
           </div>
           <div class="history-reason">
-            Decision: ${entry.response.decision} | 
-            Factors: ${entry.riskAssessment.factors.join(', ')}
+            Decision: ${entry.response?.decision || 'Unknown'} | 
+            Factors: ${entry.riskAssessment?.factors?.join(', ') || 'None'}
           </div>
         </div>
       `).join('');
@@ -1219,18 +1297,22 @@
     async function exportAuditLog() {
       try {
         const response = await fetch('/api/consent/audit/export');
-        const blob = await response.blob();
-        
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `consent-audit-${new Date().toISOString().split('T')[0]}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-        
-        showToast('Audit log exported successfully', 'success');
+        if (response.ok) {
+          const blob = await response.blob();
+          
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `consent-audit-${new Date().toISOString().split('T')[0]}.json`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+          
+          showToast('Audit log exported successfully', 'success');
+        } else {
+          throw new Error('Export failed');
+        }
       } catch (error) {
         console.error('Failed to export audit log:', error);
         showToast('Failed to export audit log', 'danger');

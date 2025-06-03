@@ -13,8 +13,6 @@
     "sourceMap": false,
     "composite": false,
     "incremental": false,
-
-    // Strict Type Checking (Production)
     "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
@@ -30,8 +28,6 @@
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": false,
-
-    // Module Resolution
     "moduleDetection": "force",
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
@@ -39,16 +35,9 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "verbatimModuleSyntax": true,
-
-    // Experimental Features
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-
-    // Type Definitions
-    "types": ["node"],
-    "typeRoots": ["./node_modules/@types"],
-
-    // Path Mapping
+    "types": ["node, jest, ts-jest"],
     "baseUrl": "./src",
     "paths": {
       "@core/*": ["core/*"],
@@ -58,7 +47,8 @@
       "@utils/*": ["utils/*"]
     }
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "config/**/*", "tests/**/*", "tests/**/*.ts"],
+  "extends": "./tsconfig.json",
   "exclude": [
     "node_modules",
     "dist",
@@ -67,8 +57,6 @@
     "tests/**/*",
     "**/*.test.ts",
     "**/*.spec.ts",
-    "**/__tests__/**/*",
-    "**/*.backup",
-    "scripts/config-ui.ts"
+    "**/__tests__/**/*"
   ]
 }

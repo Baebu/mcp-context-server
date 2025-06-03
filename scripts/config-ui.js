@@ -17,7 +17,7 @@ async function startConfigUI() {
         }
         const container = new Container();
         container.bind('Config').toConstantValue(config);
-        const uiServer = new UIServer(container, config, 3001);
+        const uiServer = new UIServer(config);
         uiServer.start();
         const shutdown = () => {
             console.log('\n🔌 Shutting down configuration UI...');

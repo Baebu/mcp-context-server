@@ -1,4 +1,4 @@
-﻿// Enhanced Configuration Loader with Hierarchical Safe Zones
+// Enhanced Configuration Loader with Hierarchical Safe Zones
 // File: src/infrastructure/config/config-loader.ts
 
 import convict from 'convict';
@@ -201,6 +201,14 @@ export const configSchema = convict({
       format: String,
       default: process.cwd(),
       env: 'MCP_WORKING_DIRECTORY'
+    }
+  },
+  ui: {
+    consentPort: {
+      doc: 'Port for consent UI server',
+      format: Number,
+      default: 3003,
+      env: 'MCP_CONSENT_UI_PORT'
     }
   },
   security: {
@@ -413,7 +421,8 @@ export async function loadConfig(): Promise<ServerConfig> {
     }
 
     try {
-      configSchema.validate({ allowed: 'strict' });
+      // Accept extra config keys but only warn (do not throw)
+      configSchema.validate({ allowed: 'warn' });
     } catch (validationError) {
       logger.error({ validationError }, 'Configuration validation failed');
       throw new Error(

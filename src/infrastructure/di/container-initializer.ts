@@ -1,4 +1,4 @@
-﻿// src/infrastructure/di/container-initializer.ts - Updated with Enhanced File Operations
+// src/infrastructure/di/container-initializer.ts - Updated with Process Management
 import type { Container } from 'inversify';
 import type { IToolRegistry } from '../../core/interfaces/tool-registry.interface.js';
 import type { IResourceRegistry } from '../../core/interfaces/resource-registry.interface.js';
@@ -36,6 +36,7 @@ import { ParseFileTool } from '../../application/tools/file-parsing.tool.js';
 import { GetMetricsTool } from '../../application/tools/metrics.tool.js';
 import { SecurityDiagnosticsTool } from '../../application/tools/security-diagnostics.tool.js';
 import { DatabaseHealthTool } from '../../application/tools/database-health.tool.js';
+import { ProcessManagementTool } from '../../application/tools/process-management.tool.js';  // NEW
 
 // Workspace Tools
 import {
@@ -75,7 +76,7 @@ import { logger } from '../../utils/logger.js';
 
 export class ContainerInitializer {
   static async initialize(container: Container): Promise<void> {
-    logger.info('Initializing container with semantic search capabilities...');
+    logger.info('Initializing container with enhanced process management...');
 
     // Initialize consent UI bridge
     const consentUIBridge = container.get<ConsentUIBridge>(ConsentUIBridge);
@@ -93,7 +94,7 @@ export class ContainerInitializer {
     // Initialize and register prompts
     await this.initializePrompts(container);
 
-    logger.info('Container initialization complete with semantic search capabilities');
+    logger.info('Container initialization complete with enhanced process management');
   }
 
   private static async initializeSemanticServices(container: Container): Promise<void> {
@@ -124,6 +125,9 @@ export class ContainerInitializer {
 
     // Command execution (enhanced with consent)
     toolRegistry.register(new ExecuteCommandToolWithConsent());
+
+    // Process management (NEW)
+    toolRegistry.register(container.get<ProcessManagementTool>(ProcessManagementTool));
 
     // Database operations (original tools)
     toolRegistry.register(new StoreContextTool());
@@ -166,7 +170,7 @@ export class ContainerInitializer {
 
     try {
       const allTools = await toolRegistry.getAllTools();
-      logger.info(`Registered ${allTools.length} tools including semantic search capabilities`);
+      logger.info(`Registered ${allTools.length} tools including process management capabilities`);
     } catch (error) {
       logger.warn({ error }, 'Could not get tool count, but registration completed');
     }

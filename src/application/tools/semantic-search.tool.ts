@@ -25,7 +25,7 @@ export class SemanticSearchTool implements IMCPTool {
 
     try {
       // Access the underlying database instance to use semantic extension
-      const dbInstance = (db as any).getDatabaseInstance(); // Use the new getter method
+      const dbInstance = (db as any).getDatabase(); // Use the new getter method
       const semanticDb = new SemanticDatabaseExtension(dbInstance);
 
       // Generate embedding for search query
@@ -108,7 +108,7 @@ export class FindRelatedContextTool implements IMCPTool {
     const db = context.container.get('DatabaseHandler') as IDatabaseHandler;
 
     try {
-      const dbInstance = (db as any).getDatabaseInstance();
+      const dbInstance = (db as any).getDatabase();
       const semanticDb = new SemanticDatabaseExtension(dbInstance);
 
       const relatedItems = await semanticDb.findSimilarItems(params.key, params.limit);
@@ -185,7 +185,7 @@ export class CreateContextRelationshipTool implements IMCPTool {
     const db = context.container.get('DatabaseHandler') as IDatabaseHandler;
 
     try {
-      const dbInstance = (db as any).getDatabaseInstance();
+      const dbInstance = (db as any).getDatabase();
       const semanticDb = new SemanticDatabaseExtension(dbInstance);
 
       await semanticDb.createRelationship(
@@ -235,7 +235,7 @@ export class UpdateEmbeddingsTool implements IMCPTool {
     const db = context.container.get('DatabaseHandler') as IDatabaseHandler;
 
     try {
-      const dbInstance = (db as any).getDatabaseInstance();
+      const dbInstance = (db as any).getDatabase();
       const semanticDb = new SemanticDatabaseExtension(dbInstance);
 
       // Get items missing embeddings
@@ -346,7 +346,7 @@ export class SemanticStatsTool implements IMCPTool {
     const db = context.container.get('DatabaseHandler') as IDatabaseHandler;
 
     try {
-      const dbInstance = (db as any).getDatabaseInstance();
+      const dbInstance = (db as any).getDatabase();
       const semanticDb = new SemanticDatabaseExtension(dbInstance);
 
       const stats = await semanticDb.getSemanticStats();

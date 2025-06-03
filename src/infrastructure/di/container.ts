@@ -1,4 +1,4 @@
-﻿// src/infrastructure/di/container.ts - Updated with Enhanced File Operations
+// src/infrastructure/di/container.ts - Updated with Enhanced Process Management
 import { Container } from 'inversify';
 import 'reflect-metadata';
 
@@ -21,7 +21,7 @@ import { ResourceRegistry } from '../../application/services/resource-registry.s
 import { PromptRegistry } from '../../application/services/prompt-registry.service.js';
 import { FilesystemAdapter } from '../adapters/filesystem.adapter.js';
 import { DatabaseAdapter } from '../adapters/database.adapter.js';
-import { CLIAdapter } from '../adapters/cli.adapter.js';
+import { EnhancedCLIAdapter } from '../adapters/enhanced-cli.adapter.js';  // Updated to use Enhanced CLI
 import { SecurityValidator } from '../../application/services/security-validator.service.js';
 import { SmartPathManager } from '../../application/services/smart-path-manager.service.js';
 import { UserConsentService } from '../../application/services/user-consent.service.js';
@@ -39,6 +39,9 @@ import {
 // Tools, Resources, Prompts
 import { ParseFileTool } from '../../application/tools/file-parsing.tool.js';
 import { ProjectFilesResource } from '../../application/resources/project-files.resource.js';
+
+// Process Management Tool (NEW)
+import { ProcessManagementTool } from '../../application/tools/process-management.tool.js';
 
 // Semantic Tools
 import {
@@ -66,7 +69,7 @@ container.bind<IPromptRegistry>('PromptRegistry').to(PromptRegistry).inSingleton
 // Infrastructure adapters
 container.bind<IFilesystemHandler>('FilesystemHandler').to(FilesystemAdapter).inSingletonScope();
 container.bind<IDatabaseHandler>('DatabaseHandler').to(DatabaseAdapter).inSingletonScope();
-container.bind<ICLIHandler>('CLIHandler').to(CLIAdapter).inSingletonScope();
+container.bind<ICLIHandler>('CLIHandler').to(EnhancedCLIAdapter).inSingletonScope();  // Updated to Enhanced CLI
 
 // Application services
 container.bind<ISecurityValidator>('SecurityValidator').to(SecurityValidator).inSingletonScope();
@@ -85,6 +88,9 @@ container.bind<EditFileTool>(EditFileTool).to(EditFileTool).inSingletonScope();
 container.bind<BatchEditFileTool>(BatchEditFileTool).to(BatchEditFileTool).inSingletonScope();
 container.bind<SearchFilesTool>(SearchFilesTool).to(SearchFilesTool).inSingletonScope();
 container.bind<FindFilesTool>(FindFilesTool).to(FindFilesTool).inSingletonScope();
+
+// Process Management Tool (NEW)
+container.bind<ProcessManagementTool>(ProcessManagementTool).to(ProcessManagementTool).inSingletonScope();
 
 // Bind injectable tools and resources
 container.bind<ParseFileTool>(ParseFileTool).to(ParseFileTool).inSingletonScope();

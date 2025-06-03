@@ -117,3 +117,4 @@ config/development.yaml
 data/
 *.log
 /backup-20250531-121852
+/docs

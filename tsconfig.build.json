@@ -47,7 +47,7 @@
       "@utils/*": ["utils/*"]
     }
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "config/**/*", "tests/**/*"],
   "exclude": [
     "node_modules",
     "dist",

@@ -27,6 +27,15 @@ export class DatabaseAdapter implements IDatabaseHandler {
   private backupTimer?: ReturnType<typeof setInterval>;
   private lastIntegrityCheck?: IntegrityCheckResult;
 
+  /**
+   * Get access to the underlying database instance for advanced operations
+   * Used by semantic extensions and other advanced database operations
+   */
+  getDatabase(): Database.Database {
+    return this.db;
+  }
+
+
   constructor(@inject('Config') private config: ServerConfig) {
     this.initializeDatabase(); // This is synchronous
     this.schedulePeriodicBackups(); // This involves async ops but schedules them

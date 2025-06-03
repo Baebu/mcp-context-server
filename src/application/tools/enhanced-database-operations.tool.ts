@@ -81,8 +81,8 @@ export class EnhancedStoreContextTool implements IMCPTool {
       }
 
       // Use semantic database extension for enhanced storage
-      const dbInstance = (db as any).getDatabaseInstance();
-      const semanticDb =  new SemanticDatabaseExtension(dbInstance);
+      const dbInstance = (db as any).getDatabase();
+      const semanticDb = new SemanticDatabaseExtension(dbInstance);
 
       await semanticDb.storeSemanticContext(params.key, value, type, embedding, tags);
 
@@ -235,12 +235,12 @@ export class EnhancedQueryContextTool implements IMCPTool {
         if (params.keyPattern) queryOptions.keyPattern = params.keyPattern;
 
         const traditionalResults = await db.queryContext(queryOptions);
-        results.push(...traditionalResults.map(item => ({ ...item, searchType: 'traditional' })));
+        results.push(...traditionalResults.map((item: any) => ({ ...item, searchType: 'traditional' })));
       }
 
       // Semantic search if query provided
       if (params.semanticQuery) {
-        const dbInstance = (db as any).getDatabaseInstance();
+        const dbInstance = (db as any).getDatabase();
         const semanticDb = new SemanticDatabaseExtension(dbInstance);
 
         const queryEmbedding = await this.embeddingService.generateEmbedding(params.semanticQuery);
@@ -253,11 +253,11 @@ export class EnhancedQueryContextTool implements IMCPTool {
           contextTypes: params.type ? [params.type] : undefined
         });
 
-        results.push(...semanticResults.map(item => ({
+        results.push(...semanticResults.map((item: any) => ({
           ...item,
           searchType: 'semantic',
-          createdAt: item.metadata.timestamp,
-          updatedAt: item.metadata.timestamp
+          createdAt: item.metadata?.timestamp,
+          updatedAt: item.metadata?.timestamp
         })));
       }
 
@@ -267,7 +267,7 @@ export class EnhancedQueryContextTool implements IMCPTool {
 
       const responseData = {
         totalResults: uniqueResults.length,
-        searchTypes: [...new Set(uniqueResults.map(r => r.searchType))],
+        searchTypes: [...new Set(uniqueResults.map((r: any) => r.searchType))],
         query: {
           traditional: {
             type: params.type,
@@ -302,7 +302,7 @@ export class EnhancedQueryContextTool implements IMCPTool {
 
   private deduplicateResults(results: any[]): any[] {
     const seen = new Set<string>();
-    return results.filter(result => {
+    return results.filter((result: any) => {
       if (seen.has(result.key)) {
         return false;
       }
@@ -314,7 +314,7 @@ export class EnhancedQueryContextTool implements IMCPTool {
   private sortResults(results: any[], hasSemanticQuery?: string): any[] {
     if (hasSemanticQuery) {
       // Prioritize semantic results by similarity, then by recency
-      return results.sort((a, b) => {
+      return results.sort((a: any, b: any) => {
         if (a.searchType === 'semantic' && b.searchType !== 'semantic') return -1;
         if (b.searchType === 'semantic' && a.searchType !== 'semantic') return 1;
 
@@ -327,7 +327,7 @@ export class EnhancedQueryContextTool implements IMCPTool {
     }
 
     // Sort by recency for traditional queries
-    return results.sort((a, b) =>
+    return results.sort((a: any, b: any) =>
       new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
     );
   }
