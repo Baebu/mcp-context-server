@@ -1,8 +1,8 @@
 ﻿import { injectable, inject } from 'inversify';
 import { z } from 'zod';
 import * as yaml from 'yaml';
-import type { IMCPTool, ToolContext, ToolResult } from '@core/interfaces/tool-registry.interface.js';
-import type { IFilesystemHandler } from '@core/interfaces/filesystem.interface.js';
+import type { IMCPTool, ToolContext, ToolResult } from '../../core/interfaces/tool-registry.interface.js';
+import type { IFilesystemHandler } from '../../core/interfaces/filesystem.interface.js';
 
 interface JsonSummary {
   type: string;

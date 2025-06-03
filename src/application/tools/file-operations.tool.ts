@@ -1,8 +1,8 @@
 ﻿// src/application/tools/file-operations.tool.ts - Enhanced with consent
 import { injectable } from 'inversify'; // Removed unused 'inject'
 import { z } from 'zod';
-import type { IMCPTool, ToolContext, ToolResult } from '@core/interfaces/tool-registry.interface.js';
-import type { IFilesystemHandler, FileContent, DirectoryEntry } from '@core/interfaces/filesystem.interface.js';
+import type { IMCPTool, ToolContext, ToolResult } from '../../core/interfaces/tool-registry.interface.js';
+import type { IFilesystemHandler, FileContent, DirectoryEntry } from '../../core/interfaces/filesystem.interface.js';
 import type { IUserConsentService } from '@core/interfaces/consent.interface.js';
 
 // Schema for ReadFileTool

@@ -1,0 +1,1283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MCP Context Server - User Consent Manager</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --primary: #3b82f6;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --info: #6366f1;
+      --bg-primary: #0f172a;
+      --bg-secondary: #1e293b;
+      --bg-tertiary: #334155;
+      --text-primary: #f1f5f9;
+      --text-secondary: #cbd5e1;
+      --text-muted: #94a3b8;
+      --border: #475569;
+      --radius: 8px;
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 3rem;
+      padding: 2rem;
+      background: var(--bg-secondary);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .header h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(120deg, var(--primary), var(--info), var(--success));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .header p {
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+    }
+
+    .tabs {
+      display: flex;
+      background: var(--bg-secondary);
+      border-radius: var(--radius);
+      padding: 0.5rem;
+      margin-bottom: 2rem;
+      box-shadow: var(--shadow);
+    }
+
+    .tab {
+      flex: 1;
+      padding: 1rem 1.5rem;
+      text-align: center;
+      cursor: pointer;
+      border-radius: calc(var(--radius) - 2px);
+      transition: all 0.2s;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+
+    .tab.active {
+      background: var(--primary);
+      color: white;
+      box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+    }
+
+    .tab:hover:not(.active) {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .section {
+      background: var(--bg-secondary);
+      border-radius: var(--radius);
+      padding: 2rem;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      margin-bottom: 2rem;
+    }
+
+    .section-title {
+      font-size: 1.5rem;
+      margin-bottom: 1.5rem;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .section-icon {
+      width: 1.75rem;
+      height: 1.75rem;
+      background: var(--primary);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      color: white;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      padding: 1.5rem;
+      background: var(--bg-tertiary);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      text-align: center;
+    }
+
+    .stat-card h3 {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-card .value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .stat-card .secondary {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-top: 0.25rem;
+    }
+
+    .consent-request {
+      background: var(--bg-tertiary);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+      border: 2px solid var(--border);
+      animation: slideIn 0.3s ease-out;
+    }
+
+    .consent-request.high-risk {
+      border-color: var(--danger);
+      background: rgba(239, 68, 68, 0.1);
+    }
+
+    .consent-request.medium-risk {
+      border-color: var(--warning);
+      background: rgba(245, 158, 11, 0.1);
+    }
+
+    .consent-request.low-risk {
+      border-color: var(--success);
+      background: rgba(16, 185, 129, 0.1);
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .consent-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 1rem;
+    }
+
+    .consent-title {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .consent-severity {
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 500;
+    }
+
+    .severity-low { background: var(--success); color: white; }
+    .severity-medium { background: var(--warning); color: white; }
+    .severity-high { background: var(--danger); color: white; }
+    .severity-critical { background: #991b1b; color: white; }
+
+    .consent-details {
+      margin-bottom: 1rem;
+    }
+
+    .detail-row {
+      display: flex;
+      margin-bottom: 0.5rem;
+    }
+
+    .detail-label {
+      font-weight: 500;
+      color: var(--text-secondary);
+      min-width: 120px;
+    }
+
+    .detail-value {
+      color: var(--text-primary);
+      font-family: monospace;
+      flex: 1;
+    }
+
+    .risk-assessment {
+      background: var(--bg-primary);
+      border-radius: var(--radius);
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .risk-score {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .score-badge {
+      font-size: 1.5rem;
+      font-weight: 700;
+      padding: 0.5rem 1rem;
+      border-radius: var(--radius);
+      min-width: 80px;
+      text-align: center;
+    }
+
+    .score-low { background: var(--success); color: white; }
+    .score-medium { background: var(--warning); color: white; }
+    .score-high { background: var(--danger); color: white; }
+
+    .risk-factors {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+
+    .consent-actions {
+      display: flex;
+      gap: 1rem;
+      justify-content: flex-end;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+    }
+
+    .btn-success {
+      background: var(--success);
+      color: white;
+    }
+
+    .btn-success:hover:not(:disabled) {
+      background: #0f9a6c;
+      transform: translateY(-1px);
+    }
+
+    .btn-danger {
+      background: var(--danger);
+      color: white;
+    }
+
+    .btn-danger:hover:not(:disabled) {
+      background: #d73737;
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background: var(--border);
+      color: var(--text-primary);
+    }
+
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .history-item {
+      background: var(--bg-tertiary);
+      border-radius: var(--radius);
+      padding: 1rem;
+      margin-bottom: 0.5rem;
+      border-left: 4px solid;
+    }
+
+    .history-item.allowed { border-left-color: var(--success); }
+    .history-item.denied { border-left-color: var(--danger); }
+    .history-item.timeout { border-left-color: var(--warning); }
+
+    .history-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .history-operation {
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .history-time {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .history-reason {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      font-size: 0.9rem;
+    }
+
+    .form-control:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+    }
+
+    .policy-rule {
+      background: var(--bg-tertiary);
+      border-radius: var(--radius);
+      padding: 1rem;
+      margin-bottom: 0.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .rule-pattern {
+      font-family: monospace;
+      color: var(--text-primary);
+    }
+
+    .rule-type {
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-weight: 500;
+    }
+
+    .rule-allow { background: var(--success); color: white; }
+    .rule-deny { background: var(--danger); color: white; }
+    .rule-ask { background: var(--warning); color: white; }
+
+    .toast-container {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 1000;
+    }
+
+    .toast {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      padding: 1rem;
+      border-radius: var(--radius);
+      margin-bottom: 1rem;
+      box-shadow: var(--shadow);
+      border-left: 5px solid;
+      min-width: 300px;
+      animation: slideInRight 0.3s ease-out;
+    }
+
+    @keyframes slideInRight {
+      from {
+        opacity: 0;
+        transform: translateX(100%);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    .toast.success { border-left-color: var(--success); }
+    .toast.danger { border-left-color: var(--danger); }
+    .toast.warning { border-left-color: var(--warning); }
+    .toast.info { border-left-color: var(--info); }
+
+    .loading {
+      display: inline-block;
+      width: 1rem;
+      height: 1rem;
+      border: 2px solid var(--border);
+      border-top: 2px solid var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-muted);
+    }
+
+    .empty-state-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+
+    .filters {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .filter-group label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .checkbox-group input[type="checkbox"] {
+      accent-color: var(--primary);
+    }
+
+    @media (max-width: 768px) {
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .consent-header {
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      
+      .consent-actions {
+        flex-direction: column;
+      }
+      
+      .filters {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="toast-container" id="toastContainer"></div>
+
+  <div class="container">
+    <div class="header">
+      <h1>🛡️ User Consent Manager</h1>
+      <p>Real-time consent management and security oversight for your MCP Context Server</p>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab(event, 'pending')">🔔 Pending Requests</div>
+      <div class="tab" onclick="switchTab(event, 'history')">📋 History</div>
+      <div class="tab" onclick="switchTab(event, 'policy')">⚙️ Policy</div>
+      <div class="tab" onclick="switchTab(event, 'audit')">🕵️ Audit Log</div>
+    </div>
+
+    <!-- Pending Requests Tab -->
+    <div class="tab-content active" id="pending-tab">
+      <div class="section">
+        <h2 class="section-title">
+          <span class="section-icon">🔔</span>
+          Pending Consent Requests
+        </h2>
+        
+        <div class="stats-grid">
+          <div class="stat-card">
+            <h3>Pending Requests</h3>
+            <div class="value" id="pendingCount">0</div>
+            <div class="secondary">Awaiting your decision</div>
+          </div>
+          <div class="stat-card">
+            <h3>Session Trust</h3>
+            <div class="value" id="trustLevel">50</div>
+            <div class="secondary">Current trust score</div>
+          </div>
+          <div class="stat-card">
+            <h3>Request Rate</h3>
+            <div class="value" id="requestRate">0</div>
+            <div class="secondary">Requests this session</div>
+          </div>
+          <div class="stat-card">
+            <h3>Auto-Decisions</h3>
+            <div class="value" id="autoDecisions">0</div>
+            <div class="secondary">Handled automatically</div>
+          </div>
+        </div>
+
+        <div id="pendingRequests">
+          <div class="empty-state">
+            <div class="empty-state-icon">✅</div>
+            <h3>No Pending Requests</h3>
+            <p>All operations are currently being handled automatically based on your consent policy.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- History Tab -->
+    <div class="tab-content" id="history-tab">
+      <div class="section">
+        <h2 class="section-title">
+          <span class="section-icon">📋</span>
+          Consent History
+        </h2>
+
+        <div class="filters">
+          <div class="filter-group">
+            <label>Decision Filter</label>
+            <select id="historyDecisionFilter" class="form-control" onchange="filterHistory()">
+              <option value="">All Decisions</option>
+              <option value="allow">Allowed</option>
+              <option value="deny">Denied</option>
+              <option value="timeout">Timeout</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>Operation Filter</label>
+            <select id="historyOperationFilter" class="form-control" onchange="filterHistory()">
+              <option value="">All Operations</option>
+              <option value="file_write">File Write</option>
+              <option value="file_delete">File Delete</option>
+              <option value="command_execute">Command Execute</option>
+              <option value="recursive_delete">Recursive Delete</option>
+              <option value="sensitive_path_access">Sensitive Path Access</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>Time Range</label>
+            <select id="historyTimeFilter" class="form-control" onchange="filterHistory()">
+              <option value="">All Time</option>
+              <option value="1h">Last Hour</option>
+              <option value="24h">Last 24 Hours</option>
+              <option value="7d">Last 7 Days</option>
+              <option value="30d">Last 30 Days</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>Actions</label>
+            <div>
+              <button class="btn btn-secondary" onclick="loadHistory()">🔄 Refresh</button>
+              <button class="btn btn-danger" onclick="clearHistory()">🗑️ Clear History</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="historyList">
+          <div class="empty-state">
+            <div class="empty-state-icon">📝</div>
+            <h3>No History Available</h3>
+            <p>Consent decisions will appear here as they are made.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Policy Tab -->
+    <div class="tab-content" id="policy-tab">
+      <div class="section">
+        <h2 class="section-title">
+          <span class="section-icon">⚙️</span>
+          Consent Policy Configuration
+        </h2>
+
+        <div class="form-group">
+          <label>Default Timeout (seconds)</label>
+          <input type="number" id="defaultTimeout" class="form-control" value="30" min="5" max="300">
+        </div>
+
+        <div class="form-group">
+          <label>Auto-Approve Threshold (Risk Score)</label>
+          <input type="number" id="autoApproveThreshold" class="form-control" value="20" min="0" max="100">
+        </div>
+
+        <div class="form-group">
+          <label>Auto-Reject Threshold (Risk Score)</label>
+          <input type="number" id="autoRejectThreshold" class="form-control" value="80" min="0" max="100">
+        </div>
+
+        <div class="checkbox-group">
+          <input type="checkbox" id="enableRiskAnalysis" checked>
+          <label for="enableRiskAnalysis">Enable Risk Analysis</label>
+        </div>
+
+        <div class="checkbox-group">
+          <input type="checkbox" id="enablePlugins" checked>
+          <label for="enablePlugins">Enable Security Plugins</label>
+        </div>
+
+        <h3 style="margin: 2rem 0 1rem; color: var(--text-secondary);">Always Allow Patterns</h3>
+        <div class="form-group">
+          <textarea id="alwaysAllow" class="form-control" rows="5" placeholder="file_write:*.log&#10;command_execute:ls&#10;command_execute:pwd"></textarea>
+        </div>
+
+        <h3 style="margin: 2rem 0 1rem; color: var(--text-secondary);">Always Deny Patterns</h3>
+        <div class="form-group">
+          <textarea id="alwaysDeny" class="form-control" rows="5" placeholder="command_execute:rm -rf /*&#10;file_delete:**/.ssh/**&#10;recursive_delete:/"></textarea>
+        </div>
+
+        <h3 style="margin: 2rem 0 1rem; color: var(--text-secondary);">Require Consent Patterns</h3>
+        <div class="form-group">
+          <textarea id="requireConsent" class="form-control" rows="5" placeholder="recursive_delete:*&#10;sensitive_path_access:*&#10;command_execute:sudo *"></textarea>
+        </div>
+
+        <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+          <button class="btn btn-success" onclick="savePolicy()">💾 Save Policy</button>
+          <button class="btn btn-secondary" onclick="loadPolicy()">🔄 Load Current</button>
+          <button class="btn btn-danger" onclick="resetPolicy()">↩️ Reset to Defaults</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Audit Log Tab -->
+    <div class="tab-content" id="audit-tab">
+      <div class="section">
+        <h2 class="section-title">
+          <span class="section-icon">🕵️</span>
+          Security Audit Log
+        </h2>
+
+        <div class="filters">
+          <div class="filter-group">
+            <label>Risk Level</label>
+            <select id="auditRiskFilter" class="form-control" onchange="filterAudit()">
+              <option value="">All Risk Levels</option>
+              <option value="low">Low Risk (0-30)</option>
+              <option value="medium">Medium Risk (31-70)</option>
+              <option value="high">High Risk (71-100)</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>Decision Source</label>
+            <select id="auditSourceFilter" class="form-control" onchange="filterAudit()">
+              <option value="">All Sources</option>
+              <option value="user-decision">User Decision</option>
+              <option value="auto-approve">Auto Approved</option>
+              <option value="auto-reject">Auto Rejected</option>
+              <option value="policy-allow">Policy Allow</option>
+              <option value="policy-deny">Policy Deny</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>Actions</label>
+            <div>
+              <button class="btn btn-secondary" onclick="loadAuditLog()">🔄 Refresh</button>
+              <button class="btn btn-secondary" onclick="exportAuditLog()">📤 Export</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="auditLogList">
+          <div class="empty-state">
+            <div class="empty-state-icon">🔍</div>
+            <h3>No Audit Entries</h3>
+            <p>Security audit entries will appear here as consent decisions are made.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Global state
+    let pendingRequests = new Map();
+    let consentHistory = [];
+    let auditLog = [];
+    let currentPolicy = {};
+    let sessionStats = {};
+    let socket = null;
+
+    // Initialize the consent UI
+    document.addEventListener('DOMContentLoaded', () => {
+      initializeWebSocket();
+      loadSessionStats();
+      loadHistory();
+      loadPolicy();
+      loadAuditLog();
+      
+      // Refresh data every 5 seconds
+      setInterval(() => {
+        loadSessionStats();
+        if (document.querySelector('.tab.active').textContent.includes('Pending')) {
+          // Only refresh pending if we're on that tab to avoid disrupting user
+          loadPendingRequests();
+        }
+      }, 5000);
+    });
+
+    function initializeWebSocket() {
+      try {
+        socket = new WebSocket(`ws://${window.location.host}/consent-ws`);
+        
+        socket.onopen = () => {
+          console.log('Consent WebSocket connected');
+          showToast('Connected to consent service', 'success');
+        };
+        
+        socket.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+          handleConsentEvent(data);
+        };
+        
+        socket.onclose = () => {
+          console.log('Consent WebSocket disconnected');
+          showToast('Disconnected from consent service', 'warning');
+          // Attempt to reconnect after 5 seconds
+          setTimeout(initializeWebSocket, 5000);
+        };
+        
+        socket.onerror = (error) => {
+          console.error('WebSocket error:', error);
+          showToast('Consent service connection error', 'danger');
+        };
+      } catch (error) {
+        console.error('Failed to initialize WebSocket:', error);
+        showToast('Failed to connect to consent service', 'danger');
+      }
+    }
+
+    function handleConsentEvent(data) {
+      switch (data.type) {
+        case 'consent-request':
+          addPendingRequest(data.request);
+          break;
+        case 'consent-decision':
+          removePendingRequest(data.requestId);
+          addToHistory(data);
+          break;
+        case 'session-update':
+          updateSessionStats(data.stats);
+          break;
+        case 'audit-entry':
+          addAuditEntry(data.entry);
+          break;
+        default:
+          console.log('Unknown consent event:', data);
+      }
+    }
+
+    function switchTab(event, tabName) {
+      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+      event.currentTarget.classList.add('active');
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+      document.getElementById(tabName + '-tab').classList.add('active');
+    }
+
+    async function loadSessionStats() {
+      try {
+        const response = await fetch('/api/consent/session-stats');
+        const stats = await response.json();
+        updateSessionStats(stats);
+      } catch (error) {
+        console.error('Failed to load session stats:', error);
+      }
+    }
+
+    function updateSessionStats(stats) {
+      sessionStats = stats;
+      document.getElementById('pendingCount').textContent = stats.pendingRequests || 0;
+      document.getElementById('trustLevel').textContent = Math.round(stats.trustLevel || 50);
+      document.getElementById('requestRate').textContent = stats.requestCount || 0;
+      document.getElementById('autoDecisions').textContent = stats.autoDecisions || 0;
+    }
+
+    async function loadPendingRequests() {
+      try {
+        const response = await fetch('/api/consent/pending');
+        const requests = await response.json();
+        
+        const container = document.getElementById('pendingRequests');
+        if (requests.length === 0) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-state-icon">✅</div>
+              <h3>No Pending Requests</h3>
+              <p>All operations are currently being handled automatically based on your consent policy.</p>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = requests.map(req => createConsentRequestElement(req)).join('');
+      } catch (error) {
+        console.error('Failed to load pending requests:', error);
+        showToast('Failed to load pending requests', 'danger');
+      }
+    }
+
+    function addPendingRequest(request) {
+      pendingRequests.set(request.id, request);
+      
+      const container = document.getElementById('pendingRequests');
+      if (container.querySelector('.empty-state')) {
+        container.innerHTML = '';
+      }
+      
+      container.insertAdjacentHTML('afterbegin', createConsentRequestElement(request));
+      
+      // Update pending count
+      document.getElementById('pendingCount').textContent = pendingRequests.size;
+      
+      showToast(`New consent request: ${request.operation}`, 'info');
+    }
+
+    function removePendingRequest(requestId) {
+      pendingRequests.delete(requestId);
+      
+      const element = document.getElementById(`request-${requestId}`);
+      if (element) {
+        element.remove();
+      }
+      
+      // Update pending count
+      document.getElementById('pendingCount').textContent = pendingRequests.size;
+      
+      // Show empty state if no more requests
+      const container = document.getElementById('pendingRequests');
+      if (pendingRequests.size === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">✅</div>
+            <h3>No Pending Requests</h3>
+            <p>All operations are currently being handled automatically based on your consent policy.</p>
+          </div>
+        `;
+      }
+    }
+
+    function createConsentRequestElement(request) {
+      const riskLevel = getRiskLevel(request.riskAssessment?.score || 0);
+      const riskClass = `${riskLevel.toLowerCase()}-risk`;
+      
+      return `
+        <div class="consent-request ${riskClass}" id="request-${request.id}">
+          <div class="consent-header">
+            <div class="consent-title">
+              ${request.operation.replace('_', ' ').toUpperCase()} Request
+            </div>
+            <div class="consent-severity severity-${request.severity}">
+              ${request.severity.toUpperCase()}
+            </div>
+          </div>
+          
+          <div class="consent-details">
+            <div class="detail-row">
+              <span class="detail-label">Operation:</span>
+              <span class="detail-value">${request.operation}</span>
+            </div>
+            ${request.details.path ? `
+            <div class="detail-row">
+              <span class="detail-label">Path:</span>
+              <span class="detail-value">${request.details.path}</span>
+            </div>
+            ` : ''}
+            ${request.details.command ? `
+            <div class="detail-row">
+              <span class="detail-label">Command:</span>
+              <span class="detail-value">${request.details.command}</span>
+            </div>
+            ` : ''}
+            ${request.details.args ? `
+            <div class="detail-row">
+              <span class="detail-label">Arguments:</span>
+              <span class="detail-value">${request.details.args.join(' ')}</span>
+            </div>
+            ` : ''}
+            <div class="detail-row">
+              <span class="detail-label">Requested:</span>
+              <span class="detail-value">${new Date(request.timestamp).toLocaleString()}</span>
+            </div>
+          </div>
+
+          ${request.riskAssessment ? `
+          <div class="risk-assessment">
+            <div class="risk-score">
+              <div class="score-badge score-${riskLevel.toLowerCase()}">
+                ${request.riskAssessment.score}
+              </div>
+              <div>
+                <strong>Risk Assessment: ${riskLevel}</strong>
+                <div class="risk-factors">
+                  Recommendation: ${request.riskAssessment.recommendation}<br>
+                  Factors: ${request.riskAssessment.factors.join(', ')}
+                </div>
+              </div>
+            </div>
+          </div>
+          ` : ''}
+
+          <div class="consent-actions">
+            <button class="btn btn-danger" onclick="respondToConsent('${request.id}', 'deny')">
+              ❌ Deny
+            </button>
+            <button class="btn btn-success" onclick="respondToConsent('${request.id}', 'allow')">
+              ✅ Allow
+            </button>
+            <button class="btn btn-success" onclick="respondToConsent('${request.id}', 'allow', true)">
+              ✅ Allow & Remember
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function getRiskLevel(score) {
+      if (score <= 30) return 'Low';
+      if (score <= 70) return 'Medium';
+      return 'High';
+    }
+
+    async function respondToConsent(requestId, decision, remember = false) {
+      try {
+        const response = await fetch('/api/consent/respond', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            requestId,
+            decision,
+            remember,
+            scope: remember ? 'session' : undefined
+          })
+        });
+
+        if (response.ok) {
+          removePendingRequest(requestId);
+          showToast(`Request ${decision === 'allow' ? 'approved' : 'denied'}${remember ? ' and remembered' : ''}`, 'success');
+        } else {
+          throw new Error('Failed to send response');
+        }
+      } catch (error) {
+        console.error('Failed to respond to consent:', error);
+        showToast('Failed to send consent response', 'danger');
+      }
+    }
+
+    async function loadHistory() {
+      try {
+        const response = await fetch('/api/consent/history');
+        consentHistory = await response.json();
+        displayHistory();
+      } catch (error) {
+        console.error('Failed to load history:', error);
+        showToast('Failed to load consent history', 'danger');
+      }
+    }
+
+    function displayHistory() {
+      const container = document.getElementById('historyList');
+      
+      if (consentHistory.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">📝</div>
+            <h3>No History Available</h3>
+            <p>Consent decisions will appear here as they are made.</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = consentHistory.map(item => `
+        <div class="history-item ${item.decision}">
+          <div class="history-header">
+            <div class="history-operation">${item.operation} - ${item.decision.toUpperCase()}</div>
+            <div class="history-time">${new Date(item.timestamp).toLocaleString()}</div>
+          </div>
+          <div class="history-reason">${item.reason || 'No reason provided'}</div>
+        </div>
+      `).join('');
+    }
+
+    function filterHistory() {
+      // Implement history filtering based on selected filters
+      const decisionFilter = document.getElementById('historyDecisionFilter').value;
+      const operationFilter = document.getElementById('historyOperationFilter').value;
+      const timeFilter = document.getElementById('historyTimeFilter').value;
+      
+      // This would filter the consentHistory array and redisplay
+      displayHistory();
+    }
+
+    async function clearHistory() {
+      if (!confirm('Are you sure you want to clear the consent history? This action cannot be undone.')) {
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/consent/history', { method: 'DELETE' });
+        if (response.ok) {
+          consentHistory = [];
+          displayHistory();
+          showToast('Consent history cleared', 'success');
+        } else {
+          throw new Error('Failed to clear history');
+        }
+      } catch (error) {
+        console.error('Failed to clear history:', error);
+        showToast('Failed to clear consent history', 'danger');
+      }
+    }
+
+    async function loadPolicy() {
+      try {
+        const response = await fetch('/api/consent/policy');
+        currentPolicy = await response.json();
+        displayPolicy();
+      } catch (error) {
+        console.error('Failed to load policy:', error);
+        showToast('Failed to load consent policy', 'danger');
+      }
+    }
+
+    function displayPolicy() {
+      document.getElementById('defaultTimeout').value = (currentPolicy.defaultTimeout || 30000) / 1000;
+      document.getElementById('autoApproveThreshold').value = currentPolicy.autoApproveThreshold || 20;
+      document.getElementById('autoRejectThreshold').value = currentPolicy.autoRejectThreshold || 80;
+      document.getElementById('enableRiskAnalysis').checked = currentPolicy.enableRiskAnalysis !== false;
+      document.getElementById('enablePlugins').checked = currentPolicy.enablePlugins !== false;
+      
+      document.getElementById('alwaysAllow').value = (currentPolicy.alwaysAllow || []).join('\n');
+      document.getElementById('alwaysDeny').value = (currentPolicy.alwaysDeny || []).join('\n');
+      document.getElementById('requireConsent').value = (currentPolicy.requireConsent || []).join('\n');
+    }
+
+    async function savePolicy() {
+      try {
+        const policy = {
+          defaultTimeout: parseInt(document.getElementById('defaultTimeout').value) * 1000,
+          autoApproveThreshold: parseInt(document.getElementById('autoApproveThreshold').value),
+          autoRejectThreshold: parseInt(document.getElementById('autoRejectThreshold').value),
+          enableRiskAnalysis: document.getElementById('enableRiskAnalysis').checked,
+          enablePlugins: document.getElementById('enablePlugins').checked,
+          alwaysAllow: document.getElementById('alwaysAllow').value.split('\n').filter(line => line.trim()),
+          alwaysDeny: document.getElementById('alwaysDeny').value.split('\n').filter(line => line.trim()),
+          requireConsent: document.getElementById('requireConsent').value.split('\n').filter(line => line.trim())
+        };
+
+        const response = await fetch('/api/consent/policy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(policy)
+        });
+
+        if (response.ok) {
+          currentPolicy = policy;
+          showToast('Consent policy saved successfully', 'success');
+        } else {
+          throw new Error('Failed to save policy');
+        }
+      } catch (error) {
+        console.error('Failed to save policy:', error);
+        showToast('Failed to save consent policy', 'danger');
+      }
+    }
+
+    async function resetPolicy() {
+      if (!confirm('Are you sure you want to reset the consent policy to defaults? This will overwrite all current settings.')) {
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/consent/policy/reset', { method: 'POST' });
+        if (response.ok) {
+          await loadPolicy();
+          showToast('Consent policy reset to defaults', 'success');
+        } else {
+          throw new Error('Failed to reset policy');
+        }
+      } catch (error) {
+        console.error('Failed to reset policy:', error);
+        showToast('Failed to reset consent policy', 'danger');
+      }
+    }
+
+    async function loadAuditLog() {
+      try {
+        const response = await fetch('/api/consent/audit');
+        auditLog = await response.json();
+        displayAuditLog();
+      } catch (error) {
+        console.error('Failed to load audit log:', error);
+        showToast('Failed to load audit log', 'danger');
+      }
+    }
+
+    function displayAuditLog() {
+      const container = document.getElementById('auditLogList');
+      
+      if (auditLog.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">🔍</div>
+            <h3>No Audit Entries</h3>
+            <p>Security audit entries will appear here as consent decisions are made.</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = auditLog.map(entry => `
+        <div class="history-item ${entry.response.decision}">
+          <div class="history-header">
+            <div class="history-operation">
+              ${entry.request.operation} - Risk Score: ${entry.riskAssessment.score}
+            </div>
+            <div class="history-time">${new Date(entry.timestamp).toLocaleString()}</div>
+          </div>
+          <div class="history-reason">
+            Decision: ${entry.response.decision} | 
+            Factors: ${entry.riskAssessment.factors.join(', ')}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function filterAudit() {
+      // Implement audit filtering
+      displayAuditLog();
+    }
+
+    async function exportAuditLog() {
+      try {
+        const response = await fetch('/api/consent/audit/export');
+        const blob = await response.blob();
+        
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `consent-audit-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        
+        showToast('Audit log exported successfully', 'success');
+      } catch (error) {
+        console.error('Failed to export audit log:', error);
+        showToast('Failed to export audit log', 'danger');
+      }
+    }
+
+    function addToHistory(data) {
+      consentHistory.unshift({
+        operation: data.operation,
+        decision: data.decision,
+        reason: data.reason,
+        timestamp: data.timestamp
+      });
+      
+      // Keep only last 100 entries in memory
+      if (consentHistory.length > 100) {
+        consentHistory = consentHistory.slice(0, 100);
+      }
+      
+      if (document.querySelector('#history-tab').classList.contains('active')) {
+        displayHistory();
+      }
+    }
+
+    function addAuditEntry(entry) {
+      auditLog.unshift(entry);
+      
+      // Keep only last 100 entries in memory
+      if (auditLog.length > 100) {
+        auditLog = auditLog.slice(0, 100);
+      }
+      
+      if (document.querySelector('#audit-tab').classList.contains('active')) {
+        displayAuditLog();
+      }
+    }
+
+    function showToast(message, type = 'info', duration = 5000) {
+      const toastContainer = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+      
+      toastContainer.appendChild(toast);
+      
+      setTimeout(() => toast.remove(), duration);
+    }
+  </script>
+</body>
+</html>

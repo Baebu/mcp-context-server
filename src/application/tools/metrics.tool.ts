@@ -1,6 +1,6 @@
 ﻿import { injectable } from 'inversify';
 import { z } from 'zod';
-import type { IMCPTool, ToolResult, ToolContext } from '@core/interfaces/tool-registry.interface.js';
+import type { IMCPTool, ToolResult, ToolContext } from '../../core/interfaces/tool-registry.interface.js';
 
 const getMetricsSchema = z.object({
   category: z.enum(['server', 'database', 'filesystem', 'security']).optional().describe('Specific metric category')

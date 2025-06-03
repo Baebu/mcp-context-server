@@ -6,7 +6,7 @@ import { z } from 'zod';
 import path from 'node:path';
 import os from 'node:os';
 import { promises as fs } from 'node:fs';
-import type { IMCPTool, ToolContext, ToolResult } from '@core/interfaces/tool-registry.interface.js';
+import type { IMCPTool, ToolContext, ToolResult } from '../../core/interfaces/tool-registry.interface.js';
 import type { ISecurityValidator } from '@core/interfaces/security.interface.js';
 
 const securityDiagnosticsSchema = z.object({

@@ -6,8 +6,8 @@ import { z } from 'zod';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { glob } from 'glob';
-import type { IMCPTool, ToolContext, ToolResult } from '@core/interfaces/tool-registry.interface.js';
-import type { IFilesystemHandler } from '@core/interfaces/filesystem.interface.js';
+import type { IMCPTool, ToolContext, ToolResult } from '../../core/interfaces/tool-registry.interface.js';
+import type { IFilesystemHandler } from '../../core/interfaces/filesystem.interface.js';
 
 // Schema for EditFileTool
 const editFileSchema = z.object({
@@ -101,19 +101,22 @@ export class EditFileTool implements IMCPTool {
       await filesystem.writeFile(params.path, newContent);
 
       return {
-        content: [{
-          type: 'text',
-          text: `File edited successfully: ${operationDescription}\nPath: ${params.path}\nLines before: ${lines.length}\nLines after: ${newLines.length}`
-        }]
+        content: [
+          {
+            type: 'text',
+            text: `File edited successfully: ${operationDescription}\nPath: ${params.path}\nLines before: ${lines.length}\nLines after: ${newLines.length}`
+          }
+        ]
       };
-
     } catch (error) {
       context.logger.error({ error, params }, 'Failed to edit file');
       return {
-        content: [{
-          type: 'text',
-          text: `Failed to edit file: ${error instanceof Error ? error.message : 'Unknown error'}`
-        }]
+        content: [
+          {
+            type: 'text',
+            text: `Failed to edit file: ${error instanceof Error ? error.message : 'Unknown error'}`
+          }
+        ]
       };
     }
   }
@@ -134,7 +137,7 @@ export class EditFileTool implements IMCPTool {
 
     preview += 'Before:\n';
     for (let i = contextStart; i <= contextEnd; i++) {
-      const marker = (i >= lineIndex && i <= endLineIndex) ? '> ' : '  ';
+      const marker = i >= lineIndex && i <= endLineIndex ? '> ' : '  ';
       preview += `${marker}${i + 1}: ${lines[i]}\n`;
     }
 
@@ -166,10 +169,12 @@ export class EditFileTool implements IMCPTool {
     }
 
     return {
-      content: [{
-        type: 'text',
-        text: preview
-      }]
+      content: [
+        {
+          type: 'text',
+          text: preview
+        }
+      ]
     };
   }
 }
@@ -177,12 +182,16 @@ export class EditFileTool implements IMCPTool {
 // Schema for BatchEditFileTool
 const batchEditFileSchema = z.object({
   path: z.string().describe('Path to the file to edit'),
-  operations: z.array(z.object({
-    operation: z.enum(['replace', 'insert', 'delete']),
-    line: z.number().describe('Line number (1-based)'),
-    content: z.string().optional(),
-    endLine: z.number().optional()
-  })).describe('Array of edit operations to perform'),
+  operations: z
+    .array(
+      z.object({
+        operation: z.enum(['replace', 'insert', 'delete']),
+        line: z.number().describe('Line number (1-based)'),
+        content: z.string().optional(),
+        endLine: z.number().optional()
+      })
+    )
+    .describe('Array of edit operations to perform'),
   createBackup: z.boolean().optional().default(true).describe('Create backup before editing'),
   preview: z.boolean().optional().default(false).describe('Preview changes without applying')
 });
@@ -267,19 +276,22 @@ export class BatchEditFileTool implements IMCPTool {
       await filesystem.writeFile(params.path, newContent);
 
       return {
-        content: [{
-          type: 'text',
-          text: `Batch edit completed successfully:\n${operationResults.reverse().join('\n')}\n\nPath: ${params.path}\nOperations: ${params.operations.length}\nLines before: ${originalLines.length}\nLines after: ${lines.length}`
-        }]
+        content: [
+          {
+            type: 'text',
+            text: `Batch edit completed successfully:\n${operationResults.reverse().join('\n')}\n\nPath: ${params.path}\nOperations: ${params.operations.length}\nLines before: ${originalLines.length}\nLines after: ${lines.length}`
+          }
+        ]
       };
-
     } catch (error) {
       context.logger.error({ error, params }, 'Failed to batch edit file');
       return {
-        content: [{
-          type: 'text',
-          text: `Failed to batch edit file: ${error instanceof Error ? error.message : 'Unknown error'}`
-        }]
+        content: [
+          {
+            type: 'text',
+            text: `Failed to batch edit file: ${error instanceof Error ? error.message : 'Unknown error'}`
+          }
+        ]
       };
     }
   }
@@ -326,10 +338,12 @@ export class BatchEditFileTool implements IMCPTool {
     preview += `Lines after: ${previewLines.length}\n`;
 
     return {
-      content: [{
-        type: 'text',
-        text: preview
-      }]
+      content: [
+        {
+          type: 'text',
+          text: preview
+        }
+      ]
     };
   }
 }
@@ -380,9 +394,10 @@ export class SearchFilesTool implements IMCPTool {
         }>;
       }> = [];
 
-      const searchRegex = params.searchType === 'regex'
-        ? new RegExp(params.pattern, params.caseSensitive ? 'g' : 'gi')
-        : new RegExp(this.escapeRegex(params.pattern), params.caseSensitive ? 'g' : 'gi');
+      const searchRegex =
+        params.searchType === 'regex'
+          ? new RegExp(params.pattern, params.caseSensitive ? 'g' : 'gi')
+          : new RegExp(this.escapeRegex(params.pattern), params.caseSensitive ? 'g' : 'gi');
 
       let totalMatches = 0;
 
@@ -398,14 +413,8 @@ export class SearchFilesTool implements IMCPTool {
             if (totalMatches >= params.maxResults!) break;
 
             if (searchRegex.test(lines[i] ?? '')) {
-              const contextBefore = lines.slice(
-                Math.max(0, i - params.contextLines!),
-                i
-              );
-              const contextAfter = lines.slice(
-                i + 1,
-                Math.min(lines.length, i + 1 + params.contextLines!)
-              );
+              const contextBefore = lines.slice(Math.max(0, i - params.contextLines!), i);
+              const contextAfter = lines.slice(i + 1, Math.min(lines.length, i + 1 + params.contextLines!));
 
               fileMatches.push({
                 line: i + 1,
@@ -426,7 +435,6 @@ export class SearchFilesTool implements IMCPTool {
               matches: fileMatches
             });
           }
-
         } catch (err) {
           // Skip files that can't be read (binary files, permission issues, etc.)
           context.logger.debug(`Skipping file ${filePath}: ${err}`);
@@ -451,19 +459,22 @@ export class SearchFilesTool implements IMCPTool {
       };
 
       return {
-        content: [{
-          type: 'text',
-          text: JSON.stringify(responseData, null, 2)
-        }]
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(responseData, null, 2)
+          }
+        ]
       };
-
     } catch (error) {
       context.logger.error({ error, params }, 'Failed to search files');
       return {
-        content: [{
-          type: 'text',
-          text: `Failed to search files: ${error instanceof Error ? error.message : 'Unknown error'}`
-        }]
+        content: [
+          {
+            type: 'text',
+            text: `Failed to search files: ${error instanceof Error ? error.message : 'Unknown error'}`
+          }
+        ]
       };
     }
   }
@@ -523,7 +534,7 @@ export class FindFilesTool implements IMCPTool {
 
       // Get file stats for sorting and metadata
       const fileInfos = await Promise.all(
-        files.slice(0, params.maxResults!).map(async (file) => {
+        files.slice(0, params.maxResults!).map(async file => {
           try {
             const stats = await fs.stat(file);
             return {
@@ -580,19 +591,22 @@ export class FindFilesTool implements IMCPTool {
       };
 
       return {
-        content: [{
-          type: 'text',
-          text: JSON.stringify(responseData, null, 2)
-        }]
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(responseData, null, 2)
+          }
+        ]
       };
-
     } catch (error) {
       context.logger.error({ error, params }, 'Failed to find files');
       return {
-        content: [{
-          type: 'text',
-          text: `Failed to find files: ${error instanceof Error ? error.message : 'Unknown error'}`
-        }]
+        content: [
+          {
+            type: 'text',
+            text: `Failed to find files: ${error instanceof Error ? error.message : 'Unknown error'}`
+          }
+        ]
       };
     }
   }

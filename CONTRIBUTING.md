@@ -133,7 +133,7 @@ docs: update installation instructions
    // src/application/tools/my-new-tool.tool.ts
    import { injectable } from 'inversify';
    import { z } from 'zod';
-   import type { IMCPTool, ToolContext, ToolResult } from '@core/interfaces/tool-registry.interface.js';
+   import type { IMCPTool, ToolContext, ToolResult } from '../../core/interfaces/tool-registry.interface.js';
 
    const myToolSchema = z.object({
      param1: z.string().describe('Description of param1'),

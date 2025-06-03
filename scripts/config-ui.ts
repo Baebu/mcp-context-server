@@ -30,7 +30,8 @@ async function startConfigUI() {
     const container = new Container();
     container.bind('Config').toConstantValue(config);
 
-    const uiServer = new UIServer(container, config, 3003);
+    // Assuming UIServer expects (config: ServerConfig, port?: number)
+    const uiServer = new UIServer(config); // Remove 'container' argument
     uiServer.start();
 
     const shutdown = () => {

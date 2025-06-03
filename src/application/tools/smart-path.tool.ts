@@ -2,7 +2,7 @@
 
 import { injectable } from 'inversify';
 import { z } from 'zod';
-import type { IMCPTool, ToolContext, ToolResult } from '@core/interfaces/tool-registry.interface.js';
+import type { IMCPTool, ToolContext, ToolResult } from '../../core/interfaces/tool-registry.interface.js';
 import type { ISmartPathManager } from '@core/interfaces/smart-path.interface.js';
 
 const createSmartPathSchema = z.object({

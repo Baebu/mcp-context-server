@@ -3,7 +3,7 @@
 
 import { injectable, inject } from 'inversify';
 import { z } from 'zod';
-import type { IMCPTool, ToolContext, ToolResult } from '@core/interfaces/tool-registry.interface.js';
+import type { IMCPTool, ToolContext, ToolResult } from '../../core/interfaces/tool-registry.interface.js';
 import type { IDatabaseHandler } from '../../core/interfaces/database.interface.js';
 import { EmbeddingService } from '../services/embedding.service.js';
 import { SemanticDatabaseExtension } from '../../infrastructure/adapters/semantic-database.extension.js';
@@ -18,16 +18,14 @@ export class SemanticSearchTool implements IMCPTool {
   description = 'Search context using natural language queries with semantic understanding';
   schema = semanticSearchSchema;
 
-  constructor(
-    @inject('EmbeddingService') private embeddingService: EmbeddingService
-  ) {}
+  constructor(@inject('EmbeddingService') private embeddingService: EmbeddingService) {}
 
   async execute(params: z.infer<typeof semanticSearchSchema>, context: ToolContext): Promise<ToolResult> {
     const db = context.container.get('DatabaseHandler') as IDatabaseHandler;
 
     try {
       // Access the underlying database instance to use semantic extension
-      const dbInstance = (db as any).db; // We'll need to expose this properly
+      const dbInstance = (db as any).getDatabaseInstance(); // Use the new getter method
       const semanticDb = new SemanticDatabaseExtension(dbInstance);
 
       // Generate embedding for search query
@@ -63,18 +61,22 @@ export class SemanticSearchTool implements IMCPTool {
       };
 
       return {
-        content: [{
-          type: 'text',
-          text: JSON.stringify(responseData, null, 2)
-        }]
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(responseData, null, 2)
+          }
+        ]
       };
     } catch (error) {
       context.logger.error({ error, params }, 'Semantic search failed');
       return {
-        content: [{
-          type: 'text',
-          text: `Semantic search failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-        }]
+        content: [
+          {
+            type: 'text',
+            text: `Semantic search failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+          }
+        ]
       };
     }
   }
@@ -106,15 +108,13 @@ export class FindRelatedContextTool implements IMCPTool {
     const db = context.container.get('DatabaseHandler') as IDatabaseHandler;
 
     try {
-      const dbInstance = (db as any).db;
+      const dbInstance = (db as any).getDatabaseInstance();
       const semanticDb = new SemanticDatabaseExtension(dbInstance);
 
       const relatedItems = await semanticDb.findSimilarItems(params.key, params.limit);
 
       // Filter by minimum similarity
-      const filteredItems = relatedItems.filter(item =>
-        item.similarity >= (params.minSimilarity || 0.3)
-      );
+      const filteredItems = relatedItems.filter(item => item.similarity >= (params.minSimilarity || 0.3));
 
       const responseData = {
         sourceKey: params.key,
@@ -137,18 +137,22 @@ export class FindRelatedContextTool implements IMCPTool {
       };
 
       return {
-        content: [{
-          type: 'text',
-          text: JSON.stringify(responseData, null, 2)
-        }]
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(responseData, null, 2)
+          }
+        ]
       };
     } catch (error) {
       context.logger.error({ error, params }, 'Find related context failed');
       return {
-        content: [{
-          type: 'text',
-          text: `Finding related context failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-        }]
+        content: [
+          {
+            type: 'text',
+            text: `Finding related context failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+          }
+        ]
       };
     }
   }
@@ -181,7 +185,7 @@ export class CreateContextRelationshipTool implements IMCPTool {
     const db = context.container.get('DatabaseHandler') as IDatabaseHandler;
 
     try {
-      const dbInstance = (db as any).db;
+      const dbInstance = (db as any).getDatabaseInstance();
       const semanticDb = new SemanticDatabaseExtension(dbInstance);
 
       await semanticDb.createRelationship(
@@ -192,18 +196,22 @@ export class CreateContextRelationshipTool implements IMCPTool {
       );
 
       return {
-        content: [{
-          type: 'text',
-          text: `Relationship created successfully: ${params.sourceKey} -> ${params.targetKey} (${params.relationshipType})`
-        }]
+        content: [
+          {
+            type: 'text',
+            text: `Relationship created successfully: ${params.sourceKey} -> ${params.targetKey} (${params.relationshipType})`
+          }
+        ]
       };
     } catch (error) {
       context.logger.error({ error, params }, 'Create relationship failed');
       return {
-        content: [{
-          type: 'text',
-          text: `Creating relationship failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-        }]
+        content: [
+          {
+            type: 'text',
+            text: `Creating relationship failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+          }
+        ]
       };
     }
   }
@@ -215,21 +223,19 @@ export class CreateContextRelationshipTool implements IMCPTool {
 @injectable()
 export class UpdateEmbeddingsTool implements IMCPTool {
   name = 'update_missing_embeddings';
-  description = 'Generate embeddings for context items that don\'t have them';
+  description = "Generate embeddings for context items that don't have them";
   schema = z.object({
     batchSize: z.number().optional().default(50).describe('Number of items to process in one batch'),
     dryRun: z.boolean().optional().default(false).describe('Preview what would be updated without making changes')
   });
 
-  constructor(
-    @inject('EmbeddingService') private embeddingService: EmbeddingService
-  ) {}
+  constructor(@inject('EmbeddingService') private embeddingService: EmbeddingService) {}
 
   async execute(params: z.infer<typeof this.schema>, context: ToolContext): Promise<ToolResult> {
     const db = context.container.get('DatabaseHandler') as IDatabaseHandler;
 
     try {
-      const dbInstance = (db as any).db;
+      const dbInstance = (db as any).getDatabaseInstance();
       const semanticDb = new SemanticDatabaseExtension(dbInstance);
 
       // Get items missing embeddings
@@ -237,21 +243,26 @@ export class UpdateEmbeddingsTool implements IMCPTool {
 
       if (missingItems.length === 0) {
         return {
-          content: [{
-            type: 'text',
-            text: 'All context items already have embeddings!'
-          }]
+          content: [
+            {
+              type: 'text',
+              text: 'All context items already have embeddings!'
+            }
+          ]
         };
       }
 
       if (params.dryRun) {
         return {
-          content: [{
-            type: 'text',
-            text: `Found ${missingItems.length} items without embeddings:\n${
-              missingItems.slice(0, 10).map(item => `- ${item.key} (${item.type})`).join('\n')
-            }${missingItems.length > 10 ? `\n... and ${missingItems.length - 10} more` : ''}`
-          }]
+          content: [
+            {
+              type: 'text',
+              text: `Found ${missingItems.length} items without embeddings:\n${missingItems
+                .slice(0, 10)
+                .map(item => `- ${item.key} (${item.type})`)
+                .join('\n')}${missingItems.length > 10 ? `\n... and ${missingItems.length - 10} more` : ''}`
+            }
+          ]
         };
       }
 
@@ -280,7 +291,6 @@ export class UpdateEmbeddingsTool implements IMCPTool {
             // Update in database
             await semanticDb.updateEmbedding(item.key, embedding);
             updated++;
-
           } catch (error) {
             context.logger.error({ error, key: item.key }, 'Failed to update embedding for item');
             failed++;
@@ -302,19 +312,22 @@ export class UpdateEmbeddingsTool implements IMCPTool {
       };
 
       return {
-        content: [{
-          type: 'text',
-          text: JSON.stringify(responseData, null, 2)
-        }]
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(responseData, null, 2)
+          }
+        ]
       };
-
     } catch (error) {
       context.logger.error({ error, params }, 'Update embeddings failed');
       return {
-        content: [{
-          type: 'text',
-          text: `Updating embeddings failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-        }]
+        content: [
+          {
+            type: 'text',
+            text: `Updating embeddings failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+          }
+        ]
       };
     }
   }
@@ -333,7 +346,7 @@ export class SemanticStatsTool implements IMCPTool {
     const db = context.container.get('DatabaseHandler') as IDatabaseHandler;
 
     try {
-      const dbInstance = (db as any).db;
+      const dbInstance = (db as any).getDatabaseInstance();
       const semanticDb = new SemanticDatabaseExtension(dbInstance);
 
       const stats = await semanticDb.getSemanticStats();
@@ -350,18 +363,22 @@ export class SemanticStatsTool implements IMCPTool {
       };
 
       return {
-        content: [{
-          type: 'text',
-          text: JSON.stringify(responseData, null, 2)
-        }]
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(responseData, null, 2)
+          }
+        ]
       };
     } catch (error) {
       context.logger.error({ error }, 'Get semantic stats failed');
       return {
-        content: [{
-          type: 'text',
-          text: `Getting semantic stats failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-        }]
+        content: [
+          {
+            type: 'text',
+            text: `Getting semantic stats failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+          }
+        ]
       };
     }
   }

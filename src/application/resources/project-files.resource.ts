@@ -1,6 +1,6 @@
 ﻿import { injectable, inject } from 'inversify';
 import type { MCPResource } from '@core/interfaces/resource-registry.interface.js';
-import type { IFilesystemHandler } from '@core/interfaces/filesystem.interface.js';
+import type { IFilesystemHandler } from '../../core/interfaces/filesystem.interface.js';
 import path from 'node:path';
 
 @injectable()

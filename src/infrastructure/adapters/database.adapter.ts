@@ -5,7 +5,7 @@ import { injectable, inject } from 'inversify';
 import Database from 'better-sqlite3';
 import { promises as fs, mkdirSync as fsMkdirSync } from 'node:fs'; // Added fsMkdirSync
 import path from 'node:path';
-import type { IDatabaseHandler, ContextItem, QueryOptions } from '@core/interfaces/database.interface.js';
+import type { IDatabaseHandler, ContextItem, QueryOptions } from '../../core/interfaces/database.interface.js';
 import { logger } from '../../utils/logger.js';
 import type { ServerConfig } from '@infrastructure/config/types.js';
 
@@ -476,6 +476,14 @@ export class DatabaseAdapter implements IDatabaseHandler {
       logger.error({ error, backupPath: absoluteBackupPath }, 'Database backup failed');
       throw error;
     }
+  }
+
+  /**
+   * Get the underlying database instance for advanced operations
+   * Used by semantic extensions and other advanced database operations
+   */
+  getDatabaseInstance(): Database.Database {
+    return this.db;
   }
 
   close(): void {

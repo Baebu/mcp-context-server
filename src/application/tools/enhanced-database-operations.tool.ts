@@ -4,7 +4,7 @@
 import { injectable, inject } from 'inversify';
 import { z } from 'zod';
 import type { IMCPTool, ToolContext, ToolResult } from '../../core/interfaces/tool-registry.interface.js';
-import type { IDatabaseHandler } from '@core/interfaces/database.interface.js';
+import type { IDatabaseHandler } from '../../core/interfaces/database.interface.js';
 import { EmbeddingService } from '../services/embedding.service.js';
 import { SemanticDatabaseExtension } from '../../infrastructure/adapters/semantic-database.extension.js';
 
@@ -81,7 +81,7 @@ export class EnhancedStoreContextTool implements IMCPTool {
       }
 
       // Use semantic database extension for enhanced storage
-      const dbInstance = (db as any).db;
+      const dbInstance = (db as any).getDatabaseInstance();
       const semanticDb =  new SemanticDatabaseExtension(dbInstance);
 
       await semanticDb.storeSemanticContext(params.key, value, type, embedding, tags);
@@ -240,7 +240,7 @@ export class EnhancedQueryContextTool implements IMCPTool {
 
       // Semantic search if query provided
       if (params.semanticQuery) {
-        const dbInstance = (db as any).db;
+        const dbInstance = (db as any).getDatabaseInstance();
         const semanticDb = new SemanticDatabaseExtension(dbInstance);
 
         const queryEmbedding = await this.embeddingService.generateEmbedding(params.semanticQuery);

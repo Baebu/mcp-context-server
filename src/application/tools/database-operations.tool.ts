@@ -1,8 +1,8 @@
 ﻿// src/application/tools/database-operations.tool.ts
 import { injectable } from 'inversify';
 import { z } from 'zod';
-import type { IMCPTool, ToolContext, ToolResult } from '@core/interfaces/tool-registry.interface.js';
-import type { IDatabaseHandler } from '@core/interfaces/database.interface.js';
+import type { IMCPTool, ToolContext, ToolResult } from '../../core/interfaces/tool-registry.interface.js';
+import type { IDatabaseHandler } from '../../core/interfaces/database.interface.js';
 
 const storeContextSchema = z.object({
   key: z.string().describe('Unique key for the context item'),

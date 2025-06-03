@@ -13,8 +13,8 @@ import type {
   WorkspaceTemplate,
   FileStructure // Added import
 } from '@core/interfaces/workspace.interface.js';
-import type { IDatabaseHandler } from '@core/interfaces/database.interface.js';
-import type { IFilesystemHandler } from '@core/interfaces/filesystem.interface.js';
+import type { IDatabaseHandler } from '../../core/interfaces/database.interface.js';
+import type { IFilesystemHandler } from '../../core/interfaces/filesystem.interface.js';
 import type { ISmartPathManager } from '@core/interfaces/smart-path.interface.js';
 import { logger } from '../../utils/logger.js';
 

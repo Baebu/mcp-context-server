@@ -1,11 +1,11 @@
-// src/infrastructure/di/container-initializer.ts - Updated with Enhanced File Operations
+﻿// src/infrastructure/di/container-initializer.ts - Updated with Enhanced File Operations
 import type { Container } from 'inversify';
 import type { IToolRegistry } from '../../core/interfaces/tool-registry.interface.js';
 import type { IResourceRegistry } from '../../core/interfaces/resource-registry.interface.js';
 import type { IPromptRegistry } from '../../core/interfaces/prompt-registry.interface.js';
 import type { IEmbeddingService } from '../../core/interfaces/semantic-context.interface.js';
 
-// Basic File Operations Tools
+// Tools
 import {
   ReadFileTool,
   ListDirectoryTool,
@@ -75,7 +75,7 @@ import { logger } from '../../utils/logger.js';
 
 export class ContainerInitializer {
   static async initialize(container: Container): Promise<void> {
-    logger.info('Initializing container with enhanced file operations and semantic search capabilities...');
+    logger.info('Initializing container with semantic search capabilities...');
 
     // Initialize consent UI bridge
     const consentUIBridge = container.get<ConsentUIBridge>(ConsentUIBridge);
@@ -93,7 +93,7 @@ export class ContainerInitializer {
     // Initialize and register prompts
     await this.initializePrompts(container);
 
-    logger.info('Container initialization complete with enhanced file operations and semantic search capabilities');
+    logger.info('Container initialization complete with semantic search capabilities');
   }
 
   private static async initializeSemanticServices(container: Container): Promise<void> {
@@ -111,7 +111,7 @@ export class ContainerInitializer {
   private static async initializeTools(container: Container): Promise<void> {
     const toolRegistry = container.get<IToolRegistry>('ToolRegistry');
 
-    // Basic file operations (enhanced with consent)
+    // File operations (enhanced with consent)
     toolRegistry.register(new ReadFileTool());
     toolRegistry.register(new WriteFileToolWithConsent());
     toolRegistry.register(new ListDirectoryTool());
@@ -166,7 +166,7 @@ export class ContainerInitializer {
 
     try {
       const allTools = await toolRegistry.getAllTools();
-      logger.info(`Registered ${allTools.length} tools including enhanced file operations and semantic search capabilities`);
+      logger.info(`Registered ${allTools.length} tools including semantic search capabilities`);
     } catch (error) {
       logger.warn({ error }, 'Could not get tool count, but registration completed');
     }

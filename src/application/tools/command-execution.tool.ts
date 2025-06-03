@@ -1,9 +1,9 @@
 ﻿// src/application/tools/command-execution.tool.ts - Enhanced with consent
 import { injectable } from 'inversify';
 import { z } from 'zod';
-import type { IMCPTool, ToolContext, ToolResult } from '@core/interfaces/tool-registry.interface.js';
-import type { ICLIHandler } from '@core/interfaces/cli.interface.js';
-import type { IUserConsentService } from '@core/interfaces/consent.interface.js';
+import type { IMCPTool, ToolContext, ToolResult } from '../../core/interfaces/tool-registry.interface.js';
+import type { ICLIHandler } from '../../core/interfaces/cli.interface.js';
+import type { IUserConsentService } from '../../core/interfaces/consent.interface.js';
 
 const executeCommandSchema = z.object({
   command: z.string().describe('Command to execute'),

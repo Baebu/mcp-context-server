@@ -292,6 +292,7 @@ For this MCP Context Server project, you can:
    ```
 
 8. **Monitor System Health:**
+
    ```
    get_metrics({"category": "server"})
    database_health({"action": "get-stats"})

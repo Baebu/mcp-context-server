@@ -1,4 +1,4 @@
-// src/infrastructure/di/container.ts - Updated with Enhanced File Operations
+﻿// src/infrastructure/di/container.ts - Updated with Enhanced File Operations
 import { Container } from 'inversify';
 import 'reflect-metadata';
 
@@ -41,9 +41,9 @@ import { ParseFileTool } from '../../application/tools/file-parsing.tool.js';
 import { ProjectFilesResource } from '../../application/resources/project-files.resource.js';
 
 // Semantic Tools
-import { 
-  SemanticSearchTool, 
-  FindRelatedContextTool, 
+import {
+  SemanticSearchTool,
+  FindRelatedContextTool,
   CreateContextRelationshipTool,
   UpdateEmbeddingsTool,
   SemanticStatsTool
@@ -93,7 +93,10 @@ container.bind<ProjectFilesResource>(ProjectFilesResource).to(ProjectFilesResour
 // Semantic tools
 container.bind<SemanticSearchTool>(SemanticSearchTool).to(SemanticSearchTool).inSingletonScope();
 container.bind<FindRelatedContextTool>(FindRelatedContextTool).to(FindRelatedContextTool).inSingletonScope();
-container.bind<CreateContextRelationshipTool>(CreateContextRelationshipTool).to(CreateContextRelationshipTool).inSingletonScope();
+container
+  .bind<CreateContextRelationshipTool>(CreateContextRelationshipTool)
+  .to(CreateContextRelationshipTool)
+  .inSingletonScope();
 container.bind<UpdateEmbeddingsTool>(UpdateEmbeddingsTool).to(UpdateEmbeddingsTool).inSingletonScope();
 container.bind<SemanticStatsTool>(SemanticStatsTool).to(SemanticStatsTool).inSingletonScope();
 
