@@ -5,7 +5,7 @@ import path from 'node:path';
 import { MCPContextServer } from './presentation/server.js';
 import { container } from './infrastructure/di/container.js';
 import { ContainerInitializer } from './infrastructure/di/container-initializer.js';
-import { loadConfig } from './infrastructure/config/config-loader.js';
+import { loadConfig } from './infrastructure/config/loader.js';
 import { logger } from './utils/logger.js';
 import { ConsentUIBridge } from './presentation/consent-ui-bridge.js';
 

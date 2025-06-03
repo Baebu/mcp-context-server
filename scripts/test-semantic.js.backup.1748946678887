@@ -1,0 +1,92 @@
+// Test Semantic Database Functionality
+// Run with: node test-semantic.js
+
+import Database from 'better-sqlite3';
+import path from 'path';
+import { SemanticDatabaseExtension } from '../src/infrastructure/adapters/semantic-database.extension.js';
+
+async function testSemanticFeatures() {
+  console.log('🧪 Testing Semantic Database Features...');
+  
+  try {
+    const dbPath = path.join(process.cwd(), 'data', 'context.db');
+    console.log(`📍 Database: ${dbPath}`);
+    
+    const db = new Database(dbPath);
+    db.pragma('journal_mode = WAL');
+    
+    // Create semantic extension
+    const semanticDb = new SemanticDatabaseExtension(db);
+    
+    console.log('🔧 Testing semantic context storage...');
+    
+    // Test storing semantic context with mock embedding
+    const testKey = `test-semantic-${Date.now()}`;
+    const testValue = "This is a test semantic context with advanced intelligence features.";
+    const testEmbedding = [0.1, 0.2, 0.3, 0.4, 0.5]; // Mock embedding
+    const testTags = ["test", "semantic", "intelligence"];
+    
+    await semanticDb.storeSemanticContext(
+      testKey,
+      testValue,
+      'test',
+      testEmbedding,
+      testTags
+    );
+    
+    console.log('✅ Semantic context stored successfully!');
+    
+    // Verify the data was stored
+    const stored = db.prepare('SELECT * FROM context_items WHERE key = ?').get(testKey);
+    
+    if (stored) {
+      console.log('📊 Stored context details:');
+      console.log(`  Key: ${stored.key}`);
+      console.log(`  Type: ${stored.type}`);
+      console.log(`  Context Type: ${stored.context_type}`);
+      console.log(`  Has Embedding: ${stored.embedding ? 'Yes' : 'No'}`);
+      console.log(`  Has Tags: ${stored.semantic_tags ? 'Yes' : 'No'}`);
+      console.log(`  Relevance Score: ${stored.relevance_score}`);
+      
+      if (stored.embedding) {
+        const parsedEmbedding = JSON.parse(stored.embedding);
+        console.log(`  Embedding Dimensions: ${parsedEmbedding.length}`);
+      }
+      
+      if (stored.semantic_tags) {
+        const parsedTags = JSON.parse(stored.semantic_tags);
+        console.log(`  Tags: ${parsedTags.join(', ')}`);
+      }
+    } else {
+      console.log('❌ Failed to retrieve stored context');
+    }
+    
+    // Test semantic search
+    console.log('\n🔍 Testing semantic search...');
+    
+    const searchResults = await semanticDb.semanticSearch({
+      query: 'intelligence features',
+      limit: 5,
+      minSimilarity: 0.1,
+      contextTypes: ['test']
+    });
+    
+    console.log(`📋 Search results: ${searchResults.length} items found`);
+    searchResults.forEach((result, index) => {
+      console.log(`  ${index + 1}. ${result.key} (similarity: ${Math.round(result.similarity * 100)}%)`);
+    });
+    
+    // Cleanup test data
+    db.prepare('DELETE FROM context_items WHERE key = ?').run(testKey);
+    console.log('🧹 Cleaned up test data');
+    
+    db.close();
+    console.log('✅ Semantic functionality test completed!');
+    
+  } catch (error) {
+    console.error('❌ Semantic test failed:', error.message);
+    console.error('Stack trace:', error.stack);
+  }
+}
+
+testSemanticFeatures();

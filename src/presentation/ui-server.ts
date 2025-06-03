@@ -11,7 +11,7 @@ import * as yaml from 'yaml';
 // import type { Container } from 'inversify'; // No longer needed here
 import type { ServerConfig } from '../infrastructure/config/types.js';
 import { logger } from '../utils/logger.js';
-import { configSchema } from '../infrastructure/config/config-loader.js';
+import { configSchema } from '../infrastructure/config/loader.js';
 
 interface ClaudeDesktopServerEntry {
   command: string;

@@ -1,49 +1,277 @@
-﻿server:
-  name: 'mcp-context-server'
-  version: '1.0.0'
+# Enhanced Server Configuration for FastMCP Integration and Phase 1 Features
+# Version: 2.0.0
 
+server:
+  name: context-savy-server
+  version: 2.0.0
+  transport: stdio
+  fastmcp:
+    enabled: true
+    sessionTimeout: 86400000 # 24 hours in milliseconds
+    progressReporting: true
+    authentication: true
+
+# Enhanced Security Configuration
 security:
-  allowedCommands:
-    - 'ls'
-    - 'cat'
-    - 'grep'
-    - 'find'
-    - 'git'
-    - 'npm'
-    - 'node'
-    - 'python'
-    - 'python3'
-    - 'echo'
-    - 'pwd'
-    - 'which'
-    - 'whoami'
-  safezones:
-    - '.'
-    - '/tmp'
-    - '/var/tmp'
-  maxExecutionTime: 30000 # 30 seconds
+  allowedPaths:
+    - ./data
+    - ./examples
+    - ./config
+    - ~./context-savy-server
+    - ~./Users/Public/Documents
   maxFileSize: 10485760 # 10MB
+  enableAuditLog: true
+  sessionTimeout: 86400000 # 24 hours
+  allowedCommands:
+    - echo
+    - pwd
+    - whoami
+    - date
+    - time
+    - hostname
+    - ver
+    - help
+    - cls
+    - tree
+    - type
+    - more
+    - find
+    - findstr
+    - where
+    - fc
+    - dir
+    - ls
+    - cat
+    - grep
+    - wc
+    - head
+    - tail
+    - uname
+    - stat
+    - env
+    - set
+    - chcp
+    - clip
+    - printenv
+    - cal
+    - uptime
+    - ping
+    - traceroute
+    - tracert
+    - curl
+    - wget
+    - nslookup
+    - ipconfig
+    - ifconfig
+    - netstat
+    - who
+    - users
+    - groups
+    - id
+    - basename
+    - dirname
+    - du
+    - df
+    - free
+    - top
+    - tasklist
+    - systeminfo
+    - python
+    - python3
+    - node
+    - npm
+    - git
+    - rg
+    - ripgrep
+  restrictedZones:
+    - /Windows/System32
+    - /etc/passwd
+    - /etc/shadow
+    - C:/Windows/System32
+  safezones:
+    - .
+    - ./data
+    - ./examples
+    - ~.Users/Public/context-savy-server
+    - C:/Users/public/Documents
+  maxExecutionTime: 900000
+  unsafeArgumentPatterns:
+    # Command injection patterns
+    - \$\(.*\)|`.*`|\$\{.*\}
+    - ;&|&&|\|\|
+    # Specific dangerous command patterns
+    - (^|[\s;])rm\s+-rf\s+/(\s|$)
+    - (^|[\s;])rm\s+-rf\s+\*(\s|$)
+    - (^|[\s;])del\s+/s\s+/q\s+\*(\s|$)
+    - (^|[\s;])format\s+[a-zA-Z]:(\s|$)
+    - (^|[\s;])shutdown\s+-[rfhs](\s|$)
+    - (^|[\s;])reboot(\s|$)
+    - (^|[\s;])poweroff(\s|$)
+    - (^|[\s;])halt(\s|$)
+    - (^|[\s;])reg\s+(delete|add)(\s|$)
+    - (^|[\s;])regedit(\s|$)
+    # Network security patterns
+    - wget\s+.*\|\s*sh(\s|$)
+    - curl\s+.*\|\s*sh(\s|$)
+    - wget\s+.*\|\s*bash(\s|$)
+    - curl\s+.*\|\s*bash(\s|$)
+    # System modification patterns
+    - chmod\s+777(\s|$)
+    - chown\s+root(\s|$)
+    - (^|[\s;]):.*\{\s*:|.*&\s*\}.*:(\s|$) # fork bomb pattern
 
+# Enhanced Database Configuration with Vector Storage
 database:
-  path: './data/context.db'
-  backupInterval: 60 # minutes, 0 to disable
+  path: ./data/context.db
+  poolSize: 5
+  walMode: true
+  cacheSize: 64000 # 64MB
+  backupInterval: 60
+  vacuum:
+    enabled: true
+    schedule: "0 2 * * *" # Daily at 2 AM
+    threshold: 0.3 # Run when fragmentation > 30%
+  vectorStorage:
+    enabled: true
+    embeddingDimensions: 384 # TensorFlow.js default
+    similarityThreshold: 0.7
 
+# Memory Management Configuration
+memory:
+  maxContextTokens: 8192
+  maxMemoryMB: 512
+  cacheSize: 1000
+  optimizer:
+    enabled: true
+    gcThreshold: 0.85
+    monitoringInterval: 30000 # 30 seconds
+    chunkSize: 1024
+  embeddingCache:
+    maxSize: 1000
+    ttl: 3600000 # 1 hour
+  relevanceCache:
+    maxSize: 2000
+    ttl: 1800000 # 30 minutes
+
+# Semantic Search Configuration
+semanticSearch:
+  enabled: true
+  provider: tensorflow # or 'openai', 'local'
+  model: universal-sentence-encoder
+  batchSize: 32
+  maxQueryLength: 500
+  relevanceScoring:
+    semanticWeight: 0.4
+    recencyWeight: 0.3
+    typeWeight: 0.2
+    accessWeight: 0.1
+
+# Enhanced Logging Configuration
 logging:
-  level: 'info' # trace, debug, info, warn, error, fatal
+  level: info
   pretty: true
+  file:
+    enabled: true
+    path: ./logs/server.log
+    maxSize: 10485760 # 10MB
+    maxFiles: 5
+    rotateDaily: true
+  audit:
+    enabled: true
+    path: ./logs/audit.log
+    maxSize: 5242880 # 5MB
+    maxFiles: 10
 
+# Performance and Concurrency
 performance:
   maxConcurrency: 10
   queueSize: 1000
+  timeouts:
+    default: 30000 # 30 seconds
+    fileOperations: 60000 # 1 minute
+    databaseOperations: 30000 # 30 seconds
+    semanticSearch: 45000 # 45 seconds
+  rateLimiting:
+    enabled: true
+    windowMs: 60000 # 1 minute
+    maxRequests: 1000
 
-consent:
-  alwaysAllow:
-    - 'file_write:*.log'
-    - 'file_write:*.tmp'
-    - 'command_execute:ls'
-  alwaysDeny:
-    - 'command_execute:rm -rf /*'
-    - 'file_delete:**/.ssh/**'
-  requireConsent:
-    - 'recursive_delete:*'
-    - 'file_write:**/*.key'
+# Plugin System Configuration
+plugins:
+  directory: ./plugins
+  autoDiscover: true
+  sandbox: true
+  enabled: []
+  disabled: []
+  maxLoadTime: 5000 # 5 seconds
+  security:
+    allowNetworkAccess: false
+    allowFileSystemAccess: false
+    allowProcessExecution: false
+
+# Backup System Configuration
+backup:
+  enabled: true
+  directory: ./backups
+  maxVersions: 10
+  compression: true
+  schedule:
+    auto: "0 */4 * * *" # Every 4 hours
+    cleanup: "0 1 * * 0" # Weekly on Sunday at 1 AM
+  types:
+    emergency:
+      maxCount: 5
+      retention: 2592000000 # 30 days
+    manual:
+      maxCount: 20
+      retention: 7776000000 # 90 days
+    auto:
+      maxCount: 48
+      retention: 1209600000 # 14 days
+
+# Monitoring and Health Checks
+monitoring:
+  enabled: true
+  healthCheck:
+    interval: 60000 # 1 minute
+    endpoints:
+      - database
+      - memory
+      - filesystem
+      - security
+  metrics:
+    enabled: true
+    collectInterval: 30000 # 30 seconds
+    retention: 86400000 # 24 hours
+  alerts:
+    enabled: true
+    thresholds:
+      memoryUsage: 0.9 # 90%
+      diskUsage: 0.95 # 95%
+      errorRate: 0.1 # 10%
+      responseTime: 5000 # 5 seconds
+
+# Development and Debug Configuration
+development:
+  enabled: false
+  debugMode: false
+  mockServices: false
+  testData:
+    enabled: false
+    seedDatabase: false
+  profiling:
+    enabled: false
+    samplingRate: 0.1
+
+# Feature Flags
+features:
+  fastmcpIntegration: true
+  semanticMemory: true
+  vectorStorage: true
+  enhancedSecurity: true
+  memoryOptimization: true
+  pluginSystem: false # Disabled in Phase 1
+  advancedBackup: true
+  realTimeMonitoring: true
+  sessionManagement: true
+  auditLogging: true
