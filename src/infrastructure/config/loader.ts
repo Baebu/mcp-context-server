@@ -3,7 +3,7 @@
 
 import { promises as fs } from 'fs';
 import { parse as parseYaml } from 'yaml';
-import { serverConfigSchema, type ServerConfig, configSchema } from './schema.js';
+import { serverConfigSchema, configSchema, type ServerConfig } from './schema.js'; // Added configSchema import
 import { logger } from '../../utils/logger.js';
 
 export class ConfigurationLoader {
@@ -38,27 +38,33 @@ export class ConfigurationLoader {
       this.loadedConfig = serverConfigSchema.parse(configWithEnv);
 
       logger.info('✅ Configuration loaded and validated successfully');
-      
+
       // Fixed logger.debug call with proper typing
       const configSummary = {
-        features: Object.keys(this.loadedConfig.features).filter(
-          key => this.loadedConfig!.features[key as keyof typeof this.loadedConfig.features]
+        features: Object.keys(this.loadedConfig.features || {}).filter(
+          // Added null check for features
+          key => this.loadedConfig!.features![key as keyof typeof this.loadedConfig.features]
         ),
-        pluginsEnabled: this.loadedConfig.plugins.enabled.length,
-        securityPaths: this.loadedConfig.security.allowedPaths.length
+        pluginsEnabled: this.loadedConfig.plugins?.enabled?.length || 0, // Added null check
+        securityPaths: this.loadedConfig.security?.allowedPaths?.length || 0 // Added null check
       };
-      
-      logger.debug('Configuration details:', configSummary);
+
+      logger.debug({ message: 'Configuration details:', details: JSON.stringify(configSummary, null, 2) });
 
       return this.loadedConfig;
     } catch (error) {
-      logger.error('❌ Configuration loading failed:', error);
+      logger.error({
+        message: '❌ Configuration loading failed:',
+        error: error instanceof Error ? error.message : String(error)
+      });
 
       // Return default configuration with all parameters properly defined
       logger.warn('🔄 Using default configuration with all features enabled');
 
+      // Use Zod schema's parse with an empty object to get all defaults
       this.loadedConfig = serverConfigSchema.parse({
         // Explicitly enable all features for development
+        // These will be merged with Zod defaults if features schema has defaults
         features: {
           fastmcpIntegration: true,
           semanticMemory: true,
@@ -72,6 +78,7 @@ export class ConfigurationLoader {
           auditLogging: true
         },
         development: {
+          // Ensure development block is present for defaults
           enabled: true,
           debugMode: process.env.NODE_ENV === 'development'
         }
@@ -110,10 +117,10 @@ export class ConfigurationLoader {
       SERVER_PORT: 'server.port',
       SERVER_HOST: 'server.host',
       MAX_MEMORY_MB: 'memory.maxMemoryMB',
-      SEMANTIC_SEARCH_ENABLED: 'semanticSearch.enabled',
-      PLUGINS_ENABLED: 'plugins.autoDiscover',
-      BACKUP_ENABLED: 'backup.enabled',
-      MONITORING_ENABLED: 'monitoring.enabled'
+      SEMANTIC_SEARCH_ENABLED: 'semanticSearch.enabled', // Ensure this path exists in schema
+      PLUGINS_ENABLED: 'plugins.autoDiscover', // Ensure this path exists in schema
+      BACKUP_ENABLED: 'backup.enabled', // Ensure this path exists in schema
+      MONITORING_ENABLED: 'monitoring.enabled' // Ensure this path exists in schema
     };
 
     const result = { ...config };
@@ -134,13 +141,16 @@ export class ConfigurationLoader {
 
     let current = obj;
     for (const key of keys) {
-      if (!(key in current)) {
+      if (!(key in current) || typeof current[key] !== 'object' || current[key] === null) {
+        // Ensure intermediate paths are objects
         current[key] = {};
       }
       current = current[key];
     }
-
-    current[lastKey] = value;
+    if (current && typeof current === 'object') {
+      // Ensure current is an object before setting property
+      current[lastKey] = value;
+    }
   }
 
   private parseEnvValue(value: string): any {

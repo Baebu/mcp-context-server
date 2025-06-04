@@ -1,285 +1,260 @@
-// Updated Configuration Types with Complete Schema Support
-// File: src/infrastructure/config/types.ts
+// security.types.ts - Supporting types for security system
+// Place this in: src/types/security.types.ts
 
-// Re-export the schema types
-import { type ServerConfig, serverConfigSchema, loadAndValidateConfig, configSchema } from './schema.js';
-export { type ServerConfig, serverConfigSchema, loadAndValidateConfig, configSchema };
-
-// Enhanced type definitions for specific components
-export interface DatabaseConfig {
-  path: string;
-  poolSize: number;
-  walMode: boolean;
-  cacheSize: number;
-  backupInterval: number; // ADDED MISSING PROPERTY
-  workingDirectory: string; // ADDED MISSING PROPERTY
-  vacuum?: {
-    enabled: boolean;
-    schedule: string;
-    threshold: number;
-  };
-  vectorStorage?: {
-    enabled: boolean;
-    embeddingDimensions: number;
-    similarityThreshold: number;
-  };
+/**
+ * Safe Zone security modes
+ * FIXES: Consistent enum definition across all files
+ */
+export enum SafeZoneMode {
+  STRICT = 'strict',
+  PERMISSIVE = 'permissive',
+  AUDIT = 'audit',
+  RECURSIVE = 'recursive'
 }
 
-// Enhanced SecurityConfig with ALL missing properties
+/**
+ * Security configuration interface
+ */
 export interface SecurityConfig {
+  safeZoneMode: SafeZoneMode;
   allowedPaths: string[];
+  maxFileSize: number;
   enableAuditLog: boolean;
   sessionTimeout: number;
-  maxFileSize: number;
-  
-  // Command execution security
-  allowedCommands: string[];
-  
-  // Safe zones configuration
-  safezones: string[];
-  safeZoneMode: 'strict' | 'permissive' | 'audit';
-  
-  // Restricted zones
-  restrictedZones: string[];
-  
-  // Path validation patterns
-  blockedPathPatterns: string[];
-  
-  // Argument validation patterns
-  unsafeArgumentPatterns: string[];
-  
-  // Process management limits
-  maxConcurrentProcesses: number;
-  maxProcessMemoryMB: number;
-  maxProcessCpuPercent: number;
-  defaultTimeoutMs: number;
-  maxTimeoutMs: number;
-  cleanupIntervalMs: number;
-  resourceCheckIntervalMs: number;
-  enableProcessMonitoring: boolean;
-  processKillGracePeriodMs: number;
+  maxSessions: number;
 }
 
-export interface SemanticSearchConfig {
-  enabled: boolean;
-  provider: 'openai' | 'local' | 'lightweight';
-  model: string;
-  batchSize: number;
-  maxQueryLength: number;
-  relevanceScoring?: {
-    semanticWeight: number;
-    recencyWeight: number;
-    typeWeight: number;
-    accessWeight: number;
+/**
+ * Path validation result
+ */
+export interface PathValidationResult {
+  isValid: boolean;
+  resolvedPath: string;
+  reason?: string;
+  safeZone?: string;
+}
+
+/**
+ * Security audit entry
+ */
+export interface SecurityAuditEntry {
+  timestamp: number;
+  action: string;
+  path: string;
+  userId?: string;
+  sessionId?: string;
+  result: 'allowed' | 'denied' | 'warning';
+  reason?: string;
+}
+
+/**
+ * Session information
+ */
+export interface SessionInfo {
+  sessionId: string;
+  userId: string;
+  createdAt: number;
+  lastActivity: number;
+  permissions: string[];
+  isActive: boolean;
+}
+
+/**
+ * Authentication result
+ */
+export interface AuthResult {
+  isValid: boolean;
+  userId?: string;
+  sessionId?: string;
+  permissions?: string[];
+  reason?: string;
+}
+
+/**
+ * Security statistics
+ */
+export interface SecurityStats {
+  activeSessions: number;
+  auditLogSize: number;
+  safeZoneMode: SafeZoneMode;
+  allowedDirectories: number;
+  last24hEvents: {
+    total: number;
+    allowed: number;
+    denied: number;
+    warnings: number;
   };
 }
 
-export interface MemoryConfig {
-  maxContextTokens: number;
-  maxMemoryMB: number;
-  cacheSize: number;
-  optimizer?: {
-    enabled: boolean;
-    gcThreshold: number;
-    monitoringInterval: number;
-    chunkSize: number;
-  };
-  embeddingCache?: {
+/**
+ * Security error class
+ */
+export class SecurityError extends Error {
+  constructor(
+    message: string,
+    public code?: string
+  ) {
+    super(message);
+    this.name = 'SecurityError';
+  }
+}
+
+/**
+ * Path traversal error class
+ */
+export class PathTraversalError extends SecurityError {
+  constructor(path: string) {
+    super(`Path traversal attempt detected: ${path}`, 'PATH_TRAVERSAL');
+  }
+}
+
+/**
+ * Safe zone violation error class
+ */
+export class SafeZoneViolationError extends SecurityError {
+  constructor(path: string, mode: SafeZoneMode) {
+    super(`Safe zone violation: ${path} (mode: ${mode})`, 'SAFE_ZONE_VIOLATION');
+  }
+}
+
+/**
+ * Session error class
+ */
+export class SessionError extends SecurityError {
+  constructor(message: string) {
+    super(message, 'SESSION_ERROR');
+  }
+}
+
+/**
+ * File security check result
+ */
+export interface FileSecurityCheck {
+  isSecure: boolean;
+  size: number;
+  maxSize: number;
+  path: string;
+  checksum?: string;
+  reason?: string;
+}
+
+/**
+ * Request authentication context
+ */
+export interface AuthContext {
+  userId?: string;
+  sessionId?: string;
+  permissions: string[];
+  isAuthenticated: boolean;
+  token?: string;
+}
+
+/**
+ * Security policy configuration
+ */
+export interface SecurityPolicy {
+  fileAccess: {
     maxSize: number;
-    ttl: number;
+    allowedExtensions?: string[];
+    deniedExtensions?: string[];
+    scanForMalware?: boolean;
   };
-  relevanceCache?: {
-    maxSize: number;
-    ttl: number;
+  sessionManagement: {
+    timeout: number;
+    maxSessions: number;
+    requireReauth: boolean;
   };
-}
-
-export interface PluginConfig {
-  directory: string;
-  autoDiscover: boolean;
-  sandbox: boolean;
-  enabled: string[];
-  disabled: string[];
-  maxLoadTime: number;
-  security?: {
-    allowNetworkAccess: boolean;
-    allowFileSystemAccess: boolean;
-    allowProcessExecution: boolean;
-  };
-}
-
-export interface BackupConfig {
-  enabled: boolean;
-  directory: string;
-  maxVersions: number;
-  compression: boolean;
-  schedule?: {
-    auto: string;
-    cleanup: string;
-  };
-  types?: {
-    emergency?: { maxCount: number; retention: string };
-    manual?: { maxCount: number; retention: string };
-    auto?: { maxCount: number; retention: string };
-  };
-}
-
-export interface MonitoringConfig {
-  enabled: boolean;
-  healthCheck?: {
-    interval: number;
-    endpoints: string[];
-  };
-  metrics?: {
+  audit: {
     enabled: boolean;
-    collectInterval: number;
-    retention: string;
+    level: 'minimal' | 'standard' | 'verbose';
+    retention: number; // days
   };
-  alerts?: {
+  rateLimiting: {
     enabled: boolean;
-    thresholds?: {
-      memoryUsage: number;
-      diskUsage: number;
-      errorRate: number;
-      responseTime: number;
-    };
+    maxRequestsPerMinute: number;
+    maxRequestsPerHour: number;
   };
 }
 
-export interface PerformanceConfig {
-  timeouts?: {
-    default: number;
-    fileOperations: number;
-    databaseOperations: number;
-    semanticSearch: number;
+/**
+ * Security event types for audit logging
+ */
+export type SecurityEventType =
+  | 'authentication'
+  | 'authorization'
+  | 'path_validation'
+  | 'file_access'
+  | 'session_created'
+  | 'session_expired'
+  | 'session_revoked'
+  | 'safe_zone_warning'
+  | 'safe_zone_audit'
+  | 'config_updated'
+  | 'security_violation'
+  | 'rate_limit_exceeded';
+
+/**
+ * Security event data
+ */
+export interface SecurityEvent {
+  type: SecurityEventType;
+  timestamp: number;
+  userId?: string;
+  sessionId?: string;
+  resource: string;
+  action: string;
+  result: 'success' | 'failure' | 'warning';
+  metadata?: Record<string, any>;
+  clientInfo?: {
+    ip?: string;
+    userAgent?: string;
+    origin?: string;
   };
-  rateLimiting?: {
+}
+
+/**
+ * Security middleware configuration
+ */
+export interface SecurityMiddlewareConfig extends SecurityConfig {
+  cors: {
     enabled: boolean;
-    windowMs: number;
-    maxRequests: number;
+    origins: string[];
+    methods: string[];
+    headers: string[];
+  };
+  headers: {
+    contentSecurityPolicy?: string;
+    frameOptions?: string;
+    xssProtection?: string;
   };
 }
 
-// Configuration validation helpers
-export function validateDatabaseConfig(config: any): DatabaseConfig {
-  return {
-    path: config.path || './data/context.db',
-    poolSize: config.poolSize || 5,
-    walMode: config.walMode !== false,
-    cacheSize: config.cacheSize || 64000,
-    backupInterval: config.backupInterval || 14400000, // 4 hours
-    workingDirectory: config.workingDirectory || './data',
-    vacuum: config.vacuum,
-    vectorStorage: config.vectorStorage
-  };
+// Re-export the main enum for convenience
+export { SafeZoneMode as SecurityMode };
+
+// Type guards
+export function isSecurityError(error: unknown): error is SecurityError {
+  return error instanceof SecurityError;
 }
 
-export function validateSecurityConfig(config: any): SecurityConfig {
-  return {
-    allowedPaths: config.allowedPaths || ['./data', './examples'],
-    enableAuditLog: config.enableAuditLog !== false,
-    sessionTimeout: config.sessionTimeout || 3600000,
-    maxFileSize: config.maxFileSize || 10485760,
-    
-    // Command execution security
-    allowedCommands: config.allowedCommands || [
-      'ls', 'cat', 'grep', 'find', 'head', 'tail', 'wc', 'sort', 'uniq'
-    ],
-    
-    // Safe zones configuration
-    safezones: config.safezones || ['./data', './examples', './config'],
-    safeZoneMode: config.safeZoneMode || 'strict',
-    
-    // Restricted zones
-    restrictedZones: config.restrictedZones || [
-      '/etc', '/usr/bin', '/bin', '/boot', '/sys', '/proc'
-    ],
-    
-    // Path validation patterns
-    blockedPathPatterns: config.blockedPathPatterns || [
-      '**/../**', '**/~/**', '**/.ssh/**', '**/passwd', '**/shadow'
-    ],
-    
-    // Argument validation patterns
-    unsafeArgumentPatterns: config.unsafeArgumentPatterns || [
-      ';.*', '\\|.*', '&&.*', '\\$\\(.*\\)', '`.*`', '<.*>', '>.*'
-    ],
-    
-    // Process management limits
-    maxConcurrentProcesses: config.maxConcurrentProcesses || 5,
-    maxProcessMemoryMB: config.maxProcessMemoryMB || 256,
-    maxProcessCpuPercent: config.maxProcessCpuPercent || 80,
-    defaultTimeoutMs: config.defaultTimeoutMs || 30000,
-    maxTimeoutMs: config.maxTimeoutMs || 300000,
-    cleanupIntervalMs: config.cleanupIntervalMs || 60000,
-    resourceCheckIntervalMs: config.resourceCheckIntervalMs || 5000,
-    enableProcessMonitoring: config.enableProcessMonitoring !== false,
-    processKillGracePeriodMs: config.processKillGracePeriodMs || 5000
-  };
+export function isValidSafeZoneMode(mode: string): mode is SafeZoneMode {
+  return Object.values(SafeZoneMode).includes(mode as SafeZoneMode);
 }
 
-// Feature flag helpers
-export interface FeatureFlags {
-  fastmcpIntegration: boolean;
-  semanticMemory: boolean;
-  vectorStorage: boolean;
-  enhancedSecurity: boolean;
-  memoryOptimization: boolean;
-  pluginSystem: boolean;
-  advancedBackup: boolean;
-  realTimeMonitoring: boolean;
-  sessionManagement: boolean;
-  auditLogging: boolean;
-}
-
-export function isFeatureEnabled(features: FeatureFlags, feature: keyof FeatureFlags): boolean {
-  return features[feature] === true;
-}
-
-// Configuration update helpers
-export function mergeConfigs(base: Partial<ServerConfig>, override: Partial<ServerConfig>): ServerConfig {
-  return serverConfigSchema.parse({
-    ...base,
-    ...override,
-    // Deep merge nested objects
-    server: { ...base.server, ...override.server },
-    database: { ...base.database, ...override.database },
-    security: { ...base.security, ...override.security },
-    memory: { ...base.memory, ...override.memory },
-    semanticSearch: { ...base.semanticSearch, ...override.semanticSearch },
-    plugins: { ...base.plugins, ...override.plugins },
-    backup: { ...base.backup, ...override.backup },
-    monitoring: { ...base.monitoring, ...override.monitoring },
-    performance: { ...base.performance, ...override.performance },
-    development: { ...base.development, ...override.development },
-    features: { ...base.features, ...override.features }
-  });
-}
-
-// Security validation helpers
-export function isPathAllowed(path: string, securityConfig: SecurityConfig): boolean {
-  // Check if path is in safe zones
-  const isInSafeZone = securityConfig.safezones.some(zone => 
-    path.startsWith(zone)
-  );
-  
-  // Check if path matches blocked patterns
-  const isBlocked = securityConfig.blockedPathPatterns.some(pattern => {
-    const regex = new RegExp(pattern.replace(/\*\*/g, '.*').replace(/\*/g, '[^/]*'));
-    return regex.test(path);
-  });
-  
-  return isInSafeZone && !isBlocked;
-}
-
-export function isCommandAllowed(command: string, securityConfig: SecurityConfig): boolean {
-  return securityConfig.allowedCommands.includes(command);
-}
-
-export function hasUnsafeArguments(args: string[], securityConfig: SecurityConfig): boolean {
-  const argString = args.join(' ');
-  return securityConfig.unsafeArgumentPatterns.some(pattern => {
-    const regex = new RegExp(pattern);
-    return regex.test(argString);
-  });
+export function isValidSecurityEventType(type: string): type is SecurityEventType {
+  const validTypes: SecurityEventType[] = [
+    'authentication',
+    'authorization',
+    'path_validation',
+    'file_access',
+    'session_created',
+    'session_expired',
+    'session_revoked',
+    'safe_zone_warning',
+    'safe_zone_audit',
+    'config_updated',
+    'security_violation',
+    'rate_limit_exceeded'
+  ];
+  return validTypes.includes(type as SecurityEventType);
 }

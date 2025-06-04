@@ -7,7 +7,7 @@ import { promises as fs, mkdirSync as fsMkdirSync } from 'node:fs'; // Added fsM
 import path from 'node:path';
 import type { IDatabaseHandler, ContextItem, QueryOptions } from '../../core/interfaces/database.interface.js';
 import { logger } from '../../utils/logger.js';
-import type { ServerConfig } from '@infrastructure/config/types.js';
+import type { ServerConfig } from '@infrastructure/config/schema.js'; // Corrected import
 
 interface IntegrityCheckResult {
   isHealthy: boolean;
@@ -34,7 +34,6 @@ export class DatabaseAdapter implements IDatabaseHandler {
   getDatabase(): Database.Database {
     return this.db;
   }
-
 
   constructor(@inject('Config') private config: ServerConfig) {
     this.initializeDatabase(); // This is synchronous

@@ -4,9 +4,10 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { UserConsentService } from '../../src/application/services/user-consent.service.js';
 import type { ISecurityValidator } from '../../src/core/interfaces/security.interface.js';
-import type { ServerConfig } from '../../src/infrastructure/config/types.js';
+import type { ServerConfig } from '../../src/infrastructure/config/schema.js';
 import type { ConsentRequest, ConsentResponse } from '../../src/core/interfaces/consent.interface.js';
 import type { ConsentPlugin } from '../../src/core/interfaces/consent-extended.interface.js';
+import { SafeZoneMode } from '../../src/infrastructure/config/types.js';
 
 // Mock security validator
 const mockSecurityValidator: ISecurityValidator = {
@@ -16,41 +17,154 @@ const mockSecurityValidator: ISecurityValidator = {
     }
     return path;
   },
-  
+
   async validateCommand(command: string, args: string[]): Promise<void> {
     if (command === 'rm' && args.includes('-rf')) {
       throw new Error('Dangerous command blocked');
     }
   },
-  
-  async validateArguments(args: string[]): Promise<void> {
-    // Mock implementation
-  }
+
+  isPathInSafeZone: (path: string) => !path.includes('restricted'),
+  sanitizeInput: (input: string) => input,
+  getSecurityInfo: () => ({
+    safeZones: ['.'],
+    restrictedZones: ['/restricted'],
+    safeZoneMode: 'strict',
+    blockedPatterns: 0
+  }),
+  testPathAccess: async (path: string) => ({
+    allowed: !path.includes('restricted'),
+    reason: path.includes('restricted') ? 'Restricted path' : 'Allowed',
+    resolvedPath: path,
+    inputPath: path
+  })
 };
 
 // Mock server config
 const mockConfig: ServerConfig = {
   server: {
     name: 'test-server',
-    version: '1.0.0'
+    version: '1.0.0',
+    port: 3000,
+    host: 'localhost',
+    transport: 'stdio',
+    workingDirectory: process.cwd(),
+    fastmcp: { enabled: true, sessionTimeout: 86400000, progressReporting: true, authentication: true }
   },
   security: {
     allowedCommands: ['ls', 'cat', 'echo'],
     safezones: ['.', './test'],
     maxExecutionTime: 5000,
-    maxFileSize: 1048576
+    maxFileSize: 1048576,
+    safeZoneMode: SafeZoneMode.STRICT,
+    allowedPaths: [],
+    enableAuditLog: true,
+    sessionTimeout: 86400000,
+    maxSessions: 100,
+    restrictedZones: [],
+    unsafeArgumentPatterns: [],
+    autoExpandSafezones: true,
+    blockedPathPatterns: [],
+    processKillGracePeriodMs: 5000,
+    maxConcurrentProcesses: 5,
+    maxProcessMemoryMB: 512,
+    maxProcessCpuPercent: 80,
+    defaultTimeoutMs: 30000,
+    maxTimeoutMs: 300000,
+    cleanupIntervalMs: 60000,
+    resourceCheckIntervalMs: 5000,
+    enableProcessMonitoring: true
   },
   database: {
     path: './test.db',
-    backupInterval: 3600000
+    backupInterval: 3600000,
+    poolSize: 5,
+    walMode: true,
+    busyTimeout: 30000,
+    cacheSize: 64000,
+    vacuum: { enabled: true, schedule: '0 2 * * *', threshold: 0.3 },
+    vectorStorage: { enabled: true, embeddingDimensions: 384, similarityThreshold: 0.7 }
   },
   logging: {
     level: 'debug',
-    pretty: true
+    pretty: true,
+    file: { enabled: true, path: './logs/server.log', maxSize: 10485760, maxFiles: 5, rotateDaily: true },
+    audit: { enabled: true, path: './logs/audit.log', maxSize: 5242880, maxFiles: 10 }
   },
   performance: {
     maxConcurrency: 10,
-    queueSize: 100
+    queueSize: 100,
+    timeouts: { default: 30000, fileOperations: 60000, databaseOperations: 30000, semanticSearch: 45000 },
+    rateLimiting: { enabled: true, windowMs: 60000, maxRequests: 1000 }
+  },
+  memory: {
+    maxContextTokens: 8192,
+    maxMemoryMB: 512,
+    cacheSize: 1000,
+    gcInterval: 30000,
+    optimizer: { enabled: true, gcThreshold: 0.85, monitoringInterval: 30000, chunkSize: 1024 },
+    embeddingCache: { maxSize: 1000, ttl: 3600000 },
+    relevanceCache: { maxSize: 2000, ttl: 1800000 }
+  },
+  plugins: {
+    directory: './plugins',
+    autoDiscover: true,
+    sandbox: true,
+    maxPlugins: 50,
+    enabled: [],
+    disabled: [],
+    maxLoadTime: 5000,
+    security: { allowNetworkAccess: false, allowFileSystemAccess: false, allowProcessExecution: false }
+  },
+  features: {
+    fastmcpIntegration: true,
+    semanticMemory: true,
+    vectorStorage: true,
+    enhancedSecurity: true,
+    memoryOptimization: true,
+    pluginSystem: false,
+    advancedBackup: true,
+    realTimeMonitoring: true,
+    sessionManagement: true,
+    auditLogging: true
+  },
+  development: {
+    enabled: false,
+    debugMode: false,
+    enableDebugLogs: false,
+    enableProfiler: false,
+    hotReload: false,
+    mockServices: false,
+    testData: { enabled: false, seedDatabase: false },
+    profiling: { enabled: false, samplingRate: 0.1 }
+  },
+  consent: { alwaysAllow: [], alwaysDeny: [], requireConsent: [], policy: {}, settings: {} },
+  ui: { consentPort: 3005 },
+  semanticSearch: {
+    enabled: true,
+    provider: 'tensorflow',
+    model: 'universal-sentence-encoder',
+    batchSize: 32,
+    maxQueryLength: 500,
+    relevanceScoring: { semanticWeight: 0.4, recencyWeight: 0.3, typeWeight: 0.2, accessWeight: 0.1 }
+  },
+  backup: {
+    enabled: true,
+    directory: './backups',
+    maxVersions: 10,
+    compression: true,
+    schedule: { auto: '0 */4 * * *', cleanup: '0 1 * * 0' },
+    types: {
+      emergency: { maxCount: 5, retention: 2592000000 },
+      manual: { maxCount: 20, retention: 7776000000 },
+      auto: { maxCount: 48, retention: 1209600000 }
+    }
+  },
+  monitoring: {
+    enabled: true,
+    healthCheck: { interval: 60000, endpoints: ['database', 'memory', 'filesystem', 'security'] },
+    metrics: { enabled: true, collectInterval: 30000, retention: 86400000 },
+    alerts: { enabled: true, thresholds: { memoryUsage: 0.9, diskUsage: 0.95, errorRate: 0.1, responseTime: 5000 } }
   }
 };
 
@@ -58,12 +172,10 @@ describe('Enhanced User Consent Service', () => {
   let consentService: UserConsentService;
 
   beforeEach(() => {
-    // Create a new instance for each test
     consentService = new UserConsentService(mockSecurityValidator, mockConfig);
   });
 
   afterEach(() => {
-    // Clean up
     consentService.clearHistory();
     consentService.removeAllListeners();
   });
@@ -125,7 +237,6 @@ describe('Enhanced User Consent Service', () => {
         }
       };
 
-      // Mock the risk analysis by listening to internal events
       let riskScore = 0;
       const originalEmit = consentService.emit;
       consentService.emit = jest.fn((event: string, data: any) => {
@@ -135,19 +246,20 @@ describe('Enhanced User Consent Service', () => {
         return originalEmit.call(consentService, event, data);
       }) as any;
 
-      // This should trigger risk analysis
       const response = await Promise.race([
         consentService.requestConsent(highRiskRequest),
         new Promise<ConsentResponse>(resolve => {
-          setTimeout(() => resolve({
-            requestId: 'timeout',
-            decision: 'timeout',
-            timestamp: new Date()
-          }), 100);
+          setTimeout(
+            () =>
+              resolve({
+                requestId: 'timeout',
+                decision: 'timeout',
+                timestamp: new Date()
+              }),
+            100
+          );
         })
       ]);
-
-      // Should be auto-rejected due to high risk
       expect(response.decision).toBe('deny');
     });
 
@@ -169,7 +281,7 @@ describe('Enhanced User Consent Service', () => {
   describe('Trust Level Management', () => {
     it('should track session statistics', () => {
       const stats = consentService.getSessionStats();
-      
+
       expect(stats.sessionId).toBeDefined();
       expect(stats.trustLevel).toBeGreaterThanOrEqual(0);
       expect(stats.trustLevel).toBeLessThanOrEqual(100);
@@ -179,9 +291,7 @@ describe('Enhanced User Consent Service', () => {
 
     it('should adjust trust level based on decisions', async () => {
       const initialStats = consentService.getSessionStats();
-      const initialTrust = initialStats.trustLevel;
 
-      // Make a safe request that should be allowed
       const safeRequest: Omit<ConsentRequest, 'id' | 'timestamp'> = {
         operation: 'file_write',
         severity: 'low',
@@ -200,7 +310,6 @@ describe('Enhanced User Consent Service', () => {
 
   describe('Plugin System', () => {
     it('should register and use consent plugins', async () => {
-      // Create a test plugin
       const testPlugin: ConsentPlugin = {
         name: 'test-plugin',
         async evaluate(request: ConsentRequest) {
@@ -211,10 +320,8 @@ describe('Enhanced User Consent Service', () => {
         }
       };
 
-      // Add the plugin
       consentService.addPlugin(testPlugin);
 
-      // Test that the plugin influences decisions
       const request: Omit<ConsentRequest, 'id' | 'timestamp'> = {
         operation: 'file_delete',
         severity: 'medium',
@@ -223,8 +330,6 @@ describe('Enhanced User Consent Service', () => {
           description: 'Deleting test file'
         }
       };
-
-      // The plugin should add risk score, potentially affecting the decision
       const response = await consentService.requestConsent(request);
       expect(response.decision).toBeDefined();
     });
@@ -232,7 +337,7 @@ describe('Enhanced User Consent Service', () => {
     it('should remove plugins correctly', () => {
       const testPlugin: ConsentPlugin = {
         name: 'removable-plugin',
-        async evaluate(request: ConsentRequest) {
+        async evaluate(_request: ConsentRequest) {
           return { score: 0, reason: 'No risk' };
         }
       };
@@ -248,14 +353,13 @@ describe('Enhanced User Consent Service', () => {
 
   describe('Policy Management', () => {
     it('should update policies correctly', async () => {
-      // Update policy to always allow a specific operation
       consentService.updatePolicy({
         alwaysAllow: ['file_write:./always-allowed.txt']
       });
 
       const request: Omit<ConsentRequest, 'id' | 'timestamp'> = {
         operation: 'file_write',
-        severity: 'high', // High severity but should be allowed by policy
+        severity: 'high',
         details: {
           path: './always-allowed.txt',
           description: 'Writing to always-allowed file'
@@ -267,10 +371,10 @@ describe('Enhanced User Consent Service', () => {
     });
 
     it('should check policy patterns correctly', async () => {
-      const allowResult = await consentService.checkPolicy('file_write', './test.log');
+      const allowResult = consentService.checkPolicy('file_write', './test.log');
       expect(['allow', 'deny', 'ask']).toContain(allowResult);
 
-      const denyResult = await consentService.checkPolicy('command_execute', 'rm -rf /*');
+      const denyResult = consentService.checkPolicy('command_execute', 'rm -rf /*');
       expect(denyResult).toBe('deny');
     });
   });
@@ -296,7 +400,6 @@ describe('Enhanced User Consent Service', () => {
     });
 
     it('should provide audit log access', async () => {
-      // Make a request to generate audit data
       const request: Omit<ConsentRequest, 'id' | 'timestamp'> = {
         operation: 'file_write',
         severity: 'low',
@@ -307,18 +410,15 @@ describe('Enhanced User Consent Service', () => {
       };
 
       await consentService.requestConsent(request);
-
-      // Check audit log
       const auditLog = await consentService.getAuditLog();
       expect(auditLog.length).toBeGreaterThan(0);
-      
+
       const latestEntry = auditLog[auditLog.length - 1];
       expect(latestEntry.request.operation).toBe('file_write');
       expect(latestEntry.response.decision).toBeDefined();
     });
 
     it('should filter audit log correctly', async () => {
-      // Generate some audit data
       await consentService.requestConsent({
         operation: 'file_write',
         severity: 'low',
@@ -331,7 +431,6 @@ describe('Enhanced User Consent Service', () => {
         details: { path: './test2.txt', description: 'Test 2' }
       });
 
-      // Filter by operation
       const writeOperations = await consentService.getAuditLog({
         operation: 'file_write'
       });
@@ -356,8 +455,6 @@ describe('Enhanced User Consent Service', () => {
       };
 
       consentService.updateSettings(newSettings);
-
-      // Settings update should not throw an error
       expect(true).toBe(true);
     });
 
@@ -369,39 +466,36 @@ describe('Enhanced User Consent Service', () => {
           path: './important-data',
           description: 'High-risk operation requiring user consent'
         },
-        timeout: 100 // Very short timeout for testing
+        timeout: 100
       };
 
       const response = await consentService.requestConsent(request);
-      
-      // Should either get a user response or timeout
       expect(['allow', 'deny', 'timeout']).toContain(response.decision);
     });
   });
 
   describe('Event System', () => {
-    it('should emit consent request events', (done) => {
-      consentService.on('consent-request', (data) => {
+    it('should emit consent request events', done => {
+      consentService.on('consent-request', data => {
         expect(data.operation).toBe('file_write');
         expect(data.riskAssessment).toBeDefined();
         done();
       });
 
-      // This should trigger the event (but may be auto-decided)
-      consentService.requestConsent({
-        operation: 'file_write',
-        severity: 'medium',
-        details: {
-          path: './event-test.txt',
-          description: 'Testing event emission'
-        }
-      }).catch(() => {
-        // Ignore the promise - we're testing events
-      });
+      consentService
+        .requestConsent({
+          operation: 'file_write',
+          severity: 'medium',
+          details: {
+            path: './event-test.txt',
+            description: 'Testing event emission'
+          }
+        })
+        .catch(() => {});
     });
 
-    it('should handle policy updates', (done) => {
-      consentService.on('policy-updated', (policy) => {
+    it('should handle policy updates', done => {
+      consentService.on('policy-updated', policy => {
         expect(policy.defaultTimeout).toBe(60000);
         done();
       });

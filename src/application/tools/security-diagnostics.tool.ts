@@ -312,6 +312,7 @@ export class SecurityDiagnosticsTool implements IMCPTool {
 
     const expandedSafeZones: SafeZoneDetails[] = [];
     for (const zone of securityInfo.safeZones) {
+      // zone is string here
       try {
         const resolvedZone = path.resolve(zone);
         const exists = await fs
@@ -373,6 +374,7 @@ export class SecurityDiagnosticsTool implements IMCPTool {
 
     const expandedRestrictedZones: RestrictedZoneDetails[] = [];
     for (const zone of securityInfo.restrictedZones) {
+      // zone is string here
       try {
         if (zone.includes('*')) {
           expandedRestrictedZones.push({
@@ -431,9 +433,11 @@ export class SecurityDiagnosticsTool implements IMCPTool {
 
     const cwd = process.cwd();
     const isCwdSafe = serverConfigSecurity.safezones.some(
-      zone =>
+      (
+        zone: string // Explicitly type zone
+      ) =>
         path.resolve(zone) === cwd ||
-        (serverConfigSecurity.safeZoneMode === 'recursive' && cwd.startsWith(path.resolve(zone) + path.sep))
+        (serverConfigSecurity.safeZoneMode === 'permissive' && cwd.startsWith(path.resolve(zone) + path.sep))
     );
 
     if (!isCwdSafe) {
@@ -458,9 +462,11 @@ export class SecurityDiagnosticsTool implements IMCPTool {
           .catch(() => false);
         if (exists) {
           const isDirSafe = serverConfigSecurity.safezones.some(
-            zone =>
+            (
+              zone: string // Explicitly type zone
+            ) =>
               path.resolve(zone) === path.resolve(dir) ||
-              (serverConfigSecurity.safeZoneMode === 'recursive' &&
+              (serverConfigSecurity.safeZoneMode === 'permissive' &&
                 path.resolve(dir).startsWith(path.resolve(zone) + path.sep))
           );
           if (!isDirSafe) {
@@ -474,7 +480,11 @@ export class SecurityDiagnosticsTool implements IMCPTool {
       }
     }
 
-    if (serverConfigSecurity.allowedCommands === 'all') {
+    if (
+      Array.isArray(serverConfigSecurity.allowedCommands)
+        ? serverConfigSecurity.allowedCommands.includes('all')
+        : serverConfigSecurity.allowedCommands === 'all'
+    ) {
       warnings.push(
         '⚠️  Security Risk: `allowedCommands` is set to "all". This is highly discouraged for production. Specify an explicit list of commands.'
       );

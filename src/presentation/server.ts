@@ -1,4 +1,4 @@
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { Server } from '@modelcontextprotocol/sdk/server/index.js'; // Corrected 'mport' to 'import'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
   ListToolsRequestSchema,
@@ -14,7 +14,7 @@ import type { IToolRegistry } from '../core/interfaces/tool-registry.interface.j
 import type { IResourceRegistry } from '../core/interfaces/resource-registry.interface.js';
 import type { IPromptRegistry } from '../core/interfaces/prompt-registry.interface.js';
 import { logger } from '../utils/logger.js';
-import type { ServerConfig } from '../infrastructure/config/types.js';
+import type { ServerConfig } from '../infrastructure/config/schema.js'; // Corrected import
 
 export class MCPContextServer {
   private mcpServer: Server;

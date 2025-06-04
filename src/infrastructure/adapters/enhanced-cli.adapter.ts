@@ -6,7 +6,7 @@ import { EventEmitter } from 'node:events';
 import type { ICLIHandler, CommandResult, CommandOptions } from '@core/interfaces/cli.interface.js';
 import type { ISecurityValidator } from '@core/interfaces/security.interface.js';
 import { logger } from '../../utils/logger.js';
-import type { ServerConfig } from '../../infrastructure/config/types.js';
+import type { ServerConfig } from '../../infrastructure/config/schema.js'; // Corrected import
 import os from 'node:os';
 
 interface ProcessInfo {
@@ -250,8 +250,8 @@ export class EnhancedCLIAdapter extends EventEmitter implements ICLIHandler {
   }
 
   private getShellInfo(
-    command: string,
-    args: string[],
+    _command: string, // _command is unused
+    _args: string[], // _args is unused
     options: CommandOptions
   ): {
     command: string;
@@ -263,13 +263,13 @@ export class EnhancedCLIAdapter extends EventEmitter implements ICLIHandler {
     if (platform === 'win32') {
       return {
         command: 'cmd.exe',
-        args: ['/c', command, ...args],
+        args: ['/c'], // Command and args will be combined later
         env: options.env
       };
     } else {
       return {
         command: '/bin/sh',
-        args: ['-c', `${command} ${args.join(' ')}`],
+        args: ['-c'], // Command and args will be combined later
         env: options.env
       };
     }
@@ -436,7 +436,8 @@ export class EnhancedCLIAdapter extends EventEmitter implements ICLIHandler {
   }
 
   private async monitorResourceUsage(): Promise<void> {
-    for (const [processId, processInfo] of this.processes) {
+    for (const [_processId, processInfo] of this.processes) {
+      // processId unused
       if (processInfo.status !== 'running') continue;
 
       try {
@@ -448,15 +449,15 @@ export class EnhancedCLIAdapter extends EventEmitter implements ICLIHandler {
         // Check memory limits
         if (usage.memory > processInfo.maxMemoryMB) {
           logger.warn(
-            `Process ${processId} exceeded memory limit (${usage.memory}MB > ${processInfo.maxMemoryMB}MB), killing...`
+            `Process ${processInfo.id} exceeded memory limit (${usage.memory}MB > ${processInfo.maxMemoryMB}MB), killing...`
           );
-          this.forceKillProcess(processId);
+          this.forceKillProcess(processInfo.id);
           continue;
         }
 
         // Check CPU limits (warning only, don't kill)
         if (usage.cpu > processInfo.maxCpuPercent) {
-          logger.warn(`Process ${processId} high CPU usage: ${usage.cpu.toFixed(1)}%`);
+          logger.warn(`Process ${processInfo.id} high CPU usage: ${usage.cpu.toFixed(1)}%`);
         }
       } catch (error) {
         // Process might have ended, ignore monitoring errors

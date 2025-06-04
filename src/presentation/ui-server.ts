@@ -8,10 +8,10 @@ import { readFileSync, promises as fs } from 'fs';
 import { join, resolve, dirname } from 'path';
 import { homedir, platform } from 'os';
 import * as yaml from 'yaml';
-// import type { Container } from 'inversify'; // No longer needed here
-import type { ServerConfig } from '../infrastructure/config/types.js';
+import type { ServerConfig } from '../infrastructure/config/schema.js';
 import { logger } from '../utils/logger.js';
-import { configSchema } from '../infrastructure/config/loader.js';
+import { configSchema } from '../infrastructure/config/schema.js';
+import { SafeZoneMode } from '../infrastructure/config/types.js';
 
 interface ClaudeDesktopServerEntry {
   command: string;
@@ -23,7 +23,143 @@ interface ClaudeDesktopConfig {
   mcpServers?: Record<string, ClaudeDesktopServerEntry>;
 }
 
-interface CompleteServerConfig extends ServerConfig {}
+const getDefaultConfig = (): ServerConfig => {
+  try {
+    return configSchema.parse({});
+  } catch (e) {
+    logger.error({ error: e }, 'Failed to parse default config with Zod, returning comprehensive hardcoded minimum.');
+    // This fallback MUST match the ServerConfig structure perfectly, including all defaults.
+    // It's safer to ensure configSchema.parse({}) works or handle its failure more critically.
+    // For brevity, the previous comprehensive fallback is assumed. If errors persist here,
+    // this fallback needs to be an exact replica of a configSchema.parse({}) output.
+    return {
+      server: {
+        name: 'context-savy-server',
+        version: '2.0.0',
+        port: 3000,
+        host: 'localhost',
+        transport: 'stdio',
+        workingDirectory: process.cwd(),
+        fastmcp: { enabled: true, sessionTimeout: 86400000, progressReporting: true, authentication: true }
+      },
+      security: {
+        safeZoneMode: SafeZoneMode.RECURSIVE,
+        allowedPaths: ['./data', './examples'],
+        maxFileSize: 10485760,
+        enableAuditLog: true,
+        sessionTimeout: 86400000,
+        maxSessions: 100,
+        allowedCommands: ['echo', 'ls', 'cat'],
+        restrictedZones: [],
+        safezones: ['.'],
+        maxExecutionTime: 30000,
+        unsafeArgumentPatterns: [],
+        autoExpandSafezones: true,
+        blockedPathPatterns: [],
+        processKillGracePeriodMs: 5000,
+        maxConcurrentProcesses: 5,
+        maxProcessMemoryMB: 512,
+        maxProcessCpuPercent: 80,
+        defaultTimeoutMs: 30000,
+        maxTimeoutMs: 300000,
+        cleanupIntervalMs: 60000,
+        resourceCheckIntervalMs: 5000,
+        enableProcessMonitoring: true
+      },
+      database: {
+        path: './data/context.db',
+        poolSize: 5,
+        walMode: true,
+        busyTimeout: 30000,
+        cacheSize: 64000,
+        backupInterval: 60,
+        vacuum: { enabled: true, schedule: '0 2 * * *', threshold: 0.3 },
+        vectorStorage: { enabled: true, embeddingDimensions: 384, similarityThreshold: 0.7 }
+      },
+      memory: {
+        maxContextTokens: 8192,
+        maxMemoryMB: 512,
+        cacheSize: 1000,
+        gcInterval: 30000,
+        optimizer: { enabled: true, gcThreshold: 0.85, monitoringInterval: 30000, chunkSize: 1024 },
+        embeddingCache: { maxSize: 1000, ttl: 3600000 },
+        relevanceCache: { maxSize: 2000, ttl: 1800000 }
+      },
+      plugins: {
+        directory: './plugins',
+        autoDiscover: true,
+        sandbox: true,
+        maxPlugins: 50,
+        enabled: [],
+        disabled: [],
+        maxLoadTime: 5000,
+        security: { allowNetworkAccess: false, allowFileSystemAccess: false, allowProcessExecution: false }
+      },
+      logging: {
+        level: 'info',
+        pretty: true,
+        file: { enabled: true, path: './logs/server.log', maxSize: 10485760, maxFiles: 5, rotateDaily: true },
+        audit: { enabled: true, path: './logs/audit.log', maxSize: 5242880, maxFiles: 10 }
+      },
+      performance: {
+        maxConcurrency: 10,
+        queueSize: 1000,
+        timeouts: { default: 30000, fileOperations: 60000, databaseOperations: 30000, semanticSearch: 45000 },
+        rateLimiting: { enabled: true, windowMs: 60000, maxRequests: 1000 }
+      },
+      features: {
+        fastmcpIntegration: true,
+        semanticMemory: true,
+        vectorStorage: true,
+        enhancedSecurity: true,
+        memoryOptimization: true,
+        pluginSystem: false,
+        advancedBackup: true,
+        realTimeMonitoring: true,
+        sessionManagement: true,
+        auditLogging: true
+      },
+      development: {
+        enabled: false,
+        debugMode: false,
+        enableDebugLogs: false,
+        enableProfiler: false,
+        hotReload: false,
+        mockServices: false,
+        testData: { enabled: false, seedDatabase: false },
+        profiling: { enabled: false, samplingRate: 0.1 }
+      },
+      consent: { alwaysAllow: [], alwaysDeny: [], requireConsent: [], policy: {}, settings: {} },
+      ui: { consentPort: 3003 },
+      semanticSearch: {
+        enabled: true,
+        provider: 'tensorflow',
+        model: 'universal-sentence-encoder',
+        batchSize: 32,
+        maxQueryLength: 500,
+        relevanceScoring: { semanticWeight: 0.4, recencyWeight: 0.3, typeWeight: 0.2, accessWeight: 0.1 }
+      },
+      backup: {
+        enabled: true,
+        directory: './backups',
+        maxVersions: 10,
+        compression: true,
+        schedule: { auto: '0 */4 * * *', cleanup: '0 1 * * 0' },
+        types: {
+          emergency: { maxCount: 5, retention: 2592000000 },
+          manual: { maxCount: 20, retention: 7776000000 },
+          auto: { maxCount: 48, retention: 1209600000 }
+        }
+      },
+      monitoring: {
+        enabled: true,
+        healthCheck: { interval: 60000, endpoints: ['database', 'memory', 'filesystem', 'security'] },
+        metrics: { enabled: true, collectInterval: 30000, retention: 86400000 },
+        alerts: { enabled: true, thresholds: { memoryUsage: 0.9, diskUsage: 0.95, errorRate: 0.1, responseTime: 5000 } }
+      }
+    };
+  }
+};
 
 // Helper function to get Claude Desktop config path
 function getClaudeDesktopConfigPathInternal(): string {
@@ -45,20 +181,13 @@ export class UIServer {
   private projectRoot: string;
 
   constructor(
-    // Container removed as it's not used by UIServer directly
-    // private container: Container,
-    _initialConfig: ServerConfig,
+    _initialConfigUnused: ServerConfig,
     private port: number = 3001
   ) {
-    // Determine project root relative to this file's location
-    // Assumes this file is in src/presentation/ and project root is two levels up.
-    // Using import.meta.url requires Node.js to be in ESM mode for this file.
     let currentFilePath = '';
     try {
       currentFilePath = dirname(decodeURI(new URL(import.meta.url).pathname));
     } catch (e) {
-      // Fallback for environments where import.meta.url might not behave as expected
-      // or if running in a context where it's not available (e.g. certain bundlers/transpilers without proper config)
       currentFilePath = __dirname;
       logger.warn('Using __dirname as fallback for UIServer path resolution. Ensure ESM context if issues arise.');
     }
@@ -172,7 +301,6 @@ export class UIServer {
       }
 
       if (url.pathname === '/api/claude-config/remove' && req.method === 'POST') {
-        // New endpoint for removal
         let body = '';
         req.on('data', chunk => {
           body += chunk.toString();
@@ -212,7 +340,7 @@ export class UIServer {
         });
         req.on('end', async () => {
           try {
-            const newConfigPartial = JSON.parse(body) as Partial<CompleteServerConfig>;
+            const newConfigPartial = JSON.parse(body) as Partial<ServerConfig>;
             const result = await this.saveServerConfig(newConfigPartial);
             res.writeHead(200);
             res.end(JSON.stringify(result));
@@ -387,20 +515,20 @@ export class UIServer {
     }
   }
 
-  private async getServerConfig(): Promise<{ exists: boolean; config?: CompleteServerConfig; error?: string }> {
+  private async getServerConfig(): Promise<{ exists: boolean; config?: ServerConfig; error?: string }> {
     try {
       await fs.access(this.serverConfigPath);
       const configContent = await fs.readFile(this.serverConfigPath, 'utf8');
-      const configData = yaml.parse(configContent) as CompleteServerConfig;
+      const configData = yaml.parse(configContent) as ServerConfig;
 
-      if (!configData.security.unsafeArgumentPatterns) {
-        configData.security.unsafeArgumentPatterns = configSchema.get('security.unsafeArgumentPatterns') as string[];
+      if (configData.security && !configData.security.unsafeArgumentPatterns) {
+        configData.security.unsafeArgumentPatterns = [];
       }
 
       return { exists: true, config: configData };
     } catch (error) {
       if ((error as { code?: string }).code === 'ENOENT') {
-        const defaults = configSchema.getProperties() as CompleteServerConfig;
+        const defaults = getDefaultConfig();
         return { exists: false, config: defaults };
       }
       logger.error({ error, path: this.serverConfigPath }, 'Failed to read server config');
@@ -409,33 +537,45 @@ export class UIServer {
   }
 
   private async saveServerConfig(
-    newConfigPartial: Partial<CompleteServerConfig>
+    newConfigPartial: Partial<ServerConfig>
   ): Promise<{ success: boolean; error?: string }> {
     try {
       const currentResult = await this.getServerConfig();
-      const currentConfigData = currentResult.config || (configSchema.getProperties() as CompleteServerConfig);
+      const currentConfigData = currentResult.config || getDefaultConfig();
 
-      const mergedConfig: CompleteServerConfig = {
+      // Construct a raw merged object first
+      const rawMerged = {
         ...currentConfigData,
         ...newConfigPartial,
         server: { ...currentConfigData.server, ...newConfigPartial.server },
         security: { ...currentConfigData.security, ...newConfigPartial.security },
         database: { ...currentConfigData.database, ...newConfigPartial.database },
         logging: { ...currentConfigData.logging, ...newConfigPartial.logging },
-        performance: { ...currentConfigData.performance, ...newConfigPartial.performance }
+        performance: { ...currentConfigData.performance, ...newConfigPartial.performance },
+        features: { ...(currentConfigData.features || {}), ...(newConfigPartial.features || {}) }, // Handle if features is undefined
+        memory: { ...currentConfigData.memory, ...newConfigPartial.memory },
+        plugins: { ...currentConfigData.plugins, ...newConfigPartial.plugins },
+        development: { ...currentConfigData.development, ...newConfigPartial.development },
+        consent: { ...currentConfigData.consent, ...newConfigPartial.consent },
+        ui: { ...currentConfigData.ui, ...newConfigPartial.ui },
+        semanticSearch: { ...currentConfigData.semanticSearch, ...newConfigPartial.semanticSearch },
+        backup: { ...currentConfigData.backup, ...newConfigPartial.backup },
+        monitoring: { ...currentConfigData.monitoring, ...newConfigPartial.monitoring }
       };
 
-      if (newConfigPartial.security && newConfigPartial.security.unsafeArgumentPatterns === undefined) {
-        mergedConfig.security.unsafeArgumentPatterns =
-          currentConfigData.security.unsafeArgumentPatterns ||
-          (configSchema.get('security.unsafeArgumentPatterns') as string[]);
-      } else if (newConfigPartial.security && !Array.isArray(newConfigPartial.security.unsafeArgumentPatterns)) {
-        mergedConfig.security.unsafeArgumentPatterns = configSchema.get('security.unsafeArgumentPatterns') as string[];
+      // Ensure unsafeArgumentPatterns is an array
+      if (rawMerged.security && rawMerged.security.unsafeArgumentPatterns === undefined) {
+        rawMerged.security.unsafeArgumentPatterns = currentConfigData.security?.unsafeArgumentPatterns || [];
+      } else if (rawMerged.security && !Array.isArray(rawMerged.security.unsafeArgumentPatterns)) {
+        rawMerged.security.unsafeArgumentPatterns = [];
       }
+
+      // Validate and apply defaults using the Zod schema
+      const validatedAndDefaultedConfig = configSchema.parse(rawMerged);
 
       const configDir = dirname(this.serverConfigPath);
       await fs.mkdir(configDir, { recursive: true });
-      const configContent = yaml.stringify(mergedConfig);
+      const configContent = yaml.stringify(validatedAndDefaultedConfig);
       await fs.writeFile(this.serverConfigPath, configContent, 'utf8');
       logger.info({ path: this.serverConfigPath }, 'Server configuration saved');
       return { success: true };

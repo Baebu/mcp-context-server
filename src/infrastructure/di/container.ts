@@ -21,8 +21,8 @@ import { ResourceRegistry } from '../../application/services/resource-registry.s
 import { PromptRegistry } from '../../application/services/prompt-registry.service.js';
 import { FilesystemAdapter } from '../adapters/filesystem.adapter.js';
 import { DatabaseAdapter } from '../adapters/database.adapter.js';
-import { EnhancedCLIAdapter } from '../adapters/enhanced-cli.adapter.js';  // Updated to use Enhanced CLI
-import { SecurityValidator } from '../../application/services/security-validator.service.js';
+import { EnhancedCLIAdapter } from '../adapters/enhanced-cli.adapter.js'; // Updated to use Enhanced CLI
+import { SecurityValidatorService } from '../../application/services/security-validator.service.js'; // Corrected class name
 import { SmartPathManager } from '../../application/services/smart-path-manager.service.js';
 import { UserConsentService } from '../../application/services/user-consent.service.js';
 import { WorkspaceManager } from '../../application/services/workspace-manager.service.js';
@@ -69,10 +69,10 @@ container.bind<IPromptRegistry>('PromptRegistry').to(PromptRegistry).inSingleton
 // Infrastructure adapters
 container.bind<IFilesystemHandler>('FilesystemHandler').to(FilesystemAdapter).inSingletonScope();
 container.bind<IDatabaseHandler>('DatabaseHandler').to(DatabaseAdapter).inSingletonScope();
-container.bind<ICLIHandler>('CLIHandler').to(EnhancedCLIAdapter).inSingletonScope();  // Updated to Enhanced CLI
+container.bind<ICLIHandler>('CLIHandler').to(EnhancedCLIAdapter).inSingletonScope(); // Updated to Enhanced CLI
 
 // Application services
-container.bind<ISecurityValidator>('SecurityValidator').to(SecurityValidator).inSingletonScope();
+container.bind<ISecurityValidator>('SecurityValidator').to(SecurityValidatorService).inSingletonScope(); // Corrected class name
 container.bind<ISmartPathManager>('SmartPathManager').to(SmartPathManager).inSingletonScope();
 container.bind<IUserConsentService>('UserConsentService').to(UserConsentService).inSingletonScope();
 container.bind<IWorkspaceManager>('WorkspaceManager').to(WorkspaceManager).inSingletonScope();

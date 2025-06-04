@@ -10,9 +10,9 @@
 import 'reflect-metadata';
 import { Container } from 'inversify';
 import { UIServer } from '../src/presentation/ui-server.js';
-import { loadConfig, configSchema } from '../src/infrastructure/config/config-loader.js'; // Import configSchema
+import { loadConfig, configSchema } from '../src/infrastructure/config/schema.js';
 import { logger } from '../src/utils/logger.js';
-import type { ServerConfig } from '../src/infrastructure/config/types.js';
+import type { ServerConfig } from '../src/infrastructure/config/schema.js';
 
 async function startConfigUI() {
   try {
@@ -23,15 +23,13 @@ async function startConfigUI() {
       config = await loadConfig();
     } catch (error) {
       logger.warn('Using default configuration for UI server as loadConfig failed.');
-      // Use defaults from the convict schema if loading fails
-      config = configSchema.getProperties() as ServerConfig;
+      config = configSchema.parse({});
     }
 
     const container = new Container();
     container.bind('Config').toConstantValue(config);
 
-    // Assuming UIServer expects (config: ServerConfig, port?: number)
-    const uiServer = new UIServer(config); // Remove 'container' argument
+    const uiServer = new UIServer(config);
     uiServer.start();
 
     const shutdown = () => {

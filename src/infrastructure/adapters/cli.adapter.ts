@@ -7,7 +7,7 @@ import type { ISecurityValidator } from '@core/interfaces/security.interface.js'
 import { logger } from '../../utils/logger.js';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import type { ServerConfig } from '../../infrastructure/config/types.js';
+import type { ServerConfig, SecurityConfig as AppSecurityConfig } from '../../infrastructure/config/schema.js'; // Use AppSecurityConfig
 import os from 'node:os';
 
 interface ShellInfo {
@@ -193,12 +193,15 @@ export class SecurityValidator implements ISecurityValidator {
   private allowedCommands: Set<string>;
   private safeZones: string[];
   private dangerousPatterns: RegExp[];
+  private securitySettings: AppSecurityConfig; // Use the imported SecurityConfig type
 
-  constructor(@inject('Config') private config: ServerConfig) {
+  constructor(@inject('Config') config: ServerConfig) {
+    // Inject full ServerConfig
+    this.securitySettings = config.security; // Store only the security part
     this.allowedCommands = new Set(
-      Array.isArray(this.config.security.allowedCommands) ? this.config.security.allowedCommands : []
+      Array.isArray(this.securitySettings.allowedCommands) ? this.securitySettings.allowedCommands : []
     );
-    this.safeZones = this.config.security.safezones.map((zone: string) => path.resolve(zone));
+    this.safeZones = this.securitySettings.safezones.map((zone: string) => path.resolve(zone));
 
     // Enhanced dangerous pattern detection
     this.dangerousPatterns = [
@@ -217,6 +220,16 @@ export class SecurityValidator implements ISecurityValidator {
       /\|\s*sh/i, // Piping to shell
       />\s*\/dev\//i // Writing to device files
     ];
+    // Add patterns from config if they exist
+    if (this.securitySettings.unsafeArgumentPatterns) {
+      this.securitySettings.unsafeArgumentPatterns.forEach(p => {
+        try {
+          this.dangerousPatterns.push(new RegExp(p, 'i'));
+        } catch (e) {
+          logger.warn({ pattern: p, error: e }, 'Invalid regex pattern in unsafeArgumentPatterns from config');
+        }
+      });
+    }
   }
 
   async validatePath(inputPath: string): Promise<string> {
@@ -224,7 +237,14 @@ export class SecurityValidator implements ISecurityValidator {
     const canonicalPath = await fs.realpath(resolvedPath).catch(() => resolvedPath);
 
     if (!this.isPathInSafeZone(canonicalPath)) {
-      throw new Error(`Path access denied: ${inputPath}`);
+      throw new Error(`Path access denied: ${inputPath} is not within configured safe zones.`);
+    }
+    // Check against blockedPathPatterns
+    if (
+      this.securitySettings.blockedPathPatterns &&
+      this.securitySettings.blockedPathPatterns.some(pattern => new RegExp(pattern).test(canonicalPath))
+    ) {
+      throw new Error(`Path access denied: ${inputPath} matches a blocked pattern.`);
     }
 
     return canonicalPath;
@@ -232,29 +252,39 @@ export class SecurityValidator implements ISecurityValidator {
 
   isPathInSafeZone(testPath: string): boolean {
     const resolvedPath = path.resolve(testPath);
-    return this.safeZones.some(zone => resolvedPath.startsWith(zone));
+    // Check restricted zones first
+    if (
+      this.securitySettings.restrictedZones &&
+      this.securitySettings.restrictedZones.some(zone => resolvedPath.startsWith(path.resolve(zone)))
+    ) {
+      return false;
+    }
+    // Check safe zones
+    return this.safeZones.some(zone => {
+      if (this.securitySettings.safeZoneMode === 'recursive') {
+        return resolvedPath.startsWith(zone);
+      }
+      return resolvedPath === zone;
+    });
   }
 
   sanitizeInput(input: string): string {
     return input
-      .replace(/[<>:"'|?*]/g, '') // Remove potentially dangerous characters
-      .replace(/\.\./g, '') // Remove directory traversal attempts
+      .replace(/[<>:"'|?*]/g, '')
+      .replace(/\.\./g, '')
       .trim();
   }
 
   async validateCommand(command: string, args: string[]): Promise<void> {
-    // Check if all commands are allowed
-    if (this.allowedCommands.has('all')) {
+    if (this.securitySettings.allowedCommands === 'all') {
       logger.warn('All commands allowed - this is dangerous for production');
       return;
     }
 
-    // Validate base command
     if (!this.allowedCommands.has(command)) {
       throw new Error(`Command not allowed: ${command}`);
     }
 
-    // Enhanced validation for dangerous patterns
     const fullCommand = `${command} ${args.join(' ')}`;
 
     for (const pattern of this.dangerousPatterns) {
@@ -262,15 +292,11 @@ export class SecurityValidator implements ISecurityValidator {
         throw new Error(`Potentially dangerous command blocked: ${command}`);
       }
     }
-
-    // Shell-specific validations
     await this.validateShellSpecific(command, args);
-
     logger.debug({ command, args }, 'Command validated successfully');
   }
 
   private async validateShellSpecific(command: string, args: string[]): Promise<void> {
-    // PowerShell specific validations
     if (command.toLowerCase().includes('powershell')) {
       const blockedCmdlets = [
         'Invoke-Expression',
@@ -279,31 +305,61 @@ export class SecurityValidator implements ISecurityValidator {
         'Remove-Item',
         'Set-ExecutionPolicy'
       ];
-
       const argsString = args.join(' ');
       for (const cmdlet of blockedCmdlets) {
-        if (argsString.includes(cmdlet)) {
-          throw new Error(`Blocked PowerShell cmdlet: ${cmdlet}`);
-        }
+        if (argsString.includes(cmdlet)) throw new Error(`Blocked PowerShell cmdlet: ${cmdlet}`);
       }
     }
 
-    // Bash/sh specific validations
     if (['bash', 'sh', 'zsh'].includes(command)) {
-      const blockedFeatures = [
-        'eval',
-        'exec',
-        'source',
-        '$((', // Arithmetic expansion
-        '$[' // Old arithmetic expansion
-      ];
-
+      const blockedFeatures = ['eval', 'exec', 'source', '$((', '$['];
       const argsString = args.join(' ');
       for (const feature of blockedFeatures) {
-        if (argsString.includes(feature)) {
-          throw new Error(`Blocked shell feature: ${feature}`);
-        }
+        if (argsString.includes(feature)) throw new Error(`Blocked shell feature: ${feature}`);
       }
+    }
+  }
+  // Implementation for getSecurityInfo
+  getSecurityInfo(): { safeZones: string[]; restrictedZones: string[]; safeZoneMode: string; blockedPatterns: number } {
+    return {
+      safeZones: this.securitySettings.safezones,
+      restrictedZones: this.securitySettings.restrictedZones,
+      safeZoneMode: this.securitySettings.safeZoneMode,
+      blockedPatterns: this.securitySettings.blockedPathPatterns.length
+    };
+  }
+
+  // Implementation for testPathAccess
+  async testPathAccess(inputPath: string): Promise<{
+    allowed: boolean;
+    reason: string;
+    resolvedPath: string;
+    inputPath?: string | undefined;
+    matchedSafeZone?: string | undefined;
+    matchedRestrictedZone?: string | undefined;
+  }> {
+    try {
+      const resolvedPath = await this.validatePath(inputPath); // This will throw if not allowed
+      const matchedSafeZone = this.safeZones.find(zone => resolvedPath.startsWith(zone));
+      return {
+        allowed: true,
+        reason: 'Path is within a safe zone and not restricted.',
+        resolvedPath,
+        inputPath,
+        matchedSafeZone
+      };
+    } catch (error) {
+      const resolvedPathAttempt = path.resolve(inputPath);
+      const matchedRestrictedZone = this.securitySettings.restrictedZones.find(zone =>
+        resolvedPathAttempt.startsWith(path.resolve(zone))
+      );
+      return {
+        allowed: false,
+        reason: error instanceof Error ? error.message : 'Path access denied for an unknown reason.',
+        resolvedPath: resolvedPathAttempt,
+        inputPath,
+        matchedRestrictedZone
+      };
     }
   }
 }
