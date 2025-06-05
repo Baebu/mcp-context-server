@@ -11,6 +11,8 @@ import type {
 import type { IDatabaseHandler } from '../../core/interfaces/database.interface.js';
 import type { IFilesystemHandler } from '../../core/interfaces/filesystem.interface.js';
 import { logger } from '../../utils/logger.js';
+import { EmbeddingService } from './embedding.service.js'; // Import EmbeddingService
+import { SemanticDatabaseExtension } from '../../infrastructure/adapters/semantic-database.extension.js'; // Import SemanticDatabaseExtension
 
 interface DatabaseRow {
   id: string;
@@ -36,7 +38,7 @@ interface ItemBundleDefinition {
 
 interface QueryTemplateDefinition {
   query?: string;
-  queryType?: 'key_pattern' | 'type_filter' | 'combined'; // NEW: Restrict query types
+  queryType?: 'key_pattern' | 'type_filter' | 'combined' | 'semantic_search' | 'time_range_filter' | 'tag_filter'; // NEW: Restrict query types
   allowedParams?: string[]; // NEW: Whitelist allowed parameters
   metadata?: Record<string, unknown>;
 }
@@ -54,12 +56,18 @@ export class SmartPathManager implements ISmartPathManager {
   private readonly ALLOWED_QUERY_PATTERNS = {
     key_pattern: 'SELECT * FROM context_items WHERE key LIKE ? ORDER BY updated_at DESC LIMIT ?',
     type_filter: 'SELECT * FROM context_items WHERE type = ? ORDER BY updated_at DESC LIMIT ?',
-    combined: 'SELECT * FROM context_items WHERE key LIKE ? AND type = ? ORDER BY updated_at DESC LIMIT ?'
+    combined: 'SELECT * FROM context_items WHERE key LIKE ? AND type = ? ORDER BY updated_at DESC LIMIT ?',
+    // Updated SQL for new query types to reflect actual filtering logic
+    semantic_search:
+      'SELECT key, value, type, context_type, embedding, semantic_tags, updated_at FROM context_items WHERE embedding IS NOT NULL', // Semantic search will filter by similarity in code
+    time_range_filter: 'SELECT * FROM context_items WHERE updated_at BETWEEN ? AND ? ORDER BY updated_at DESC LIMIT ?',
+    tag_filter: 'SELECT * FROM context_items WHERE semantic_tags LIKE ? ORDER BY updated_at DESC LIMIT ?'
   };
 
   constructor(
     @inject('DatabaseHandler') private db: IDatabaseHandler,
-    @inject('FilesystemHandler') private filesystem: IFilesystemHandler
+    @inject('FilesystemHandler') private filesystem: IFilesystemHandler,
+    @inject('EmbeddingService') private embeddingService: EmbeddingService // Inject EmbeddingService
   ) {}
 
   async create(definition: SmartPathDefinition): Promise<string> {
@@ -137,15 +145,23 @@ export class SmartPathManager implements ISmartPathManager {
 
   // NEW: Validate query template definitions for security
   private validateQueryTemplateDefinition(definition: QueryTemplateDefinition): void {
-    if (!definition.queryType || !this.ALLOWED_QUERY_PATTERNS[definition.queryType]) {
-      throw new Error(
-        `Invalid or missing queryType. Must be one of: ${Object.keys(this.ALLOWED_QUERY_PATTERNS).join(', ')}`
-      );
+    if (!definition.queryType || !this.ALLOWED_QUERY_PATTERNS_KEYS.includes(definition.queryType)) {
+      throw new Error(`Invalid or missing queryType. Must be one of: ${this.ALLOWED_QUERY_PATTERNS_KEYS.join(', ')}`);
     }
 
     // Validate allowed parameters
     if (definition.allowedParams) {
-      const allowedParamNames = ['keyPattern', 'type', 'limit'];
+      const allowedParamNames = [
+        'keyPattern',
+        'type',
+        'limit',
+        'query',
+        'from',
+        'to',
+        'tag',
+        'minSimilarity',
+        'contextTypes'
+      ]; // Added new params
       for (const param of definition.allowedParams) {
         if (!allowedParamNames.includes(param)) {
           throw new Error(`Parameter '${param}' is not allowed. Allowed parameters: ${allowedParamNames.join(', ')}`);
@@ -154,6 +170,10 @@ export class SmartPathManager implements ISmartPathManager {
     }
 
     logger.debug({ queryType: definition.queryType }, 'Query template validated');
+  }
+
+  private get ALLOWED_QUERY_PATTERNS_KEYS(): string[] {
+    return Object.keys(this.ALLOWED_QUERY_PATTERNS);
   }
 
   private async executeItemBundle(
@@ -173,32 +193,59 @@ export class SmartPathManager implements ISmartPathManager {
     return { items, count: items.length };
   }
 
-  // FIXED: Secure query template execution with parameterized queries
   private async executeQueryTemplate(
     definition: QueryTemplateDefinition,
     params: Record<string, unknown>
   ): Promise<{ queryType: string; items: unknown[]; count: number; appliedParams: Record<string, unknown> }> {
-    if (!definition.queryType || !this.ALLOWED_QUERY_PATTERNS[definition.queryType]) {
+    if (!definition.queryType || !this.ALLOWED_QUERY_PATTERNS_KEYS.includes(definition.queryType)) {
       throw new Error(`Invalid queryType: ${definition.queryType}`);
     }
 
-    // Get the pre-defined, safe query pattern
-    const sqlQuery = this.ALLOWED_QUERY_PATTERNS[definition.queryType];
-
-    // Validate and sanitize parameters
     const sanitizedParams = this.sanitizeQueryParams(params, definition);
-
-    // Build parameter array based on query type
-    const queryParams = this.buildQueryParams(definition.queryType, sanitizedParams);
+    let items: unknown[] = [];
+    const dbInstance = this.db.getDatabase();
+    const semanticDb = new SemanticDatabaseExtension(dbInstance);
 
     try {
-      // Execute the parameterized query safely
-      const items = await this.db.executeQuery(sqlQuery, queryParams);
+      switch (definition.queryType) {
+        case 'semantic_search':
+          if (!sanitizedParams.query || typeof sanitizedParams.query !== 'string') {
+            throw new Error('Semantic search requires a "query" parameter of type string.');
+          }
+          const queryEmbedding = await this.embeddingService.generateEmbedding(sanitizedParams.query);
+          items = await semanticDb.semanticSearch({
+            query: sanitizedParams.query,
+            queryEmbedding: queryEmbedding,
+            limit: sanitizedParams.limit as number,
+            minSimilarity: (sanitizedParams.minSimilarity as number) || 0.5,
+            contextTypes: (sanitizedParams.contextTypes as string[]) || undefined
+          });
+          break;
+        case 'time_range_filter':
+          if (!sanitizedParams.from || !sanitizedParams.to) {
+            throw new Error('Time range filter requires "from" and "to" date parameters.');
+          }
+          const timeRangeQueryParams = this.buildQueryParams(definition.queryType, sanitizedParams);
+          items = await this.db.executeQuery(this.ALLOWED_QUERY_PATTERNS[definition.queryType], timeRangeQueryParams);
+          break;
+        case 'tag_filter':
+          if (!sanitizedParams.tag || typeof sanitizedParams.tag !== 'string') {
+            throw new Error('Tag filter requires a "tag" parameter of type string.');
+          }
+          const tagFilterQueryParams = this.buildQueryParams(definition.queryType, sanitizedParams);
+          items = await this.db.executeQuery(this.ALLOWED_QUERY_PATTERNS[definition.queryType], tagFilterQueryParams);
+          break;
+        default:
+          // For key_pattern, type_filter, combined
+          const defaultQueryParams = this.buildQueryParams(definition.queryType, sanitizedParams);
+          items = await this.db.executeQuery(this.ALLOWED_QUERY_PATTERNS[definition.queryType], defaultQueryParams);
+          break;
+      }
 
       logger.debug(
         {
           queryType: definition.queryType,
-          paramCount: queryParams.length,
+          appliedParams: sanitizedParams,
           resultCount: items.length
         },
         'Query template executed safely'
@@ -235,6 +282,11 @@ export class SmartPathManager implements ISmartPathManager {
 
     // Validate and sanitize each parameter
     for (const [key, value] of Object.entries(params)) {
+      if (definition.allowedParams && !definition.allowedParams.includes(key)) {
+        logger.warn(`Parameter '${key}' not allowed by smart path definition. Ignoring.`);
+        continue;
+      }
+
       switch (key) {
         case 'keyPattern':
           if (typeof value === 'string' && value.length <= 100) {
@@ -253,6 +305,42 @@ export class SmartPathManager implements ISmartPathManager {
             sanitized.limit = Math.floor(value);
           }
           break;
+        case 'query': // For semantic search
+          if (typeof value === 'string' && value.length <= 500) {
+            sanitized.query = value;
+          }
+          break;
+        case 'from': // For time_range_filter
+          if (typeof value === 'string') {
+            const date = new Date(value);
+            if (!isNaN(date.getTime())) {
+              sanitized.from = date.toISOString();
+            }
+          }
+          break;
+        case 'to': // For time_range_filter
+          if (typeof value === 'string') {
+            const date = new Date(value);
+            if (!isNaN(date.getTime())) {
+              sanitized.to = date.toISOString();
+            }
+          }
+          break;
+        case 'tag': // For tag_filter
+          if (typeof value === 'string' && value.length <= 50) {
+            sanitized.tag = value.replace(/[^a-zA-Z0-9_]/g, '');
+          }
+          break;
+        case 'minSimilarity': // For semantic search
+          if (typeof value === 'number' && value >= 0 && value <= 1) {
+            sanitized.minSimilarity = value;
+          }
+          break;
+        case 'contextTypes': // For semantic search
+          if (Array.isArray(value) && value.every(item => typeof item === 'string')) {
+            sanitized.contextTypes = value.map(item => item.replace(/[^a-zA-Z0-9_]/g, ''));
+          }
+          break;
       }
     }
 
@@ -265,6 +353,15 @@ export class SmartPathManager implements ISmartPathManager {
     }
     if (definition.queryType === 'combined' && (!sanitized.keyPattern || !sanitized.type)) {
       throw new Error('Both keyPattern and type parameters are required for combined queries');
+    }
+    if (definition.queryType === 'semantic_search' && !sanitized.query) {
+      throw new Error('query parameter is required for semantic_search queries');
+    }
+    if (definition.queryType === 'time_range_filter' && (!sanitized.from || !sanitized.to)) {
+      throw new Error('from and to parameters are required for time_range_filter queries');
+    }
+    if (definition.queryType === 'tag_filter' && !sanitized.tag) {
+      throw new Error('tag parameter is required for tag_filter queries');
     }
 
     return sanitized;
@@ -279,6 +376,15 @@ export class SmartPathManager implements ISmartPathManager {
         return [params.type, params.limit];
       case 'combined':
         return [`%${params.keyPattern}%`, params.type, params.limit];
+      case 'semantic_search':
+        // Parameters for semantic_search are handled by semanticDb.semanticSearch,
+        // so the SQL query itself doesn't need specific parameters here beyond a base limit if applicable.
+        // For now, we return just the limit if needed by the base query.
+        return [params.limit]; // Or [] if the base query is just 'SELECT * FROM context_items'
+      case 'time_range_filter':
+        return [params.from, params.to, params.limit];
+      case 'tag_filter':
+        return [`%"${params.tag}"%`, params.limit]; // Search for tag within JSON string
       default:
         throw new Error(`Unknown query type: ${queryType}`);
     }
