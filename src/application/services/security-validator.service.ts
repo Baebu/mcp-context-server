@@ -1,21 +1,15 @@
 ﻿// src/application/services/security-validator.service.ts
 import { injectable, inject } from 'inversify';
 import { promises as fs } from 'fs';
-import path from 'path';
+import path from 'node:path';
 import crypto from 'node:crypto';
+import os from 'node:os';
 import type { ServerConfig } from '../../infrastructure/config/schema.js';
-import type { ISecurityValidator } from '../../core/interfaces/security.interface.js'; // Import ISecurityValidator
-import { logger } from '../../utils/logger.js'; // Import logger
+import type { ISecurityValidator } from '../../core/interfaces/security.interface.js';
+import { logger } from '../../utils/logger.js';
+import { SafeZoneMode } from '../../infrastructure/config/types.js';
 
-// Consistent SafeZoneMode enum - fixes the type mismatch
-export enum SafeZoneMode {
-  STRICT = 'strict',
-  PERMISSIVE = 'permissive',
-  AUDIT = 'audit',
-  RECURSIVE = 'recursive'
-}
-
-// Security configuration interface (can be derived from Zod schema if preferred)
+// Security configuration interface
 export interface SecurityConfig {
   safeZoneMode: SafeZoneMode;
   allowedPaths: string[];
@@ -23,7 +17,6 @@ export interface SecurityConfig {
   enableAuditLog: boolean;
   sessionTimeout: number;
   maxSessions: number;
-  // Add other fields from ServerConfig['security'] as needed by this service
   allowedCommands: string[] | 'all';
   restrictedZones: string[];
   safezones: string[];
@@ -82,35 +75,93 @@ export interface AuthResult {
 
 @injectable()
 export class SecurityValidatorService implements ISecurityValidator {
-  // Implement ISecurityValidator
-  private allowedDirectories: string[] = [];
+  private allowedSafezoneDirectories: string[] = [];
+  private resolvedRestrictedZones: string[] = [];
+  private defaultSystemRestrictedZones: string[] = [];
   private sessionTokens: Map<string, SessionInfo> = new Map();
   private auditLog: SecurityAuditEntry[] = [];
   private config: SecurityConfig;
-  private dangerousPatterns: RegExp[];
+  private dangerousArgumentPatterns: RegExp[];
 
   constructor(@inject('Config') configFromDI: ServerConfig) {
     this.config = configFromDI.security;
-    this.dangerousPatterns = (this.config.unsafeArgumentPatterns || []).map(p => new RegExp(p, 'i'));
+    this.dangerousArgumentPatterns = (this.config.unsafeArgumentPatterns || []).map(p => new RegExp(p, 'i'));
 
-    this.initializeAllowedDirectories();
+    this.initializeDefaultSystemRestrictedZones();
+    this.initializeConfiguredZones();
     this.startSessionCleanup();
   }
 
-  private initializeAllowedDirectories(): void {
-    this.allowedDirectories = this.config.safezones.map(p => {
-      // Use safezones from config
+  private resolvePathWithTilde(filePath: string): string {
+    if (filePath.startsWith('~/') || filePath === '~') {
+      return path.join(os.homedir(), filePath.substring(filePath.startsWith('~/') ? 2 : 1));
+    }
+    return filePath;
+  }
+
+  private initializeDefaultSystemRestrictedZones(): void {
+    const platform = os.platform();
+    let zones = [
+      '/etc',
+      '/proc',
+      '/sys',
+      '/dev',
+      '/boot',
+      '/root', // Common Linux/macOS
+      '/System',
+      '/Library',
+      '/private',
+      '/usr/sbin', // macOS specific
+      '/usr/bin',
+      '/bin',
+      '/sbin' // More common bin paths
+    ];
+
+    if (platform === 'win32') {
+      const systemDrive = process.env.SystemDrive || 'C:';
+      zones = zones.concat([
+        `${systemDrive}\\Windows`,
+        `${systemDrive}\\Program Files`,
+        `${systemDrive}\\Program Files (x86)`
+      ]);
+    }
+    this.defaultSystemRestrictedZones = [...new Set(zones.map(p => path.resolve(p).toLowerCase()))];
+    logger.info(
+      { count: this.defaultSystemRestrictedZones.length, zones: this.defaultSystemRestrictedZones },
+      'Initialized default system restricted zones.'
+    );
+  }
+
+  private initializeConfiguredZones(): void {
+    this.allowedSafezoneDirectories = (this.config.safezones || []).map(p => {
       try {
-        return path.resolve(p);
+        return path.resolve(this.resolvePathWithTilde(p));
       } catch (error) {
-        console.warn(`Failed to resolve path: ${p}`, error);
+        logger.warn({ path: p, error }, `Failed to resolve safezone path: ${p}`);
         return p;
       }
     });
+    logger.info(
+      { count: this.allowedSafezoneDirectories.length, zones: this.allowedSafezoneDirectories },
+      'Initialized configured safe zones.'
+    );
+
+    this.resolvedRestrictedZones = (this.config.restrictedZones || []).map(p => {
+      try {
+        if (p.includes('*')) return p; // Keep glob patterns
+        return path.resolve(this.resolvePathWithTilde(p));
+      } catch (error) {
+        logger.warn({ path: p, error }, `Failed to resolve restricted zone path: ${p}`);
+        return p;
+      }
+    });
+    logger.info(
+      { count: this.resolvedRestrictedZones.length, zones: this.resolvedRestrictedZones },
+      'Initialized configured restricted zones.'
+    );
   }
 
   async validatePath(inputPath: string, sessionId?: string): Promise<string> {
-    // Return string as per interface
     const validationResult = await this._validatePathInternal(inputPath, sessionId);
     if (!validationResult.isValid) {
       throw new Error(validationResult.reason || 'Path validation failed');
@@ -118,16 +169,130 @@ export class SecurityValidatorService implements ISecurityValidator {
     return validationResult.resolvedPath;
   }
 
+  private containsSuspiciousInputPatterns(inputPath: string): boolean {
+    // Check for null bytes
+    if (inputPath.includes('\0')) {
+      logger.warn({ path: inputPath }, 'Path contains null byte.');
+      return true;
+    }
+    // Check for sequences that are almost always malicious attempts at obfuscation or attack
+    // %2e is '.', %2f is '/', %5c is '\'
+    if (/%2e%2e(%2f|%5c)|%252e%252e(%252f|%255c)|\\.\\.(%2f|%5c)/i.test(inputPath)) {
+      logger.warn({ path: inputPath }, 'Path contains encoded traversal sequences.');
+      return true;
+    }
+    // Check for excessive relative path components that might suggest trying to break out many levels
+    const relativeDepth = (inputPath.match(/(\.\.[\/\\])/g) || []).length;
+    if (relativeDepth > 8) {
+      // Adjusted threshold
+      logger.warn({ path: inputPath, depth: relativeDepth }, 'Path contains excessive relative components.');
+      return true;
+    }
+    // Check for characters that are problematic in paths or indicative of injection
+    if (/[<>:"|?*\x00-\x1F\x7F]/.test(inputPath)) {
+      // Added control characters
+      logger.warn({ path: inputPath }, 'Path contains problematic characters.');
+      return true;
+    }
+    return false;
+  }
+
+  private isPathRestricted(absolutePath: string): { restricted: boolean; reason?: string; matchedZone?: string } {
+    const lowerAbsolutePath = absolutePath.toLowerCase();
+
+    for (const restrictedZone of this.defaultSystemRestrictedZones) {
+      // restrictedZone is already resolved and lowercased
+      if (
+        lowerAbsolutePath.startsWith(restrictedZone) &&
+        (lowerAbsolutePath.length === restrictedZone.length || lowerAbsolutePath[restrictedZone.length] === path.sep)
+      ) {
+        return {
+          restricted: true,
+          reason: `Path is within a default system restricted zone: ${restrictedZone}`,
+          matchedZone: restrictedZone
+        };
+      }
+    }
+
+    for (const restrictedZonePattern of this.resolvedRestrictedZones) {
+      const lowerPattern = restrictedZonePattern.toLowerCase();
+      if (lowerPattern.includes('*')) {
+        const regexPattern =
+          '^' +
+          lowerPattern
+            .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+            .replace(/\*\*/g, '.*')
+            .replace(/\*/g, `[^${path.sep.replace('\\', '\\\\')}]*`) +
+          '$';
+        try {
+          if (new RegExp(regexPattern, 'i').test(absolutePath)) {
+            // Test against original case for regex, or ensure regex is case-insensitive
+            return {
+              restricted: true,
+              reason: `Path matches configured restricted zone pattern: ${restrictedZonePattern}`,
+              matchedZone: restrictedZonePattern
+            };
+          }
+        } catch (e) {
+          logger.warn({ pattern: restrictedZonePattern, error: e }, 'Invalid regex from restricted zone glob pattern');
+        }
+      } else {
+        if (
+          lowerAbsolutePath.startsWith(lowerPattern) &&
+          (lowerAbsolutePath.length === lowerPattern.length || lowerAbsolutePath[lowerPattern.length] === path.sep)
+        ) {
+          return {
+            restricted: true,
+            reason: `Path is within a configured restricted zone: ${restrictedZonePattern}`,
+            matchedZone: restrictedZonePattern
+          };
+        }
+      }
+    }
+
+    if (this.config.blockedPathPatterns && this.config.blockedPathPatterns.length > 0) {
+      for (const pattern of this.config.blockedPathPatterns) {
+        try {
+          if (new RegExp(pattern, 'i').test(absolutePath)) {
+            return { restricted: true, reason: `Path matches blocked pattern: ${pattern}`, matchedZone: pattern };
+          }
+        } catch (e) {
+          logger.warn({ pattern, error: e }, 'Invalid regex in blockedPathPatterns');
+        }
+      }
+    }
+    return { restricted: false };
+  }
+
   private async _validatePathInternal(inputPath: string, sessionId?: string): Promise<PathValidationResult> {
     try {
-      const absolutePath = path.resolve(inputPath);
+      // Initial check for suspicious patterns in the raw input
+      if (this.containsSuspiciousInputPatterns(inputPath)) {
+        const result: PathValidationResult = {
+          isValid: false,
+          resolvedPath: path.resolve(this.resolvePathWithTilde(inputPath)), // Resolve for logging
+          reason: 'Input path contains suspicious patterns (e.g., null bytes, encoded traversal, excessive ../).'
+        };
+        this.auditSecurityEvent({
+          action: 'path_validation',
+          path: inputPath,
+          sessionId,
+          result: 'denied',
+          reason: result.reason
+        });
+        return result;
+      }
+
+      const resolvedInputPath = this.resolvePathWithTilde(inputPath);
+      const absolutePath = path.resolve(resolvedInputPath);
       const safeZoneMode = this.config.safeZoneMode || SafeZoneMode.STRICT;
 
-      if (this.containsPathTraversal(inputPath)) {
+      const restrictionCheck = this.isPathRestricted(absolutePath);
+      if (restrictionCheck.restricted) {
         const result: PathValidationResult = {
           isValid: false,
           resolvedPath: absolutePath,
-          reason: 'Path traversal attempt detected'
+          reason: restrictionCheck.reason
         };
         this.auditSecurityEvent({
           action: 'path_validation',
@@ -169,7 +334,7 @@ export class SecurityValidatorService implements ISecurityValidator {
           return result;
         }
       } catch (error) {
-        // File doesn't exist is okay for validation of the path itself
+        // File not existing is fine for path validation itself.
       }
 
       this.auditSecurityEvent({ action: 'path_validation', path: inputPath, sessionId, result: 'allowed' });
@@ -177,31 +342,40 @@ export class SecurityValidatorService implements ISecurityValidator {
     } catch (error) {
       const reason = error instanceof Error ? error.message : 'Unknown error during path validation';
       this.auditSecurityEvent({ action: 'path_validation', path: inputPath, sessionId, result: 'denied', reason });
-      return { isValid: false, resolvedPath: inputPath, reason };
+      return { isValid: false, resolvedPath: path.resolve(this.resolvePathWithTilde(inputPath)), reason };
     }
   }
 
-  // Added implementation for isPathInSafeZone
   isPathInSafeZone(testPath: string): boolean {
-    const resolvedPath = path.resolve(testPath);
-    // Check against this.config.safezones which are resolved absolute paths
-    return this.config.safezones.some(zone => {
-      const resolvedSafeZone = path.resolve(zone); // Ensure zone is absolute for comparison
+    const resolvedPath = path.resolve(this.resolvePathWithTilde(testPath));
+    if (this.isPathRestricted(resolvedPath).restricted) {
+      return false;
+    }
+    return this.allowedSafezoneDirectories.some(zone => {
+      const normalizedResolvedPath = resolvedPath.toLowerCase();
+      const normalizedZone = zone.toLowerCase(); // zone is already resolved absolute
       if (this.config.safeZoneMode === SafeZoneMode.RECURSIVE) {
-        return resolvedPath.startsWith(resolvedSafeZone);
+        return (
+          normalizedResolvedPath.startsWith(normalizedZone) &&
+          (normalizedResolvedPath.length === normalizedZone.length ||
+            normalizedResolvedPath[normalizedZone.length] === path.sep)
+        );
       }
-      return resolvedPath === resolvedSafeZone;
+      return normalizedResolvedPath === normalizedZone;
     });
   }
 
-  // Added implementation for sanitizeInput
   sanitizeInput(input: string): string {
-    // Basic sanitization: remove common shell metacharacters.
-    // This is a starting point; real-world sanitization can be complex.
-    return input.replace(/[;&|$`<>*?()#!\\\[\]{}]/g, '');
+    return (
+      input
+        .replace(/[<>:"'|?*]/g, '')
+        .replace(/\0/g, '')
+        // Allow .. for now, as resolution and safe zone checks will handle it.
+        // .replace(/(\.\.[/\\])/g, '')
+        .trim()
+    );
   }
 
-  // Added implementation for validateCommand
   async validateCommand(command: string, args: string[]): Promise<void> {
     if (this.config.allowedCommands === 'all') {
       logger.warn({ command }, 'All commands are allowed by configuration. This is a security risk.');
@@ -212,25 +386,22 @@ export class SecurityValidatorService implements ISecurityValidator {
     }
 
     const fullCommandString = `${command} ${args.join(' ')}`;
-    for (const pattern of this.dangerousPatterns) {
+    for (const pattern of this.dangerousArgumentPatterns) {
       if (pattern.test(fullCommandString)) {
         throw new Error(`Potentially dangerous argument pattern detected in command: ${fullCommandString}`);
       }
     }
-    // Potentially add more specific checks here based on command, args, or OS
   }
 
-  // Added implementation for getSecurityInfo (optional in interface, but good to have)
   getSecurityInfo(): { safeZones: string[]; restrictedZones: string[]; safeZoneMode: string; blockedPatterns: number } {
     return {
       safeZones: this.config.safezones,
-      restrictedZones: this.config.restrictedZones,
+      restrictedZones: [...new Set([...this.defaultSystemRestrictedZones, ...this.resolvedRestrictedZones])], // Show effective restricted zones
       safeZoneMode: this.config.safeZoneMode,
       blockedPatterns: this.config.blockedPathPatterns.length
     };
   }
 
-  // Added implementation for testPathAccess (optional in interface)
   async testPathAccess(inputPath: string): Promise<{
     allowed: boolean;
     reason: string;
@@ -246,11 +417,10 @@ export class SecurityValidatorService implements ISecurityValidator {
     if (validationResult.isValid && validationResult.safeZone) {
       matchedSafeZone = validationResult.safeZone;
     }
-    // This basic mock doesn't deeply check restricted zones, but a real one would.
-    // For now, if it's not allowed and not a traversal, assume it's a zone issue.
-    if (!validationResult.isValid && !validationResult.reason?.includes('traversal')) {
-      // Heuristic: if not allowed and not traversal, could be restricted or not in safe zone
-      // A more detailed check would iterate restrictedZones.
+
+    const restrictionCheck = this.isPathRestricted(validationResult.resolvedPath);
+    if (restrictionCheck.restricted) {
+      matchedRestrictedZone = restrictionCheck.matchedZone;
     }
 
     return {
@@ -264,16 +434,20 @@ export class SecurityValidatorService implements ISecurityValidator {
   }
 
   private validateSafeZone(absolutePath: string, mode: SafeZoneMode): PathValidationResult {
-    const isInSafeZone = this.allowedDirectories.some(dir => {
-      try {
-        if (mode === SafeZoneMode.RECURSIVE) {
-          return absolutePath.startsWith(dir);
-        }
-        return absolutePath === dir; // Strict or other modes
-      } catch {
-        return false;
+    const normalizedAbsolutePath = absolutePath.toLowerCase();
+    const matchingSafeZone = this.allowedSafezoneDirectories.find(dir => {
+      const normalizedDir = dir.toLowerCase(); // dir is already resolved absolute
+      if (mode === SafeZoneMode.RECURSIVE) {
+        return (
+          normalizedAbsolutePath.startsWith(normalizedDir) &&
+          (normalizedAbsolutePath.length === normalizedDir.length ||
+            normalizedAbsolutePath[normalizedDir.length] === path.sep)
+        );
       }
+      return normalizedAbsolutePath === normalizedDir;
     });
+
+    const isInSafeZone = !!matchingSafeZone;
 
     switch (mode) {
       case SafeZoneMode.STRICT:
@@ -281,39 +455,53 @@ export class SecurityValidatorService implements ISecurityValidator {
           return {
             isValid: false,
             resolvedPath: absolutePath,
-            reason: `Access denied: Path outside allowed directories in STRICT mode`
+            reason: `Access denied: Path '${absolutePath}' not an exact match in configured safe zones (STRICT mode).`
           };
         }
         break;
-      case SafeZoneMode.RECURSIVE: // Explicitly handle recursive
+      case SafeZoneMode.RECURSIVE:
         if (!isInSafeZone) {
           return {
             isValid: false,
             resolvedPath: absolutePath,
-            reason: `Access denied: Path outside allowed directories or their subdirectories in RECURSIVE mode`
+            reason: `Access denied: Path '${absolutePath}' not within any configured safe zone or their subdirectories (RECURSIVE mode).`
           };
         }
         break;
       case SafeZoneMode.PERMISSIVE:
-        if (!isInSafeZone) {
+        if (this.allowedSafezoneDirectories.length > 0 && !isInSafeZone) {
           this.auditSecurityEvent({
             action: 'safe_zone_warning',
             path: absolutePath,
             result: 'warning',
-            reason: 'Path outside safe zone in PERMISSIVE mode'
+            reason: 'Path outside defined safe zones in PERMISSIVE mode (but not explicitly restricted).'
           });
+          if (this.allowedSafezoneDirectories.length > 0) {
+            // If safezones are defined, permissive still means it must be in one.
+            return {
+              isValid: false,
+              resolvedPath: absolutePath,
+              reason: 'Path outside defined safe zones in PERMISSIVE mode.'
+            };
+          }
         }
         break;
-
       case SafeZoneMode.AUDIT:
         this.auditSecurityEvent({
           action: 'safe_zone_audit',
           path: absolutePath,
           result: isInSafeZone ? 'allowed' : 'warning',
-          reason: isInSafeZone ? 'Within safe zone' : 'Outside safe zone (AUDIT mode)'
+          reason: isInSafeZone ? `Within safe zone: ${matchingSafeZone}` : 'Outside defined safe zones (AUDIT mode)'
         });
+        if (!isInSafeZone && this.allowedSafezoneDirectories.length > 0) {
+          // Similar to permissive, if zones are defined, audit mode still implies denial for validation purposes.
+          return {
+            isValid: false,
+            resolvedPath: absolutePath,
+            reason: 'Path outside defined safe zones (AUDIT mode). Access would be logged as warning.'
+          };
+        }
         break;
-
       default:
         return {
           isValid: false,
@@ -325,18 +513,8 @@ export class SecurityValidatorService implements ISecurityValidator {
     return {
       isValid: true,
       resolvedPath: absolutePath,
-      safeZone: this.findMatchingSafeZone(absolutePath)
+      safeZone: matchingSafeZone
     };
-  }
-
-  private containsPathTraversal(inputPath: string): boolean {
-    const normalizedPath = path.normalize(inputPath);
-    const dangerousPatterns = [/\.\./, /~[\/\\]/, /^[\/\\]/, /%2e%2e/i, /\0/, /[<>:"|?*]/];
-    return dangerousPatterns.some(pattern => pattern.test(normalizedPath));
-  }
-
-  private findMatchingSafeZone(absolutePath: string): string | undefined {
-    return this.allowedDirectories.find(dir => absolutePath.startsWith(dir));
   }
 
   authenticate(request: any): AuthResult {
@@ -444,7 +622,7 @@ export class SecurityValidatorService implements ISecurityValidator {
       activeSessions: this.sessionTokens.size,
       auditLogSize: this.auditLog.length,
       safeZoneMode: this.config.safeZoneMode,
-      allowedDirectories: this.allowedDirectories.length,
+      allowedDirectories: this.allowedSafezoneDirectories.length,
       last24hEvents: {
         total: recent.length,
         allowed: recent.filter(e => e.result === 'allowed').length,
@@ -482,11 +660,13 @@ export class SecurityValidatorService implements ISecurityValidator {
   }
 
   updateConfig(newConfigPartial: Partial<SecurityConfig>): void {
-    // Parameter should be Partial<SecurityConfig>
     this.config = { ...this.config, ...newConfigPartial };
-    if (newConfigPartial.allowedPaths) this.initializeAllowedDirectories(); // Re-init if allowedPaths change
-    if (newConfigPartial.safezones) this.allowedDirectories = newConfigPartial.safezones.map(p => path.resolve(p)); // Re-init if safezones change
-
+    if (newConfigPartial.safezones || newConfigPartial.restrictedZones) {
+      this.initializeConfiguredZones();
+    }
+    if (newConfigPartial.unsafeArgumentPatterns) {
+      this.dangerousArgumentPatterns = (this.config.unsafeArgumentPatterns || []).map(p => new RegExp(p, 'i'));
+    }
     this.auditSecurityEvent({ action: 'config_updated', path: 'configuration', result: 'allowed' });
   }
 

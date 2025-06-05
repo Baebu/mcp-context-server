@@ -10,7 +10,8 @@
 import 'reflect-metadata';
 import { Container } from 'inversify';
 import { UIServer } from '../src/presentation/ui-server.js';
-import { loadConfig, configSchema } from '../src/infrastructure/config/schema.js';
+import { configSchema } from '../src/infrastructure/config/schema.js';
+import { loadConfig } from '../src/infrastructure/config/loader.js';
 import { logger } from '../src/utils/logger.js';
 import type { ServerConfig } from '../src/infrastructure/config/schema.js';
 

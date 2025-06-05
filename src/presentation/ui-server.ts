@@ -25,13 +25,11 @@ interface ClaudeDesktopConfig {
 
 const getDefaultConfig = (): ServerConfig => {
   try {
+    // Attempt to parse an empty object to get all Zod defaults
     return configSchema.parse({});
   } catch (e) {
     logger.error({ error: e }, 'Failed to parse default config with Zod, returning comprehensive hardcoded minimum.');
     // This fallback MUST match the ServerConfig structure perfectly, including all defaults.
-    // It's safer to ensure configSchema.parse({}) works or handle its failure more critically.
-    // For brevity, the previous comprehensive fallback is assumed. If errors persist here,
-    // this fallback needs to be an exact replica of a configSchema.parse({}) output.
     return {
       server: {
         name: 'context-savy-server',
@@ -129,7 +127,15 @@ const getDefaultConfig = (): ServerConfig => {
         testData: { enabled: false, seedDatabase: false },
         profiling: { enabled: false, samplingRate: 0.1 }
       },
-      consent: { alwaysAllow: [], alwaysDeny: [], requireConsent: [], policy: {}, settings: {} },
+      consent: {
+        // Updated consent fallback
+        alwaysAllow: [],
+        alwaysDeny: [],
+        requireConsent: [],
+        defaultActionForRequiredConsent: 'deny', // Added missing property with its default
+        policy: {},
+        settings: {}
+      },
       ui: { consentPort: 3003 },
       semanticSearch: {
         enabled: true,

@@ -4,6 +4,8 @@ import type { IToolRegistry } from '../../core/interfaces/tool-registry.interfac
 import type { IResourceRegistry } from '../../core/interfaces/resource-registry.interface.js';
 import type { IPromptRegistry } from '../../core/interfaces/prompt-registry.interface.js';
 import type { IEmbeddingService } from '../../core/interfaces/semantic-context.interface.js';
+import type { IDatabaseHandler } from '../../core/interfaces/database.interface.js'; // Added import
+import type { DatabaseAdapter } from '../adapters/database.adapter.js'; // Added import for casting
 
 // Tools
 import {
@@ -36,7 +38,7 @@ import { ParseFileTool } from '../../application/tools/file-parsing.tool.js';
 import { GetMetricsTool } from '../../application/tools/metrics.tool.js';
 import { SecurityDiagnosticsTool } from '../../application/tools/security-diagnostics.tool.js';
 import { DatabaseHealthTool } from '../../application/tools/database-health.tool.js';
-import { ProcessManagementTool } from '../../application/tools/process-management.tool.js';  // NEW
+import { ProcessManagementTool } from '../../application/tools/process-management.tool.js'; // NEW
 
 // Workspace Tools
 import {
@@ -77,6 +79,16 @@ import { logger } from '../../utils/logger.js';
 export class ContainerInitializer {
   static async initialize(container: Container): Promise<void> {
     logger.info('Initializing container with enhanced process management...');
+
+    // Ensure Database Migrations are applied first
+    const databaseHandler = container.get<IDatabaseHandler>('DatabaseHandler') as DatabaseAdapter;
+    if (typeof databaseHandler.applyInitialMigrations === 'function') {
+      await databaseHandler.applyInitialMigrations();
+    } else {
+      logger.warn(
+        'DatabaseAdapter does not have applyInitialMigrations method. Skipping automatic semantic migration during DI initialization.'
+      );
+    }
 
     // Initialize consent UI bridge
     const consentUIBridge = container.get<ConsentUIBridge>(ConsentUIBridge);

@@ -5,6 +5,12 @@ import Database from 'better-sqlite3';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { logger } from '../../utils/logger.js';
+import { fileURLToPath } from 'node:url'; // Added for robust path resolution
+
+// Determine the directory of the current module.
+// This is important for locating SQL files whether running from src or dist.
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export class MigrationExecutor {
   constructor(private db: Database.Database) {}
@@ -34,13 +40,43 @@ export class MigrationExecutor {
       }
 
       // Read migration SQL file
-      const migrationPath = path.join(__dirname, '002_add_semantic_columns.sql');
+      // Adjust path to correctly locate SQL file from either src or dist
+      let migrationPath = path.join(__dirname, '002_add_semantic_columns.sql');
+
+      // If running from dist, __dirname will be .../dist/infrastructure/migrations
+      // We need to go up three levels to project root, then to src/infrastructure/migrations
+      if (!existsSync(migrationPath) && __dirname.includes(path.sep + 'dist' + path.sep)) {
+        migrationPath = path.resolve(
+          __dirname,
+          '..',
+          '..',
+          '..',
+          'src',
+          'infrastructure',
+          'migrations',
+          '002_add_semantic_columns.sql'
+        );
+        logger.debug({ newPath: migrationPath }, 'Adjusted migration path for dist environment');
+      } else if (!existsSync(migrationPath)) {
+        // Fallback for other scenarios or if the above doesn't work, try relative to a known root if possible
+        // This part might need adjustment based on actual deployment structure if the above isn't robust enough
+        logger.warn({ migrationPath }, 'Migration SQL file not found at primary path, attempting fallback.');
+      }
+
+      logger.info({ migrationPathAttempted: migrationPath }, 'Attempting to read migration file for semantic schema.');
+      if (!existsSync(migrationPath)) {
+        throw new Error(`Migration SQL file not found: 002_add_semantic_columns.sql. Attempted path: ${migrationPath}`);
+      }
+
       const migrationSql = await fs.readFile(migrationPath, 'utf-8');
+      logger.debug('Successfully read migration SQL file.');
 
       // Apply migration in transaction
       const transaction = this.db.transaction(() => {
         // Execute migration SQL
+        logger.info('Executing semantic migration SQL...');
         this.db.exec(migrationSql);
+        logger.info('Semantic migration SQL executed.');
 
         // Record migration as applied
         this.db
@@ -51,14 +87,21 @@ export class MigrationExecutor {
         `
           )
           .run(2, 'add_semantic_columns');
+        logger.info('Migration recorded in migrations table.');
       });
 
       transaction();
 
       logger.info('Semantic database migration applied successfully');
     } catch (error) {
-      logger.error({ error }, 'Failed to apply semantic migration');
-      throw error;
+      logger.error(
+        {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined
+        },
+        'Failed to apply semantic migration'
+      );
+      throw error; // Re-throw to ensure failure is handled upstream
     }
   }
 
@@ -109,3 +152,8 @@ export class MigrationExecutor {
     }
   }
 }
+
+// Helper to check file existence, as fs.existsSync is synchronous
+// and we are in an async function context for readFile.
+// For the path resolution logic, sync check is okay.
+import { existsSync } from 'node:fs';

@@ -239,11 +239,28 @@ const featuresSchema = z
 
 const consentConfigSchema = z
   .object({
-    alwaysAllow: z.array(z.string()).default([]),
-    alwaysDeny: z.array(z.string()).default([]),
-    requireConsent: z.array(z.string()).default([]),
-    policy: z.any().optional(),
-    settings: z.any().optional()
+    alwaysAllow: z
+      .array(z.string())
+      .default([])
+      .describe("Patterns for operations to always allow without consent (e.g., 'file_write:*.log')."),
+    alwaysDeny: z
+      .array(z.string())
+      .default([])
+      .describe("Patterns for operations to always deny (e.g., 'command_execute:rm -rf /*')."),
+    requireConsent: z
+      .array(z.string())
+      .default([])
+      .describe(
+        "Patterns for operations that must always seek consent if not auto-decided by risk (e.g., 'recursive_delete:*')."
+      ),
+    defaultActionForRequiredConsent: z
+      .enum(['deny', 'allow', 'prompt'])
+      .default('deny')
+      .describe(
+        "Default action if an operation requires consent and no interactive UI responds. 'deny' is safest. 'prompt' will wait for UI/timeout."
+      ),
+    policy: z.any().optional().describe('Full policy object for advanced rule-based consent.'), // Kept for potential advanced use
+    settings: z.any().optional().describe('Additional consent service settings (e.g., risk thresholds).') // Kept for potential advanced use
   })
   .default({});
 
@@ -342,7 +359,7 @@ export const serverConfigSchema = z.object({
   logging: loggingConfigSchema,
   performance: performanceConfigSchema,
   features: featuresSchema,
-  consent: consentConfigSchema.optional(),
+  consent: consentConfigSchema.optional(), // Now includes defaultActionForRequiredConsent
   ui: uiConfigSchema.optional(),
   semanticSearch: semanticSearchConfigSchema.optional(),
   backup: backupConfigSchema.optional(),
@@ -371,7 +388,7 @@ export function validateSecurityConfig(config: unknown): SecurityConfig {
   return securityConfigSchema.parse(config);
 }
 
-export function getConfigDefaults(_configType?: string): ServerConfig {
+export function getConfigDefaults(): ServerConfig {
   const baseDefaults = serverConfigSchema.parse({});
   return baseDefaults;
 }
@@ -428,14 +445,14 @@ export function applyEnvToConfig(config: ServerConfig): ServerConfig {
 }
 
 function setNestedProperty(obj: any, path: string, value: any): void {
-  if (!path) return; // Guard against empty path
+  if (!path) return;
 
   const keys = path.split('.');
   let current = obj;
 
   for (let i = 0; i < keys.length - 1; i++) {
     const key = keys[i];
-    if (!key) continue; // Should not happen with valid paths
+    if (!key) continue;
     if (!(key in current) || typeof current[key] !== 'object' || current[key] === null) {
       current[key] = {};
     }
@@ -444,7 +461,6 @@ function setNestedProperty(obj: any, path: string, value: any): void {
 
   const lastKey = keys[keys.length - 1];
   if (lastKey && current && typeof current === 'object') {
-    // Ensure lastKey is valid and current is an object
     current[lastKey] = value;
   }
 }

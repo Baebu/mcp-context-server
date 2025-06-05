@@ -8,6 +8,7 @@ import path from 'node:path';
 import type { IDatabaseHandler, ContextItem, QueryOptions } from '../../core/interfaces/database.interface.js';
 import { logger } from '../../utils/logger.js';
 import type { ServerConfig } from '@infrastructure/config/schema.js'; // Corrected import
+import { MigrationExecutor } from '../migrations/migration-executor.js'; // Added import
 
 interface IntegrityCheckResult {
   isHealthy: boolean;
@@ -137,6 +138,17 @@ export class DatabaseAdapter implements IDatabaseHandler {
         checked_at TEXT DEFAULT CURRENT_TIMESTAMP
       );
     `);
+  }
+
+  async applyInitialMigrations(): Promise<void> {
+    try {
+      const migrationExecutor = new MigrationExecutor(this.db);
+      await migrationExecutor.applySemantic();
+      logger.info('Semantic migrations applied successfully via DatabaseAdapter.');
+    } catch (error) {
+      logger.error({ error }, 'Failed to apply semantic migrations via DatabaseAdapter.');
+      throw error; // Re-throw the error to halt server startup if migrations fail
+    }
   }
 
   async performIntegrityCheck(): Promise<IntegrityCheckResult> {

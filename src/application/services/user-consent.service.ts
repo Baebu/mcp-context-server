@@ -49,6 +49,7 @@ interface ConsentSettings {
   maxPendingRequests: number;
   auditRetention: number; // Days to keep audit logs
   enablePlugins: boolean;
+  defaultActionForRequiredConsent: 'deny' | 'allow' | 'prompt'; // New setting
 }
 
 interface SessionContext {
@@ -112,7 +113,8 @@ export class UserConsentService extends EventEmitter implements IUserConsentServ
       sessionTimeout: 30 * 60 * 1000, // 30 minutes
       maxPendingRequests: 10,
       auditRetention: 30, // 30 days
-      enablePlugins: true
+      enablePlugins: true,
+      defaultActionForRequiredConsent: this.config.consent?.defaultActionForRequiredConsent || 'deny' // Load from config or default to 'deny'
     };
 
     // Initialize enhanced default policy
@@ -204,7 +206,6 @@ export class UserConsentService extends EventEmitter implements IUserConsentServ
   }
 
   async requestConsent(request: Omit<ConsentRequest, 'id' | 'timestamp'>): Promise<ConsentResponse> {
-    // Validate session
     this.updateSessionActivity();
     if (this.pendingRequests.size >= this.settings.maxPendingRequests) {
       throw new Error('Too many pending consent requests. Please wait for current requests to complete.');
@@ -227,37 +228,29 @@ export class UserConsentService extends EventEmitter implements IUserConsentServ
     );
 
     try {
-      // Step 1: Security validation
       await this.validateRequestSecurity(consentRequest);
 
-      // Step 2: Check remembered decisions
       const remembered = await this.checkRememberedDecision(consentRequest);
       if (remembered) {
         await this.auditDecision(consentRequest, remembered, 'remembered');
         return remembered;
       }
 
-      // Step 3: Policy evaluation
       const policyDecision = await this.evaluatePolicy(consentRequest);
-
       if (policyDecision === 'allow') {
         const response = this.createResponse(consentRequest.id, 'allow', 'Allowed by policy');
         await this.auditDecision(consentRequest, response, 'policy-allow');
-        this.updateTrustLevel(5); // Slight trust increase for allowed operations
+        this.updateTrustLevel(5);
         return response;
       }
-
       if (policyDecision === 'deny') {
         const response = this.createResponse(consentRequest.id, 'deny', 'Denied by policy');
         await this.auditDecision(consentRequest, response, 'policy-deny');
-        this.updateTrustLevel(-10); // Trust decrease for denied operations
+        this.updateTrustLevel(-10);
         return response;
       }
 
-      // Step 4: Risk analysis
       const riskAssessment = await this.performRiskAnalysis(consentRequest);
-
-      // Step 5: Auto-decision based on risk
       if (this.settings.enableRiskAnalysis) {
         if (riskAssessment.score <= this.settings.autoApproveThreshold) {
           const response = this.createResponse(
@@ -269,7 +262,6 @@ export class UserConsentService extends EventEmitter implements IUserConsentServ
           this.updateTrustLevel(2);
           return response;
         }
-
         if (riskAssessment.score >= this.settings.autoRejectThreshold) {
           const response = this.createResponse(
             consentRequest.id,
@@ -282,10 +274,30 @@ export class UserConsentService extends EventEmitter implements IUserConsentServ
         }
       }
 
-      // Step 6: Request user consent
+      // Handle non-interactive "ask" scenarios based on configuration
+      if (this.settings.defaultActionForRequiredConsent === 'deny') {
+        const reason = `Operation requires consent, auto-denied by non-interactive policy (risk: ${riskAssessment.score}).`;
+        this.consentLogger.info({ requestId: consentRequest.id, reason }, 'Auto-denying consent request.');
+        const response = this.createResponse(consentRequest.id, 'deny', reason);
+        await this.auditDecision(consentRequest, response, 'auto-deny-policy', riskAssessment);
+        this.updateTrustLevel(-5); // Moderate trust decrease for auto-denied
+        return response;
+      }
+      if (this.settings.defaultActionForRequiredConsent === 'allow') {
+        const reason = `Operation requires consent, auto-allowed by non-interactive policy (risk: ${riskAssessment.score}).`;
+        this.consentLogger.warn(
+          { requestId: consentRequest.id, reason },
+          'Auto-allowing consent request due to policy.'
+        );
+        const response = this.createResponse(consentRequest.id, 'allow', reason);
+        await this.auditDecision(consentRequest, response, 'auto-allow-policy', riskAssessment);
+        this.updateTrustLevel(1); // Small trust increase for auto-allowed
+        return response;
+      }
+
+      // If defaultActionForRequiredConsent is 'prompt', or not set, proceed to wait for UI (or timeout)
       this.pendingRequests.set(consentRequest.id, consentRequest);
       this.consentHistory.push(consentRequest);
-
       this.consentLogger.info(
         {
           requestId: consentRequest.id,
@@ -294,47 +306,37 @@ export class UserConsentService extends EventEmitter implements IUserConsentServ
           riskScore: riskAssessment.score,
           trustLevel: this.sessionContext.trustLevel
         },
-        'Requesting user consent'
+        'Requesting user consent (will wait for UI or timeout)'
       );
-
-      // Emit enhanced event with risk context
       this.emit('consent-request', {
         ...consentRequest,
         riskAssessment,
         sessionContext: this.sessionContext,
         recommendation: riskAssessment.recommendation
       });
-
-      // Wait for response with timeout
       const response = await this.waitForResponse(consentRequest, riskAssessment);
 
-      // Remember decision if requested
       if (response.remember) {
         await this.rememberDecision(consentRequest, response);
       }
-
-      // Update trust based on user decision
       this.updateTrustBasedOnDecision(response);
-
-      // Audit the final decision
-      await this.auditDecision(consentRequest, response, 'user-decision', riskAssessment);
-
+      await this.auditDecision(
+        consentRequest,
+        response,
+        response.decision === 'timeout' ? 'timeout' : 'user-decision',
+        riskAssessment
+      );
       return response;
     } catch (error) {
       this.consentLogger.error(
-        {
-          requestId: consentRequest.id,
-          error: error instanceof Error ? error.message : 'Unknown error'
-        },
+        { requestId: consentRequest.id, error: error instanceof Error ? error.message : 'Unknown error' },
         'Error processing consent request'
       );
-
       const errorResponse = this.createResponse(
         consentRequest.id,
         'deny',
         `Error processing request: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
-
       await this.auditDecision(consentRequest, errorResponse, 'error');
       return errorResponse;
     } finally {
@@ -346,32 +348,26 @@ export class UserConsentService extends EventEmitter implements IUserConsentServ
     const checkTarget = target || '*';
     const operationPattern = `${operation}:${checkTarget}`;
 
-    // Enhanced security check first
     if (this.isHighRiskOperationSync(operation, target)) {
       return 'ask';
     }
 
-    // Check always deny first (most restrictive)
     if (this.matchesPatterns(operationPattern, this.policy.alwaysDeny || [])) {
       return 'deny';
     }
 
-    // Check always allow
     if (this.matchesPatterns(operationPattern, this.policy.alwaysAllow || [])) {
       return 'allow';
     }
 
-    // Check if consent is required
     if (this.matchesPatterns(operationPattern, this.policy.requireConsent || [])) {
       return 'ask';
     }
 
-    // Enhanced decision based on operation type and trust level
     if (this.CRITICAL_OPERATIONS.includes(operation)) {
       return 'ask';
     }
 
-    // Consider session trust level
     if (this.sessionContext.trustLevel < 30 && operation !== 'file_write') {
       return 'ask';
     }
@@ -381,14 +377,7 @@ export class UserConsentService extends EventEmitter implements IUserConsentServ
 
   updatePolicy(policy: Partial<ConsentPolicy>): void {
     this.policy = { ...this.policy, ...policy };
-    this.consentLogger.info(
-      {
-        policy: this.policy,
-        sessionId: this.sessionContext.id
-      },
-      'Consent policy updated'
-    );
-
+    this.consentLogger.info({ policy: this.policy, sessionId: this.sessionContext.id }, 'Consent policy updated');
     this.emit('policy-updated', this.policy);
   }
 
@@ -403,8 +392,6 @@ export class UserConsentService extends EventEmitter implements IUserConsentServ
     this.emit('history-cleared');
   }
 
-  // Enhanced public methods
-
   async getAuditLog(filter?: {
     startDate?: Date;
     endDate?: Date;
@@ -412,7 +399,6 @@ export class UserConsentService extends EventEmitter implements IUserConsentServ
     decision?: string;
   }): Promise<ConsentAuditEntry[]> {
     let filtered = [...this.auditLog];
-
     if (filter) {
       if (filter.startDate) {
         filtered = filtered.filter(entry => entry.timestamp >= filter.startDate!);
@@ -427,7 +413,6 @@ export class UserConsentService extends EventEmitter implements IUserConsentServ
         filtered = filtered.filter(entry => entry.response.decision === filter.decision);
       }
     }
-
     return filtered;
   }
 
@@ -468,13 +453,14 @@ export class UserConsentService extends EventEmitter implements IUserConsentServ
 
   updateSettings(settings: Partial<ConsentSettings>): void {
     this.settings = { ...this.settings, ...settings };
+    // Update defaultActionForRequiredConsent if it's part of the partial settings
+    if (settings.defaultActionForRequiredConsent) {
+      this.settings.defaultActionForRequiredConsent = settings.defaultActionForRequiredConsent;
+    }
     this.consentLogger.info({ settings: this.settings }, 'Consent settings updated');
   }
 
-  // Enhanced private methods
-
   private async validateRequestSecurity(request: ConsentRequest): Promise<void> {
-    // Validate using security service
     if (request.details.path) {
       try {
         await this.security.validatePath(request.details.path);
@@ -484,7 +470,6 @@ export class UserConsentService extends EventEmitter implements IUserConsentServ
         );
       }
     }
-
     if (request.details.command) {
       try {
         await this.security.validateCommand(request.details.command, request.details.args || []);
@@ -508,8 +493,6 @@ export class UserConsentService extends EventEmitter implements IUserConsentServ
   }> {
     const factors: string[] = [];
     let score = 0;
-
-    // Base score by operation type
     switch (request.operation) {
       case 'file_write':
         score += 10;
@@ -535,8 +518,6 @@ export class UserConsentService extends EventEmitter implements IUserConsentServ
         factors.push('Database modification');
         break;
     }
-
-    // Severity adjustment
     switch (request.severity) {
       case 'low':
         score += 0;
@@ -554,8 +535,6 @@ export class UserConsentService extends EventEmitter implements IUserConsentServ
         factors.push('Critical severity operation');
         break;
     }
-
-    // Pattern-based risk assessment
     const target = this.getTargetFromRequest(request);
     for (const pattern of this.HIGH_RISK_PATTERNS) {
       if (pattern.test(target) || (request.details.command && pattern.test(request.details.command))) {
@@ -563,8 +542,6 @@ export class UserConsentService extends EventEmitter implements IUserConsentServ
         factors.push(`Matches high-risk pattern: ${pattern.source}`);
       }
     }
-
-    // Trust level adjustment
     if (this.sessionContext.trustLevel < 30) {
       score += 20;
       factors.push('Low session trust level');
@@ -572,21 +549,16 @@ export class UserConsentService extends EventEmitter implements IUserConsentServ
       score -= 10;
       factors.push('High session trust level');
     }
-
-    // Recent activity pattern
     if (this.sessionContext.requestCount > 10) {
       score += 10;
       factors.push('High request frequency in session');
     }
-
-    // Plugin evaluation
     if (this.settings.enablePlugins && this.plugins.length > 0) {
       for (const plugin of this.plugins) {
         try {
           const result = await plugin.evaluate(request);
           score += result.score;
           factors.push(`${plugin.name}: ${result.reason}`);
-
           if (result.decision === 'deny') {
             score += 30;
             factors.push(`${plugin.name} recommends denial`);
@@ -596,41 +568,23 @@ export class UserConsentService extends EventEmitter implements IUserConsentServ
           }
         } catch (error) {
           this.consentLogger.warn(
-            {
-              pluginName: plugin.name,
-              error: error instanceof Error ? error.message : 'Unknown error'
-            },
+            { pluginName: plugin.name, error: error instanceof Error ? error.message : 'Unknown error' },
             'Plugin evaluation failed'
           );
         }
       }
     }
-
-    // Determine recommendation
     let recommendation: 'allow' | 'deny' | 'escalate';
-    if (score <= this.settings.autoApproveThreshold) {
-      recommendation = 'allow';
-    } else if (score >= this.settings.autoRejectThreshold) {
-      recommendation = 'deny';
-    } else {
-      recommendation = 'escalate';
-    }
-
-    // Cap score at 100
+    if (score <= this.settings.autoApproveThreshold) recommendation = 'allow';
+    else if (score >= this.settings.autoRejectThreshold) recommendation = 'deny';
+    else recommendation = 'escalate';
     score = Math.min(100, Math.max(0, score));
-
     return { score, factors, recommendation };
   }
 
   private isHighRiskOperationSync(operation: ConsentRequest['operation'], target?: string): boolean {
-    if (this.CRITICAL_OPERATIONS.includes(operation)) {
-      return true;
-    }
-
-    if (target) {
-      return this.HIGH_RISK_PATTERNS.some(pattern => pattern.test(target));
-    }
-
+    if (this.CRITICAL_OPERATIONS.includes(operation)) return true;
+    if (target) return this.HIGH_RISK_PATTERNS.some(pattern => pattern.test(target));
     return false;
   }
 
@@ -649,7 +603,7 @@ export class UserConsentService extends EventEmitter implements IUserConsentServ
         this.updateTrustLevel(3);
         break;
       case 'deny':
-        this.updateTrustLevel(1); // Small increase for responsible decisions
+        this.updateTrustLevel(1);
         break;
       case 'timeout':
         this.updateTrustLevel(-5);
@@ -667,26 +621,16 @@ export class UserConsentService extends EventEmitter implements IUserConsentServ
       id: randomUUID(),
       request,
       response,
-      securityContext: {
-        sessionId: this.sessionContext.id
-      },
-      riskAssessment: riskAssessment || {
-        score: 0,
-        factors: [],
-        recommendation: 'allow'
-      },
+      securityContext: { sessionId: this.sessionContext.id },
+      riskAssessment: riskAssessment || { score: 0, factors: [], recommendation: 'allow' },
       timestamp: new Date()
     };
-
     this.auditLog.push(auditEntry);
-
-    // Clean up old audit entries
     if (this.auditLog.length > 1000) {
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - this.settings.auditRetention);
       this.auditLog = this.auditLog.filter(entry => entry.timestamp >= cutoffDate);
     }
-
     this.consentLogger.debug(
       {
         auditId: auditEntry.id,
@@ -700,71 +644,56 @@ export class UserConsentService extends EventEmitter implements IUserConsentServ
   }
 
   private loadPolicyFromConfig(): void {
-    // Load custom policy from configuration if available
-    const customPolicy = (this.config as any).consent?.policy;
+    const customPolicy = this.config.consent?.policy as Partial<ConsentPolicy> | undefined;
     if (customPolicy) {
       this.policy = { ...this.policy, ...customPolicy };
       this.consentLogger.info('Custom consent policy loaded from configuration');
     }
-
-    const customSettings = (this.config as any).consent?.settings;
+    const customSettings = this.config.consent?.settings as Partial<ConsentSettings> | undefined;
     if (customSettings) {
       this.settings = { ...this.settings, ...customSettings };
+      if (customSettings.defaultActionForRequiredConsent) {
+        // Ensure this new setting is loaded
+        this.settings.defaultActionForRequiredConsent = customSettings.defaultActionForRequiredConsent;
+      }
       this.consentLogger.info('Custom consent settings loaded from configuration');
     }
   }
 
   private loadSecurityPlugins(): void {
     if (!this.settings.enablePlugins) return;
-
-    // Built-in security plugin
     const securityPlugin: ConsentPlugin = {
       name: 'security-scanner',
       async evaluate(request: ConsentRequest) {
         let score = 0;
         const reasons: string[] = [];
-
-        // Check for common attack patterns
         const target = request.details.path || request.details.command || '';
-
         if (target.includes('../') || target.includes('..\\')) {
           score += 40;
           reasons.push('Path traversal detected');
         }
-
         if (target.match(/\$\(.*\)|`.*`/)) {
           score += 50;
           reasons.push('Command injection pattern detected');
         }
-
         if (request.details.command?.includes('sudo') || request.details.command?.includes('runas')) {
           score += 30;
           reasons.push('Privilege escalation detected');
         }
-
-        return {
-          score,
-          reason: reasons.join('; ') || 'No security concerns detected'
-        };
+        return { score, reason: reasons.join('; ') || 'No security concerns detected' };
       }
     };
-
     this.addPlugin(securityPlugin);
   }
 
   private startSessionMaintenance(): void {
-    // Clean up expired sessions and pending requests
     setInterval(() => {
       const now = Date.now();
-
-      // Check session timeout
       if (now - this.sessionContext.lastActivity.getTime() > this.settings.sessionTimeout) {
         this.consentLogger.info({ sessionId: this.sessionContext.id }, 'Session expired, resetting trust level');
         this.sessionContext.trustLevel = Math.max(30, this.sessionContext.trustLevel - 20);
         this.sessionContext.lastActivity = new Date();
       }
-
-      // Clean up stale pending requests
       for (const [requestId, request] of this.pendingRequests.entries()) {
         const age = now - request.timestamp.getTime();
         if (age > (request.timeout || this.policy.defaultTimeout) * 2) {
@@ -772,28 +701,20 @@ export class UserConsentService extends EventEmitter implements IUserConsentServ
           this.consentLogger.warn({ requestId }, 'Removed stale pending consent request');
         }
       }
-    }, 60000); // Run every minute
+    }, 60000);
   }
 
   private initializeIPC(): void {
-    // Enhanced IPC for Claude Desktop integration
     this.on('consent-response', (response: ConsentResponse & { source?: string }) => {
       const request = this.pendingRequests.get(response.requestId);
       if (request) {
         this.consentLogger.info(
-          {
-            requestId: response.requestId,
-            decision: response.decision,
-            source: response.source || 'unknown'
-          },
+          { requestId: response.requestId, decision: response.decision, source: response.source || 'unknown' },
           'Received consent response'
         );
-
         this.emit(`response-${response.requestId}`, response);
       }
     });
-
-    // Handle emergency stop
     this.on('emergency-stop', () => {
       this.consentLogger.warn('Emergency stop triggered - denying all pending requests');
       for (const [requestId] of this.pendingRequests.entries()) {
@@ -809,42 +730,30 @@ export class UserConsentService extends EventEmitter implements IUserConsentServ
   ): Promise<ConsentResponse> {
     return new Promise(resolve => {
       const timeout = request.timeout || this.policy.defaultTimeout;
-
-      // Enhanced timeout with warning
       const warningTimer = setTimeout(
         () => {
           this.emit('consent-warning', {
             requestId: request.id,
             message: 'Consent request will timeout soon',
-            remainingTime: 10000 // 10 seconds warning
+            remainingTime: 10000
           });
         },
         Math.max(0, timeout - 10000)
       );
-
       const timer = setTimeout(() => {
         clearTimeout(warningTimer);
         this.removeAllListeners(`response-${request.id}`);
-
         const timeoutResponse = this.createResponse(
           request.id,
           'timeout',
           `User did not respond within ${timeout / 1000} seconds`
         );
-
         this.consentLogger.warn(
-          {
-            requestId: request.id,
-            timeout: timeout,
-            riskScore: riskAssessment.score
-          },
+          { requestId: request.id, timeout: timeout, riskScore: riskAssessment.score },
           'Consent request timed out'
         );
-
         resolve(timeoutResponse);
       }, timeout);
-
-      // Listen for response
       this.once(`response-${request.id}`, (response: ConsentResponse) => {
         clearTimeout(timer);
         clearTimeout(warningTimer);
@@ -854,25 +763,9 @@ export class UserConsentService extends EventEmitter implements IUserConsentServ
   }
 
   private createResponse(requestId: string, decision: ConsentResponse['decision'], reason?: string): ConsentResponse {
-    const response: ConsentResponse = {
-      requestId,
-      decision,
-      timestamp: new Date()
-    };
-    if (reason) {
-      // Add reason only if provided
-      response.reason = reason;
-    }
-
-    this.consentLogger.debug(
-      {
-        response,
-        reason,
-        sessionId: this.sessionContext.id
-      },
-      'Consent response created'
-    );
-
+    const response: ConsentResponse = { requestId, decision, timestamp: new Date() };
+    if (reason) response.reason = reason;
+    this.consentLogger.debug({ response, reason, sessionId: this.sessionContext.id }, 'Consent response created');
     return response;
   }
 
@@ -886,21 +779,16 @@ export class UserConsentService extends EventEmitter implements IUserConsentServ
   private matchesPatterns(target: string, patterns: string[]): boolean {
     return patterns.some(pattern => {
       try {
-        // Convert glob patterns to regex with enhanced support
         const regexPattern = pattern
           .replace(/\*\*/g, '___DOUBLESTAR___')
           .replace(/\*/g, '[^/\\\\]*')
           .replace(/___DOUBLESTAR___/g, '.*')
           .replace(/\?/g, '[^/\\\\]')
-          .replace(/\[(!)?([^\]]+)\]/g, (_match, negate, chars) => {
-            return negate ? `[^${chars}]` : `[${chars}]`;
-          });
-
+          .replace(/\[(!)?([^\]]+)\]/g, (_match, negate, chars) => (negate ? `[^${chars}]` : `[${chars}]`));
         const regex = new RegExp(`^${regexPattern}$`, 'i');
         return regex.test(target);
       } catch (error) {
         this.consentLogger.warn({ pattern, error }, 'Invalid pattern in policy');
-        // Fallback to simple string matching
         return target.toLowerCase().includes(pattern.toLowerCase().replace(/\*/g, ''));
       }
     });
@@ -909,39 +797,24 @@ export class UserConsentService extends EventEmitter implements IUserConsentServ
   private async checkRememberedDecision(request: ConsentRequest): Promise<ConsentResponse | null> {
     const key = `${request.operation}:${this.getTargetFromRequest(request)}`;
     const remembered = this.rememberedDecisions.get(key);
-
     if (!remembered) return null;
-
-    // Check if decision is still valid
-    if (remembered.scope === 'permanent') {
-      return { ...remembered, timestamp: new Date() };
-    }
-
+    if (remembered.scope === 'permanent') return { ...remembered, timestamp: new Date() };
     if (remembered.scope === 'session') {
       const sessionAge = Date.now() - this.sessionContext.startTime.getTime();
-      if (sessionAge < this.settings.sessionTimeout) {
-        return { ...remembered, timestamp: new Date() };
-      } else {
-        // Session expired, remove the decision
+      if (sessionAge < this.settings.sessionTimeout) return { ...remembered, timestamp: new Date() };
+      else {
         this.rememberedDecisions.delete(key);
         return null;
       }
     }
-
     return null;
   }
 
   private async rememberDecision(request: ConsentRequest, response: ConsentResponse): Promise<void> {
     const key = `${request.operation}:${this.getTargetFromRequest(request)}`;
     this.rememberedDecisions.set(key, response);
-
     this.consentLogger.info(
-      {
-        key,
-        decision: response.decision,
-        scope: response.scope,
-        sessionId: this.sessionContext.id
-      },
+      { key, decision: response.decision, scope: response.scope, sessionId: this.sessionContext.id },
       'Consent decision remembered'
     );
   }

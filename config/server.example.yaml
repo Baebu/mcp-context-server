@@ -17,8 +17,8 @@ security:
     - ./data
     - ./examples
     - ./config
-    - ~./context-savy-server
-    - ~./Users/Public/Documents
+    - ~/context-savy-server
+    - ~/Documents
   maxFileSize: 10485760 # 10MB
   enableAuditLog: true
   sessionTimeout: 86400000 # 24 hours
@@ -84,22 +84,32 @@ security:
     - rg
     - ripgrep
   restrictedZones:
-    - /Windows/System32
-    - /etc/passwd
-    - /etc/shadow
     - C:/Windows/System32
+    - C:/Program Files
+    - C:/Program Files (x86)
+    - /System
+    - /Library
+    - /usr/local/bin
+    - /etc
+    - /usr/bin
+    - /usr/sbin
+    - /var/log
+    - '**/.git'
+    - '**/.ssh'
+    - '**/.gnupg'
+    - '**/.aws'
+    - '**/node_modules/.bin'
   safezones:
     - .
     - ./data
     - ./examples
-    - ~.Users/Public/context-savy-server
-    - C:/Users/public/Documents
+    - ~/user_projects
+    - /mnt/shared_data
+    - A:/
   maxExecutionTime: 900000
   unsafeArgumentPatterns:
-    # Command injection patterns
     - \$\(.*\)|`.*`|\$\{.*\}
     - ;&|&&|\|\|
-    # Specific dangerous command patterns
     - (^|[\s;])rm\s+-rf\s+/(\s|$)
     - (^|[\s;])rm\s+-rf\s+\*(\s|$)
     - (^|[\s;])del\s+/s\s+/q\s+\*(\s|$)
@@ -110,15 +120,28 @@ security:
     - (^|[\s;])halt(\s|$)
     - (^|[\s;])reg\s+(delete|add)(\s|$)
     - (^|[\s;])regedit(\s|$)
-    # Network security patterns
     - wget\s+.*\|\s*sh(\s|$)
     - curl\s+.*\|\s*sh(\s|$)
     - wget\s+.*\|\s*bash(\s|$)
     - curl\s+.*\|\s*bash(\s|$)
-    # System modification patterns
     - chmod\s+777(\s|$)
     - chown\s+root(\s|$)
-    - (^|[\s;]):.*\{\s*:|.*&\s*\}.*:(\s|$) # fork bomb pattern
+    - (^|[\s;]):.*\{\s*:|.*&\s*\}.*:(\s|$)
+
+# Consent Configuration (NEW section or update existing)
+consent:
+  alwaysAllow:
+    - 'file_write:*.log'
+    - 'file_write:*.tmp'
+    - 'command_execute:ls'
+  alwaysDeny:
+    - 'command_execute:rm -rf /*'
+    - 'file_delete:**/.ssh/**'
+  requireConsent:
+    - 'recursive_delete:*'
+    - 'file_write:**/*.key'
+  # defaultActionForRequiredConsent: 'deny' # Options: 'deny', 'allow', 'prompt'. 'deny' is the safest default.
+  # If 'prompt' is used and no UI responds, it will timeout and likely be denied.
 
 # Enhanced Database Configuration with Vector Storage
 database:
@@ -129,12 +152,14 @@ database:
   backupInterval: 60
   vacuum:
     enabled: true
-    schedule: "0 2 * * *" # Daily at 2 AM
+    schedule: '0 2 * * *' # Daily at 2 AM
     threshold: 0.3 # Run when fragmentation > 30%
   vectorStorage:
     enabled: true
     embeddingDimensions: 384 # TensorFlow.js default
     similarityThreshold: 0.7
+
+# ... (rest of the file remains the same as previously provided) ...
 
 # Memory Management Configuration
 memory:
@@ -206,8 +231,8 @@ plugins:
   maxLoadTime: 5000 # 5 seconds
   security:
     allowNetworkAccess: false
-    allowFileSystemAccess: false
-    allowProcessExecution: false
+    allowFileSystemAccess: true
+    allowProcessExecution: true
 
 # Backup System Configuration
 backup:
@@ -216,8 +241,8 @@ backup:
   maxVersions: 10
   compression: true
   schedule:
-    auto: "0 */4 * * *" # Every 4 hours
-    cleanup: "0 1 * * 0" # Weekly on Sunday at 1 AM
+    auto: '0 */4 * * *' # Every 4 hours
+    cleanup: '0 1 * * 0' # Weekly on Sunday at 1 AM
   types:
     emergency:
       maxCount: 5
