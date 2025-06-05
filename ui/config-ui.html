@@ -1358,56 +1358,17 @@ execute_command"></textarea>
       document.getElementById('claudeConfigPreview').textContent = JSON.stringify(currentClaudeConfig, null, 2);
     }
     function updateServerConfigPreview() {
+      // Use the global 'yaml' object which is imported in config-ui.ts
+      // This assumes the HTML is served by config-ui.ts and has access to its context.
+      // If this were a truly static HTML, a client-side YAML library would be needed.
       try {
-        const yamlString = jsToYaml(currentServerConfig);
+        const yamlString = YAML.stringify(currentServerConfig, { indent: 2 });
         document.getElementById('serverConfigPreview').textContent = yamlString;
       } catch (e) {
         document.getElementById('serverConfigPreview').textContent = JSON.stringify(currentServerConfig, null, 2);
         showAlert('Error converting config to YAML for preview, showing JSON instead.', 'warning');
       }
     }
-
-    function jsToYaml(obj, indent = 0) {
-      let yamlString = '';
-      const spaces = '  '.repeat(indent);
-      for (const key in obj) {
-        if (obj.hasOwnProperty(key)) {
-          const value = obj[key];
-          if (Array.isArray(value)) {
-            yamlString += `${spaces}${key}:\n`;
-            value.forEach(item => {
-              // Ensure strings with special characters are quoted if necessary for YAML
-              let formattedItem = JSON.stringify(item); // Good starting point for correct string representation
-              if (typeof item === 'string' && !/[:{}\[\],&*#?|\-<>=!%@`]/.test(item) && item.trim() === item && !/^\s|\s$/.test(item)) {
-                // If it's a "simple" string, don't quote it unless it looks like a number/boolean but should be a string
-                if (!isNaN(parseFloat(item)) && isFinite(item) && item.toString() === parseFloat(item).toString()) formattedItem = `'${item}'`;
-                else if (item === 'true' || item === 'false' || item === 'null') formattedItem = `'${item}'`;
-                else formattedItem = item; // use as is for simple strings
-              } else if (typeof item === 'string') {
-                // if it's not simple or has special chars, ensure it's properly quoted
-                formattedItem = `'${item.replace(/'/g, "''")}'`;
-              }
-              yamlString += `${spaces}  - ${formattedItem}\n`;
-            });
-          } else if (typeof value === 'object' && value !== null) {
-            yamlString += `${spaces}${key}:\n`;
-            yamlString += jsToYaml(value, indent + 1);
-          } else {
-            let formattedValue = JSON.stringify(value);
-            if (typeof value === 'string' && !/[:{}\[\],&*#?|\-<>=!%@`]/.test(value) && value.trim() === value && !/^\s|\s$/.test(value)) {
-              if (!isNaN(parseFloat(value)) && isFinite(value) && value.toString() === parseFloat(value).toString()) formattedValue = `'${value}'`;
-              else if (value === 'true' || value === 'false' || value === 'null') formattedValue = `'${value}'`;
-              else formattedValue = value;
-            } else if (typeof value === 'string') {
-              formattedValue = `'${value.replace(/'/g, "''")}'`;
-            }
-            yamlString += `${spaces}${key}: ${formattedValue}\n`;
-          }
-        }
-      }
-      return yamlString;
-    }
-
 
     function updateClaudeServerStatus() {
       const servers = currentClaudeConfig.mcpServers || {};

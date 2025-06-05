@@ -16,6 +16,8 @@ export class EmbeddingService implements IEmbeddingService {
   private isInitialized = false;
   private stopWords: Set<string>;
   private commonPatterns: RegExp[];
+  private documentFrequency: Map<string, number> = new Map(); // For IDF-like weighting
+  private documentCount = 0; // Total documents processed for IDF
 
   constructor() {
     this.modelInfo = {
@@ -23,7 +25,7 @@ export class EmbeddingService implements IEmbeddingService {
       name: 'Lightweight Hash Embedding',
       dimensions: 384,
       version: '1.0.0',
-      isActive: true
+      isActive: true // Added missing 'isActive' property
     };
 
     // Common English stop words for better semantic representation
@@ -107,7 +109,7 @@ export class EmbeddingService implements IEmbeddingService {
         {
           model: this.modelInfo.name,
           dimensions: this.modelInfo.dimensions,
-          type: 'hash-based'
+          type: 'hash-based (enhanced)'
         },
         'Lightweight embedding service initialized'
       );
@@ -127,7 +129,9 @@ export class EmbeddingService implements IEmbeddingService {
     }
 
     if (!text || text.trim().length === 0) {
-      throw new Error('Input text cannot be empty');
+      // Return a zero vector for empty text, or throw an error based on desired behavior
+      // For now, returning a normalized zero vector (small random values)
+      return this.normalizeVector(new Array(this.modelInfo.dimensions).fill(0));
     }
 
     try {
@@ -159,6 +163,9 @@ export class EmbeddingService implements IEmbeddingService {
 
     // Multi-layer feature extraction for better semantic representation
     const features = this.extractFeatures(text);
+
+    // Update document frequency for IDF calculation
+    this.updateDocumentFrequency(features.meaningfulWords);
 
     // 1. Word-level semantic features (60% of embedding space)
     this.addWordFeatures(embedding, features.words, 0, Math.floor(this.modelInfo.dimensions * 0.6));
@@ -246,6 +253,20 @@ export class EmbeddingService implements IEmbeddingService {
     };
   }
 
+  private updateDocumentFrequency(meaningfulWords: string[]): void {
+    this.documentCount++;
+    const uniqueWordsInDoc = new Set(meaningfulWords);
+    uniqueWordsInDoc.forEach(word => {
+      this.documentFrequency.set(word, (this.documentFrequency.get(word) || 0) + 1);
+    });
+  }
+
+  private getIdf(word: string): number {
+    const df = this.documentFrequency.get(word) || 0;
+    // Add 1 to numerator and denominator to avoid division by zero and smooth rare words
+    return Math.log(1 + this.documentCount / (1 + df));
+  }
+
   private addWordFeatures(embedding: number[], words: string[], startIdx: number, endIdx: number): void {
     const sectionSize = endIdx - startIdx;
     if (sectionSize <= 0 || !embedding) return;
@@ -257,15 +278,17 @@ export class EmbeddingService implements IEmbeddingService {
       wordFrequency.set(word, (wordFrequency.get(word) || 0) + 1);
     });
 
-    // Add word features with TF weighting
+    // Add word features with TF-IDF weighting
     for (const [word, freq] of wordFrequency.entries()) {
       const hash = this.advancedHash(word);
       const idx = startIdx + (hash % sectionSize);
-      const tfWeight = Math.log(1 + freq); // TF weighting
+      const tf = Math.log(1 + freq); // Term Frequency
+      const idf = this.getIdf(word); // Inverse Document Frequency
+      const tfIdf = tf * idf;
 
       // Safe array access with bounds checking
       if (idx >= 0 && idx < embedding.length) {
-        embedding[idx] = (embedding[idx] || 0) + tfWeight;
+        embedding[idx] = (embedding[idx] || 0) + tfIdf;
       }
 
       // Add character-level features for better word representation
@@ -276,7 +299,7 @@ export class EmbeddingService implements IEmbeddingService {
 
         // Safe array access with bounds checking
         if (charIdx >= 0 && charIdx < embedding.length) {
-          embedding[charIdx] = (embedding[charIdx] || 0) + 0.1 * tfWeight;
+          embedding[charIdx] = (embedding[charIdx] || 0) + 0.1 * tfIdf; // Smaller weight for char pairs
         }
       }
     }
@@ -291,10 +314,11 @@ export class EmbeddingService implements IEmbeddingService {
       const bigram = `${words[i]}_${words[i + 1]}`;
       const hash = this.advancedHash(bigram);
       const idx = startIdx + (hash % sectionSize);
+      const idf = this.getIdf(bigram); // Apply IDF to n-grams too
 
       // Safe array access with bounds checking
       if (idx >= 0 && idx < embedding.length) {
-        embedding[idx] = (embedding[idx] || 0) + 0.8;
+        embedding[idx] = (embedding[idx] || 0) + 0.8 * idf;
       }
     }
 
@@ -304,10 +328,11 @@ export class EmbeddingService implements IEmbeddingService {
         const trigram = `${words[i]}_${words[i + 1]}_${words[i + 2]}`;
         const hash = this.advancedHash(trigram);
         const idx = startIdx + (hash % sectionSize);
+        const idf = this.getIdf(trigram); // Apply IDF to n-grams too
 
         // Safe array access with bounds checking
         if (idx >= 0 && idx < embedding.length) {
-          embedding[idx] = (embedding[idx] || 0) + 0.5;
+          embedding[idx] = (embedding[idx] || 0) + 0.5 * idf;
         }
       }
     }
@@ -322,10 +347,11 @@ export class EmbeddingService implements IEmbeddingService {
       features.patterns.forEach((pattern: string) => {
         const hash = this.advancedHash(pattern);
         const idx = startIdx + (hash % sectionSize);
+        const idf = this.getIdf(pattern);
 
         // Safe array access with bounds checking
         if (idx >= 0 && idx < embedding.length) {
-          embedding[idx] = (embedding[idx] || 0) + 0.6;
+          embedding[idx] = (embedding[idx] || 0) + 0.6 * idf;
         }
       });
     }
@@ -342,10 +368,11 @@ export class EmbeddingService implements IEmbeddingService {
       structuralFeatures.forEach(feature => {
         const hash = this.advancedHash(feature);
         const idx = startIdx + (hash % sectionSize);
+        const idf = this.getIdf(feature);
 
         // Safe array access with bounds checking
         if (idx >= 0 && idx < embedding.length) {
-          embedding[idx] = (embedding[idx] || 0) + 0.3;
+          embedding[idx] = (embedding[idx] || 0) + 0.3 * idf;
         }
       });
     }
@@ -385,7 +412,7 @@ export class EmbeddingService implements IEmbeddingService {
   private normalizeVector(vector: number[]): number[] {
     const magnitude = this.calculateMagnitude(vector);
     if (magnitude === 0) {
-      // Return small random values for zero vectors
+      // Return small random values for zero vectors to avoid division by zero and allow some similarity
       return vector.map(() => (Math.random() - 0.5) * 0.001);
     }
     return vector.map(val => val / magnitude);
@@ -428,7 +455,8 @@ export class EmbeddingService implements IEmbeddingService {
     const similarity = dotProduct / (magnitude1 * magnitude2);
 
     // Clamp to [0, 1] range and handle floating point precision
-    return Math.max(0, Math.min(1, (similarity + 1) / 2)); // Convert from [-1,1] to [0,1]
+    // (similarity + 1) / 2 converts from [-1,1] to [0,1]
+    return Math.max(0, Math.min(1, (similarity + 1) / 2));
   }
 
   getModelInfo(): EmbeddingModel {

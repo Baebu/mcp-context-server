@@ -1,7 +1,7 @@
 // Enhanced Database Operations with Semantic Features (CLEAN VERSION)
 // File: src/application/tools/enhanced-database-operations.tool.ts
 
-import { injectable, inject } from 'inversify';
+import { injectable, inject } from 'inversify'; // Import inject
 import { z } from 'zod';
 import type { IMCPTool, ToolContext, ToolResult } from '../../core/interfaces/tool-registry.interface.js';
 import type { IDatabaseHandler } from '../../core/interfaces/database.interface.js';
@@ -13,8 +13,13 @@ const enhancedStoreContextSchema = z.object({
   type: z.string().optional().default('generic').describe('Type of context content'),
   generateEmbedding: z.boolean().optional().default(true).describe('Whether to generate semantic embedding'),
   tags: z.array(z.string()).optional().describe('Manual semantic tags'),
-  // Backward compatibility
+  /**
+   * @deprecated Use `value` instead. This parameter is for backward compatibility.
+   */
   content: z.any().optional().describe('Alias for value (backward compatibility)'),
+  /**
+   * @deprecated Use `type` instead. This parameter is for backward compatibility.
+   */
   metadata: z.string().optional().describe('JSON metadata string (backward compatibility)')
 });
 
@@ -26,7 +31,9 @@ const enhancedQueryContextSchema = z.object({
   semanticQuery: z.string().optional().describe('Natural language query for semantic search'),
   minSimilarity: z.number().optional().default(0.5).describe('Minimum similarity for semantic results'),
   includeTraditional: z.boolean().optional().default(true).describe('Include traditional query results'),
-  // Backward compatibility
+  /**
+   * @deprecated Use `type` and `keyPattern` directly. This parameter is for backward compatibility.
+   */
   filters: z.string().optional().describe('JSON filters string (backward compatibility)')
 });
 
@@ -45,36 +52,58 @@ export class EnhancedStoreContextTool implements IMCPTool {
     const db = context.container.get<IDatabaseHandler>('DatabaseHandler'); // Use IDatabaseHandler
 
     try {
-      // Handle backward compatibility
-      let value = params.value;
-      let type = params.type || 'generic';
+      // Prioritize new parameters, then fallback to deprecated ones
+      let valueToStore = params.value;
+      let typeToStore = params.type || 'generic';
 
-      if (params.content !== undefined && params.value === undefined) {
-        value = params.content;
+      // Backward compatibility for 'content'
+      if (valueToStore === undefined && params.content !== undefined) {
+        valueToStore = params.content;
+        context.logger.warn({ key: params.key }, "Using deprecated 'content' parameter. Please use 'value' instead.");
       }
 
-      if (params.metadata && !params.type) {
+      // Backward compatibility for 'metadata' influencing 'type'
+      if (typeToStore === 'generic' && params.metadata) {
         try {
           const metadata = JSON.parse(params.metadata);
-          type = metadata.type || 'generic';
-          if (typeof value === 'string') {
-            value = {
-              content: value,
+          if (metadata.type) {
+            typeToStore = metadata.type;
+            context.logger.warn(
+              { key: params.key },
+              "Using deprecated 'metadata' parameter for type. Please use 'type' directly."
+            );
+          }
+          // If valueToStore is a string and metadata is parsed, merge them
+          if (typeof valueToStore === 'string' && typeof metadata === 'object') {
+            valueToStore = {
+              content: valueToStore,
               metadata
             };
           }
         } catch {
-          type = params.metadata;
+          // If metadata isn't valid JSON, treat it as a string type
+          typeToStore = params.metadata;
+          context.logger.warn(
+            { key: params.key },
+            "Using deprecated 'metadata' parameter as type. Please use 'type' directly."
+          );
         }
       }
 
-      // Prepare text content for embedding generation
-      const textContent = typeof value === 'string' ? value : JSON.stringify(value);
+      // Ensure valueToStore is JSON-serializable before proceeding
+      let textContent: string;
+      try {
+        textContent = typeof valueToStore === 'string' ? valueToStore : JSON.stringify(valueToStore);
+      } catch (error) {
+        throw new Error(
+          `Value for key '${params.key}' is not JSON-serializable: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
 
       let embedding: number[] | undefined;
       let tags: string[] = params.tags || [];
 
-      // Generate embedding if requested
+      // Generate embedding if requested and content is not empty
       if (params.generateEmbedding && textContent.trim().length > 0) {
         try {
           embedding = await this.embeddingService.generateEmbedding(textContent);
@@ -84,9 +113,9 @@ export class EnhancedStoreContextTool implements IMCPTool {
         }
       }
 
-      // Extract semantic tags if none provided
+      // Extract semantic tags if none provided and content is not empty
       if (tags.length === 0 && textContent.length > 0) {
-        tags = this.extractSemanticTags(textContent, type);
+        tags = this.extractSemanticTags(textContent, typeToStore);
       }
 
       // DIRECT SEMANTIC STORAGE - Use database instance directly
@@ -103,12 +132,18 @@ export class EnhancedStoreContextTool implements IMCPTool {
           VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         `);
 
-        stmt.run(params.key, JSON.stringify(value), type, embeddingJson, tagsJson, type);
+        // Ensure value is always stored as a JSON string
+        const finalValueForDb = typeof valueToStore === 'string' ? valueToStore : JSON.stringify(valueToStore);
 
-        context.logger.debug({ key: params.key, type, hasEmbedding: !!embedding }, 'Semantic context stored directly');
+        stmt.run(params.key, finalValueForDb, typeToStore, embeddingJson, tagsJson, typeToStore);
+
+        context.logger.debug(
+          { key: params.key, type: typeToStore, hasEmbedding: !!embedding },
+          'Semantic context stored directly'
+        );
       } else {
-        // Fallback to regular storage
-        await db.storeContext(params.key, value, type);
+        // Fallback to regular storage (will also handle JSON serialization internally)
+        await db.storeContext(params.key, valueToStore, typeToStore);
         context.logger.warn({ key: params.key }, 'Stored without semantic features - database instance not available');
       }
 
@@ -178,8 +213,33 @@ export class EnhancedQueryContextTool implements IMCPTool {
       const dbInstance = db.getDatabase(); // Use the interface method
       let results: any[] = [];
 
-      // Define searchPattern in the outer scope so it's available for the return statement
-      const searchPattern = params.pattern || params.keyPattern;
+      // Prioritize new parameters, then fallback to deprecated ones
+      let searchPattern = params.keyPattern;
+      if (searchPattern === undefined && params.pattern !== undefined) {
+        searchPattern = params.pattern;
+        context.logger.warn("Using deprecated 'pattern' parameter. Please use 'keyPattern' instead.");
+      }
+
+      let queryType = params.type;
+      let filtersParsed: { type?: string; keyPattern?: string; pattern?: string } | undefined;
+
+      // Backward compatibility for 'filters' parameter
+      if (params.filters) {
+        try {
+          filtersParsed = JSON.parse(params.filters);
+          // Safely access properties of filtersParsed
+          if (queryType === undefined && filtersParsed?.type) {
+            queryType = filtersParsed.type;
+            context.logger.warn("Using deprecated 'filters' parameter for type. Please use 'type' directly.");
+          }
+          if (searchPattern === undefined && (filtersParsed?.keyPattern || filtersParsed?.pattern)) {
+            searchPattern = filtersParsed.keyPattern || filtersParsed.pattern;
+            context.logger.warn("Using deprecated 'filters' parameter for pattern. Please use 'keyPattern' directly.");
+          }
+        } catch (error) {
+          context.logger.warn({ error }, "Failed to parse deprecated 'filters' parameter. Ignoring.");
+        }
+      }
 
       if (dbInstance) {
         // Build query with filters
@@ -187,12 +247,12 @@ export class EnhancedQueryContextTool implements IMCPTool {
         const queryParams: any[] = [];
 
         // Type filter
-        if (params.type) {
+        if (queryType) {
           query += ' AND (type = ? OR context_type = ?)';
-          queryParams.push(params.type, params.type);
+          queryParams.push(queryType, queryType);
         }
 
-        // Pattern filter - FIXED SCOPING
+        // Pattern filter
         if (searchPattern) {
           query += ' AND key LIKE ?';
           queryParams.push(`%${searchPattern}%`);
@@ -214,13 +274,13 @@ export class EnhancedQueryContextTool implements IMCPTool {
           tags: row.semantic_tags ? this.safeJsonParse(row.semantic_tags) : [],
           relevanceScore: row.relevance_score || 0,
           createdAt: row.created_at,
-          updatedAt: row.updated_at
+          updatedAt: row.updatedAt
         }));
       } else {
         // Fallback to regular query
-        const fallbackSearchPattern = params.pattern || params.keyPattern;
+        const fallbackSearchPattern = searchPattern; // Use the resolved searchPattern
         const queryOptions = {
-          type: params.type,
+          type: queryType, // Use the resolved queryType
           keyPattern: fallbackSearchPattern,
           limit: params.limit || 20
         };
@@ -247,7 +307,7 @@ export class EnhancedQueryContextTool implements IMCPTool {
                 resultsCount: results.length,
                 results: results,
                 queryParams: {
-                  type: params.type,
+                  type: queryType,
                   pattern: searchPattern,
                   limit: params.limit || 20,
                   semanticQuery: params.semanticQuery,

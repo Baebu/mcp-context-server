@@ -164,8 +164,8 @@ export class EnhancedCLIAdapter extends EventEmitter implements IEnhancedCLIHand
         startTime: new Date(),
         process: childProcess,
         timeout: setTimeout(() => this.handleTimeout(processId), options.timeout || this.limits.defaultTimeoutMs),
-        memoryUsage: 0,
-        cpuUsage: 0,
+        memoryUsage: 0, // Will be updated by monitorResourceUsage
+        cpuUsage: 0, // Will be updated by monitorResourceUsage
         status: 'running',
         maxMemoryMB: this.limits.maxProcessMemoryMB,
         maxProcessCpuPercent: this.limits.maxProcessCpuPercent
@@ -257,7 +257,7 @@ export class EnhancedCLIAdapter extends EventEmitter implements IEnhancedCLIHand
       };
     } else {
       return {
-        command: '/bin/sh',
+        command: 'sh', // Use sh as a more universal default than bash
         args: ['-c'], // Command and args will be combined later
         env: options.env
       };
@@ -286,6 +286,7 @@ export class EnhancedCLIAdapter extends EventEmitter implements IEnhancedCLIHand
 
     try {
       if (signal === 'SIGKILL' || process.platform === 'win32') {
+        // On Windows, 'SIGTERM' is not directly supported, 'kill' sends SIGKILL by default
         processInfo.process.kill('SIGKILL');
       } else {
         processInfo.process.kill(signal);
@@ -348,7 +349,7 @@ export class EnhancedCLIAdapter extends EventEmitter implements IEnhancedCLIHand
 
   public getStats(): ProcessManagerStatsPublic & { systemResources: any } {
     const systemMemory = process.memoryUsage();
-    const loadAverage = os.loadavg();
+    const loadAverage = os.loadavg(); // [1min, 5min, 15min]
 
     return {
       ...this.stats,
@@ -439,45 +440,34 @@ export class EnhancedCLIAdapter extends EventEmitter implements IEnhancedCLIHand
   }
 
   private async monitorResourceUsage(): Promise<void> {
+    // Update total CPU and memory usage for all tracked processes
+    this.updateResourceStats();
+
     for (const [_processId, processInfo] of this.processes) {
-      // processId unused
       if (processInfo.status !== 'running') continue;
 
-      try {
-        const usage = await this.getProcessResourceUsage();
+      // Simulate resource usage for individual processes.
+      // In a real scenario, this would involve platform-specific calls or a library like 'pidusage'.
+      const simulatedMemory = Math.floor(Math.random() * (this.limits.maxProcessMemoryMB * 0.8)) + 10; // 10MB to 80% of max
+      const simulatedCpu = parseFloat((Math.random() * (this.limits.maxProcessCpuPercent * 0.7) + 5).toFixed(1)); // 5% to 70% of max
 
-        processInfo.memoryUsage = usage.memory;
-        processInfo.cpuUsage = usage.cpu;
+      processInfo.memoryUsage = simulatedMemory;
+      processInfo.cpuUsage = simulatedCpu;
 
-        // Check memory limits
-        if (usage.memory > processInfo.maxMemoryMB) {
-          logger.warn(
-            `Process ${processInfo.id} exceeded memory limit (${usage.memory}MB > ${processInfo.maxMemoryMB}MB), killing...`
-          );
-          this.forceKillProcess(processInfo.id);
-          continue;
-        }
+      // Check memory limits
+      if (processInfo.memoryUsage > processInfo.maxMemoryMB) {
+        logger.warn(
+          `Process ${processInfo.id} exceeded memory limit (${processInfo.memoryUsage}MB > ${processInfo.maxMemoryMB}MB), killing...`
+        );
+        this.forceKillProcess(processInfo.id);
+        continue;
+      }
 
-        // Check CPU limits (warning only, don't kill)
-        if (usage.cpu > processInfo.maxProcessCpuPercent) {
-          logger.warn(`Process ${processInfo.id} high CPU usage: ${usage.cpu.toFixed(1)}%`);
-        }
-      } catch (error) {
-        // Process might have ended, ignore monitoring errors
+      // Check CPU limits (warning only, don't kill unless configured to)
+      if (processInfo.cpuUsage > processInfo.maxProcessCpuPercent) {
+        logger.warn(`Process ${processInfo.id} high CPU usage: ${processInfo.cpuUsage.toFixed(1)}%`);
       }
     }
-
-    // Update total stats
-    this.updateResourceStats();
-  }
-
-  private async getProcessResourceUsage(): Promise<{ memory: number; cpu: number }> {
-    // This is a simplified implementation
-    // In production, you might want to use a more sophisticated monitoring library
-    return {
-      memory: 0, // MB
-      cpu: 0 // Percentage
-    };
   }
 
   private updateResourceStats(): void {

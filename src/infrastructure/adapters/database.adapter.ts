@@ -144,10 +144,10 @@ export class DatabaseAdapter implements IDatabaseHandler {
   async applyInitialMigrations(): Promise<void> {
     try {
       const migrationExecutor = new MigrationExecutor(this.db);
-      await migrationExecutor.applySemantic();
-      logger.info('Semantic migrations applied successfully via DatabaseAdapter.');
+      await migrationExecutor.applyAllPending(); // Changed to applyAllPending
+      logger.info('All pending database migrations applied successfully via DatabaseAdapter.');
     } catch (error) {
-      logger.error({ error }, 'Failed to apply semantic migrations via DatabaseAdapter.');
+      logger.error({ error }, 'Failed to apply database migrations via DatabaseAdapter.');
       throw error; // Re-throw the error to halt server startup if migrations fail
     }
   }
@@ -383,15 +383,27 @@ export class DatabaseAdapter implements IDatabaseHandler {
   }
 
   async storeContext(key: string, value: unknown, type?: string): Promise<void> {
+    let serializedValue: string;
+    try {
+      serializedValue = JSON.stringify(value);
+    } catch (error) {
+      throw new Error(
+        `Failed to serialize context value for key '${key}': ${error instanceof Error ? error.message : String(error)}. Value must be JSON-serializable.`
+      );
+    }
+
+    if (Buffer.byteLength(serializedValue, 'utf8') > 1048576) {
+      // 1MB limit
+      throw new Error(
+        `Context value for key '${key}' too large (${(Buffer.byteLength(serializedValue, 'utf8') / 1024 / 1024).toFixed(2)}MB). Max 1MB.`
+      );
+    }
+
     try {
       const stmt = this.db.prepare(`
         INSERT OR REPLACE INTO context_items (key, value, type, updated_at)
         VALUES (?, ?, ?, CURRENT_TIMESTAMP)
       `);
-      const serializedValue = JSON.stringify(value);
-      if (serializedValue.length > 1048576) {
-        throw new Error('Context value too large (max 1MB)');
-      }
       stmt.run(key, serializedValue, type || 'generic');
       logger.debug({ key, type, valueLength: serializedValue.length }, 'Context item stored');
     } catch (error) {

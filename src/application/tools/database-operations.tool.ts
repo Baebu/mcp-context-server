@@ -8,8 +8,13 @@ const storeContextSchema = z.object({
   key: z.string().describe('Unique key for the context item'),
   value: z.any().describe('Value to store (will be JSON serialized)'),
   type: z.string().optional().describe('Optional type hint for the value'),
-  // Add backward compatibility
+  /**
+   * @deprecated Use `value` instead. This parameter is for backward compatibility.
+   */
   content: z.any().optional().describe('Alias for value (backward compatibility)'),
+  /**
+   * @deprecated Use `type` instead. This parameter is for backward compatibility.
+   */
   metadata: z.string().optional().describe('JSON metadata string (backward compatibility)')
 });
 
@@ -23,33 +28,45 @@ export class StoreContextTool implements IMCPTool {
     const db = context.container.get('DatabaseHandler') as IDatabaseHandler;
 
     try {
-      // Handle backward compatibility
-      let value = params.value;
-      let type = params.type;
+      // Prioritize new parameters, then fallback to deprecated ones
+      let valueToStore = params.value;
+      let typeToStore = params.type || 'generic';
 
-      // If using old parameter names, map them
-      if (params.content !== undefined && params.value === undefined) {
-        value = params.content;
+      // Backward compatibility for 'content'
+      if (valueToStore === undefined && params.content !== undefined) {
+        valueToStore = params.content;
+        context.logger.warn({ key: params.key }, "Using deprecated 'content' parameter. Please use 'value' instead.");
       }
 
-      if (params.metadata && !params.type) {
+      // Backward compatibility for 'metadata' influencing 'type'
+      if (typeToStore === 'generic' && params.metadata) {
         try {
           const metadata = JSON.parse(params.metadata);
-          type = metadata.type || 'generic';
-          // Merge metadata into value if value is a string
-          if (typeof value === 'string') {
-            value = {
-              content: value,
+          if (metadata.type) {
+            typeToStore = metadata.type;
+            context.logger.warn(
+              { key: params.key },
+              "Using deprecated 'metadata' parameter for type. Please use 'type' directly."
+            );
+          }
+          // If valueToStore is a string and metadata is parsed, merge them
+          if (typeof valueToStore === 'string' && typeof metadata === 'object') {
+            valueToStore = {
+              content: valueToStore,
               metadata
             };
           }
         } catch {
-          // If metadata isn't valid JSON, use as type
-          type = params.metadata;
+          // If metadata isn't valid JSON, treat it as a string type
+          typeToStore = params.metadata;
+          context.logger.warn(
+            { key: params.key },
+            "Using deprecated 'metadata' parameter as type. Please use 'type' directly."
+          );
         }
       }
 
-      await db.storeContext(params.key, value, type || 'generic');
+      await db.storeContext(params.key, valueToStore, typeToStore);
 
       return {
         content: [
@@ -118,10 +135,15 @@ export class GetContextTool implements IMCPTool {
 
 const queryContextSchema = z.object({
   type: z.string().optional().describe('Filter by type'),
-  pattern: z.string().optional().describe('Key pattern to match'),
-  keyPattern: z.string().optional().describe('Alias for pattern'),
+  keyPattern: z.string().optional().describe('Key pattern to match'),
   limit: z.number().optional().default(100),
-  // Add backward compatibility for filters
+  /**
+   * @deprecated Use `keyPattern` instead. This parameter is for backward compatibility.
+   */
+  pattern: z.string().optional().describe('Alias for keyPattern'),
+  /**
+   * @deprecated Use `type` and `keyPattern` directly. This parameter is for backward compatibility.
+   */
   filters: z.string().optional().describe('JSON filters string (backward compatibility)')
 });
 
@@ -143,10 +165,16 @@ export class QueryContextTool implements IMCPTool {
       if (params.filters) {
         try {
           const filters = JSON.parse(params.filters);
-          queryOptions.type = filters.type;
-          queryOptions.keyPattern = filters.pattern || filters.keyPattern;
-        } catch {
-          // If filters isn't valid JSON, ignore
+          if (filters.type) {
+            queryOptions.type = filters.type;
+            context.logger.warn("Using deprecated 'filters' parameter for type. Please use 'type' directly.");
+          }
+          if (filters.pattern || filters.keyPattern) {
+            queryOptions.keyPattern = filters.pattern || filters.keyPattern;
+            context.logger.warn("Using deprecated 'filters' parameter for pattern. Please use 'keyPattern' directly.");
+          }
+        } catch (error) {
+          context.logger.warn({ error }, "Failed to parse deprecated 'filters' parameter. Ignoring.");
         }
       }
 
@@ -154,11 +182,12 @@ export class QueryContextTool implements IMCPTool {
       if (params.type) {
         queryOptions.type = params.type;
       }
-      if (params.pattern) {
-        queryOptions.keyPattern = params.pattern;
-      }
+      // Prioritize keyPattern, then fallback to pattern
       if (params.keyPattern) {
         queryOptions.keyPattern = params.keyPattern;
+      } else if (params.pattern) {
+        queryOptions.keyPattern = params.pattern;
+        context.logger.warn("Using deprecated 'pattern' parameter. Please use 'keyPattern' instead.");
       }
 
       const items = await db.queryContext(queryOptions);

@@ -11,7 +11,7 @@ import { createServer, IncomingMessage, ServerResponse } from 'http';
 import { promises as fs, readFileSync } from 'fs';
 import { join, resolve, dirname } from 'path';
 import { homedir, platform as osPlatform } from 'os';
-import * as yaml from 'yaml';
+import * as yaml from 'yaml'; // Import the yaml library
 import { URL } from 'url';
 import { fileURLToPath } from 'node:url';
 
@@ -258,7 +258,7 @@ async function writeServerConfigFile(
     }
 
     const validatedConfig = configSchema.parse(rawMerged);
-    const yamlContent = yaml.stringify(validatedConfig);
+    const yamlContent = yaml.stringify(validatedConfig, { indent: 2 }); // Use yaml.stringify
 
     const configDir = dirname(SERVER_CONFIG_YAML_PATH);
     await fs.mkdir(configDir, { recursive: true });
