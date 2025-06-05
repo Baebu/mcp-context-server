@@ -28,15 +28,19 @@ A high-performance Model Context Protocol (MCP) server that maximizes productivi
 ### Installation
 
 ```bash
+
 # Clone the repository
-git clone https://github.com/yourusername/mcp-context-server.git
+
+git clone <https://github.com/yourusername/mcp-context-server.git>
 cd mcp-context-server
 
 # Install dependencies and setup
+
 npm install
 npm run setup # This creates default config/server.yaml and .env if they don't exist
 
 # Build the project
+
 npm run build
 ```
 
@@ -45,7 +49,9 @@ npm run build
 The server's behavior is primarily controlled by a `server.yaml` file, typically located in the `config/` directory. Customize it for your needs:
 
 ```yaml
+
 # Example config/server.yaml
+
 security:
   allowedCommands:
     - 'ls'
@@ -54,10 +60,14 @@ security:
   safezones:
     - '.' # Relative to where the server is run, or its configured workingDirectory
     - '/path/to/your/projects'
-  # ... other settings
+
+# ... other settings
+
 database:
   path: './data/context.db' # Relative paths are resolved from server's working directory
+
 # ... other settings
+
 ```
 
 ### Claude Desktop Integration
@@ -101,6 +111,9 @@ Ensure you restart Claude Desktop after making changes to `claude_desktop_config
 - `read_file` - Read file contents with automatic truncation
 - `write_file` - Write content to files with directory creation
 - `list_directory` - List directory contents with metadata
+- `edit_file` - Edit specific lines in a file (replace, insert, delete)
+- `batch_edit_file` - Perform multiple line-based edits in a single transaction
+- `content_edit_file` - Find and replace content in a file using text or regex patterns
 
 ### Command Execution
 
@@ -111,6 +124,8 @@ Ensure you restart Claude Desktop after making changes to `claude_desktop_config
 - `store_context` - Store information for later retrieval
 - `get_context` - Retrieve stored context items
 - `query_context` - Search contexts with flexible filters
+- `store_context_semantic` - Store context with semantic embedding and tag extraction
+- `query_context_enhanced` - Query context with both traditional filters and semantic search capabilities
 
 ### Smart Paths
 
@@ -124,10 +139,24 @@ Ensure you restart Claude Desktop after making changes to `claude_desktop_config
 - `get_metrics` - Server performance metrics
 - `security_diagnostics` - Test and diagnose security configurations.
 - `database_health` - Monitor database, manage backups.
+- `list_backups` - List recent file backups
+- `backup_stats` - Get statistics about file backups
+- `restore_backup` - Restore a file from a specific backup
+- `view_backup` - View the contents of a backup file
+- `cleanup_backups` - Clean up old backups according to retention policy
+- `manage_processes` - Manage system processes with limits, monitoring, and cleanup
 
 ### Workspace Management
 
 - `create_workspace`, `list_workspaces`, `switch_workspace`, `sync_workspace`, etc.
+
+### Semantic Search & Context
+
+- `semantic_search_context` - Search context using natural language queries with semantic understanding
+- `find_related_context` - Find context items semantically related to a given key
+- `create_context_relationship` - Create a semantic relationship between two context items
+- `update_missing_embeddings` - Generate embeddings for context items that don't have them
+- `get_semantic_stats` - Get statistics about semantic search capabilities and coverage
 
 ## 📚 Usage Examples
 
@@ -135,6 +164,7 @@ Ensure you restart Claude Desktop after making changes to `claude_desktop_config
 
 ```
 Store some project information:
+
 - Key: "my_project"
 - Value: {"name": "Web App", "version": "1.0.0", "tech": ["React", "Node.js"]}
 
@@ -148,30 +178,49 @@ Can you get the context for "my_project"?
 
 ```
 Run safe commands within configured safe zones:
+
 - List files: "ls -la"
 - Check git status: "git status"
+```
+
+### Content-based File Editing (New!)
+
+```
+Use the content_edit_file tool to replace a function name:
+
+- Path: "src/utils/helper.ts"
+- Find: "oldFunctionName"
+- Replace: "newFunctionName"
+- All Occurrences: true
 ```
 
 ## 🏗️ Development
 
 ```bash
+
 # Development mode with file watching
+
 npm run dev
 
 # Run tests
+
 npm test
 
 # Type checking
+
 npm run type-check
 
 # Linting and formatting
+
 npm run lint
 npm run format
 
 # Health check (validates basic setup)
+
 npm run health-check
 
 # Generate Claude Desktop config snippet
+
 npm run claude-config
 ```
 

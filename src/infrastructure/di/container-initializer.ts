@@ -19,7 +19,8 @@ import {
   EditFileTool,
   BatchEditFileTool,
   SearchFilesTool,
-  FindFilesTool
+  FindFilesTool,
+  ContentEditFileTool // Added new tool
 } from '../../application/tools/enhanced-file-operations.tool.js';
 
 // Backup Management Tools
@@ -145,6 +146,7 @@ export class ContainerInitializer {
     toolRegistry.register(container.get<BatchEditFileTool>(BatchEditFileTool));
     toolRegistry.register(container.get<SearchFilesTool>(SearchFilesTool));
     toolRegistry.register(container.get<FindFilesTool>(FindFilesTool));
+    toolRegistry.register(container.get<ContentEditFileTool>(ContentEditFileTool)); // Register new tool
 
     // Backup management tools (NEW)
     toolRegistry.register(container.get<ListBackupsTool>(ListBackupsTool));

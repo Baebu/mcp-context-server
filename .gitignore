@@ -121,3 +121,5 @@ data/
 /src/infrastructure/di/Git.log
 /test-fs-workspace
 updates.html
+/TYPESCRIPT_FIXES_COMPLETE.md
+/IMPLEMENTATION_CHECKLIST.md

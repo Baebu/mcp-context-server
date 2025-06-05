@@ -13,6 +13,7 @@ import type { ISmartPathManager } from '../../core/interfaces/smart-path.interfa
 // IUserConsentService import removed
 import type { IWorkspaceManager } from '../../core/interfaces/workspace.interface.js';
 import type { IEmbeddingService } from '../../core/interfaces/semantic-context.interface.js';
+import type { ISecurityValidator } from '../../core/interfaces/security.interface.js'; // Import SecurityValidator interface
 
 // Implementations
 import { ToolRegistry } from '../../application/services/tool-registry.service.js';
@@ -25,13 +26,15 @@ import { SmartPathManager } from '../../application/services/smart-path-manager.
 // UserConsentService import removed
 import { WorkspaceManager } from '../../application/services/workspace-manager.service.js';
 import { EmbeddingService } from '../../application/services/embedding.service.js';
+import { SecurityValidatorService } from '../../application/services/security-validator.service.js'; // Import SecurityValidatorService
 
 // Enhanced File Operations Tools
 import {
   EditFileTool,
   BatchEditFileTool,
   SearchFilesTool,
-  FindFilesTool
+  FindFilesTool,
+  ContentEditFileTool // Added new tool
 } from '../../application/tools/enhanced-file-operations.tool.js';
 
 // Backup Management Tools
@@ -78,14 +81,15 @@ container.bind<IFilesystemHandler>('FilesystemHandler').to(FilesystemAdapter).in
 container.bind<IDatabaseHandler>('DatabaseHandler').to(DatabaseAdapter).inSingletonScope();
 // Bind EnhancedCLIAdapter to IEnhancedCLIHandler for the 'CLIHandler' token
 container.bind<IEnhancedCLIHandler>('CLIHandler').to(EnhancedCLIAdapter).inSingletonScope();
-// Also bind to ICLIHandler if other components strictly need only the base interface
-// container.bind<ICLIHandler>('CLIHandler').toService('EnhancedCLIAdapter'); // This is one way if EnhancedCLIAdapter is bound by its class
-// Or, more simply, since IEnhancedCLIHandler extends ICLIHandler, the above binding should suffice.
+// Explicitly bind SecurityValidatorService
+container.bind<ISecurityValidator>('SecurityValidator').to(SecurityValidatorService).inSingletonScope();
+
 // Enhanced File Operations Tools
 container.bind<EditFileTool>(EditFileTool).to(EditFileTool).inSingletonScope();
 container.bind<BatchEditFileTool>(BatchEditFileTool).to(BatchEditFileTool).inSingletonScope();
 container.bind<SearchFilesTool>(SearchFilesTool).to(SearchFilesTool).inSingletonScope();
 container.bind<FindFilesTool>(FindFilesTool).to(FindFilesTool).inSingletonScope();
+container.bind<ContentEditFileTool>(ContentEditFileTool).to(ContentEditFileTool).inSingletonScope(); // Bind new tool
 
 // Backup Management Tools
 container.bind<ListBackupsTool>(ListBackupsTool).to(ListBackupsTool).inSingletonScope();
@@ -102,12 +106,6 @@ container.bind<IEmbeddingService>('EmbeddingService').to(EmbeddingService).inSin
 
 // UI Bridges
 // ConsentUIBridge binding removed
-
-// Enhanced File Operations Tools
-container.bind<EditFileTool>(EditFileTool).to(EditFileTool).inSingletonScope();
-container.bind<BatchEditFileTool>(BatchEditFileTool).to(BatchEditFileTool).inSingletonScope();
-container.bind<SearchFilesTool>(SearchFilesTool).to(SearchFilesTool).inSingletonScope();
-container.bind<FindFilesTool>(FindFilesTool).to(FindFilesTool).inSingletonScope();
 
 // Process Management Tool (NEW)
 container.bind<ProcessManagementTool>(ProcessManagementTool).to(ProcessManagementTool).inSingletonScope();

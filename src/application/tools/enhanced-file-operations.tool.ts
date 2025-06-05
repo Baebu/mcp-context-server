@@ -55,13 +55,9 @@ export class EditFileTool implements IMCPTool {
           maxBackupsPerDay: 15,
           keepDays: 14
         });
-        
-        const backupPath = await backupManager.createRollingBackup(
-          params.path,
-          fileContent.content,
-          params.operation
-        );
-        
+
+        const backupPath = await backupManager.createRollingBackup(params.path, fileContent.content, params.operation);
+
         const relativePath = path.relative(process.cwd(), backupPath);
         context.logger.info(`Organized backup created: ${relativePath}`);
       }
@@ -246,13 +242,9 @@ export class BatchEditFileTool implements IMCPTool {
           maxBackupsPerDay: 15,
           keepDays: 14
         });
-        
-        const backupPath = await backupManager.createRollingBackup(
-          params.path,
-          fileContent.content,
-          'batch'
-        );
-        
+
+        const backupPath = await backupManager.createRollingBackup(params.path, fileContent.content, 'batch');
+
         const relativePath = path.relative(process.cwd(), backupPath);
         context.logger.info(`Organized backup created: ${relativePath}`);
       }
@@ -366,6 +358,198 @@ export class BatchEditFileTool implements IMCPTool {
         }
       ]
     };
+  }
+}
+
+// Schema for ContentEditFileTool
+const contentEditFileSchema = z.object({
+  path: z.string().describe('Path to the file to edit'),
+  find: z.string().describe('Text or regex pattern to find'),
+  replace: z.string().describe('Content to replace found instances with'),
+  searchType: z.enum(['text', 'regex']).optional().default('text').describe('Type of search to perform'),
+  caseSensitive: z.boolean().optional().default(false).describe('Case sensitive search'),
+  allOccurrences: z.boolean().optional().default(true).describe('Replace all occurrences (false for first only)'),
+  createBackup: z.boolean().optional().default(true).describe('Create backup before editing'),
+  preview: z.boolean().optional().default(false).describe('Preview changes without applying')
+});
+
+@injectable()
+export class ContentEditFileTool implements IMCPTool {
+  name = 'content_edit_file';
+  description = 'Find and replace content in a file using text or regex patterns';
+  schema = contentEditFileSchema;
+
+  async execute(params: z.infer<typeof contentEditFileSchema>, context: ToolContext): Promise<ToolResult> {
+    const filesystem = context.container.get<IFilesystemHandler>('FilesystemHandler');
+
+    try {
+      const fileContent = await filesystem.readFileWithTruncation(params.path, 10485760); // 10MB limit
+      const originalContent = fileContent.content;
+      let newContent = originalContent;
+      let replacementsMade = 0;
+
+      const flags = params.caseSensitive ? 'g' : 'gi'; // 'g' for global, 'i' for case-insensitive
+      const searchPattern = params.searchType === 'regex' ? params.find : this.escapeRegex(params.find);
+      const regex = new RegExp(searchPattern, params.allOccurrences ? flags : flags.replace('g', ''));
+
+      // Perform replacement and count changes
+      newContent = originalContent.replace(regex, (_match: string, ..._args: any[]) => {
+        replacementsMade++;
+        // The replace function can receive matched groups,
+        // so we need to correctly pass them to the replacement string.
+        // For simple string replacement, this is fine. For regex with groups,
+        // the replace string might use $1, $2 etc.
+        // We'll just return the replace string as is, assuming it handles groups if regex is used.
+        return params.replace;
+      });
+
+      if (params.preview) {
+        return this.generateContentPreview(originalContent, newContent, params.find, params.replace, replacementsMade);
+      }
+
+      if (replacementsMade === 0) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `No occurrences of '${params.find}' found in ${params.path}. No changes made.`
+            }
+          ]
+        };
+      }
+
+      // Create backup if requested
+      if (params.createBackup) {
+        const backupManager = new RollingBackupManager({
+          maxBackupsPerDay: 15,
+          keepDays: 14
+        });
+        const backupPath = await backupManager.createRollingBackup(params.path, originalContent, 'content-edit');
+        const relativePath = path.relative(process.cwd(), backupPath);
+        context.logger.info(`Organized backup created: ${relativePath}`);
+      }
+
+      // Write the modified content
+      await filesystem.writeFile(params.path, newContent);
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Content edited successfully in ${params.path}.\nReplaced '${params.find}' with '${params.replace}'.\nReplacements made: ${replacementsMade}.`
+          }
+        ]
+      };
+    } catch (error) {
+      context.logger.error({ error, params }, 'Failed to edit file content');
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Failed to edit file content: ${error instanceof Error ? error.message : 'Unknown error'}`
+          }
+        ]
+      };
+    }
+  }
+
+  private generateContentPreview(
+    originalContent: string,
+    newContent: string,
+    findPattern: string,
+    replaceContent: string,
+    replacementsMade: number
+  ): ToolResult {
+    let preview = `Preview of content edit operation:\n\n`;
+    preview += `File: ${findPattern}\n`;
+    preview += `Replace with: ${replaceContent}\n`;
+    preview += `Estimated replacements: ${replacementsMade}\n\n`;
+
+    const originalLines = originalContent.split('\n');
+    const newLines = newContent.split('\n');
+
+    // Show a diff-like preview for the first few affected lines
+    const maxPreviewLines = 20; // Limit preview output
+    let previewText = '';
+    let linesAdded = 0;
+    let linesRemoved = 0;
+
+    const diffLines: string[] = [];
+    let originalIdx = 0;
+    let newIdx = 0;
+
+    while (originalIdx < originalLines.length || newIdx < newLines.length) {
+      if (diffLines.length >= maxPreviewLines && originalIdx < originalLines.length && newIdx < newLines.length) {
+        diffLines.push('... (truncated for brevity)');
+        break;
+      }
+
+      if (originalLines[originalIdx] === newLines[newIdx]) {
+        diffLines.push(`  ${originalLines[originalIdx]}`);
+        originalIdx++;
+        newIdx++;
+      } else {
+        let foundMatch = false;
+        // Check if the new line exists further down in original (deletion)
+        for (let i = originalIdx + 1; i < originalLines.length && i < originalIdx + 5; i++) {
+          // Look ahead a few lines
+          if (originalLines[i] === newLines[newIdx]) {
+            diffLines.push(`- ${originalLines[originalIdx]}`);
+            linesRemoved++;
+            originalIdx++;
+            foundMatch = true;
+            break;
+          }
+        }
+        if (!foundMatch) {
+          // Check if original line exists further down in new (insertion)
+          for (let i = newIdx + 1; i < newLines.length && i < newIdx + 5; i++) {
+            // Look ahead a few lines
+            if (newLines[i] === originalLines[originalIdx]) {
+              diffLines.push(`+ ${newLines[newIdx]}`);
+              linesAdded++;
+              newIdx++;
+              foundMatch = true;
+              break;
+            }
+          }
+        }
+
+        if (!foundMatch) {
+          // If no simple match found, assume it's a modification or a complex change
+          if (originalIdx < originalLines.length) {
+            diffLines.push(`- ${originalLines[originalIdx]}`);
+            linesRemoved++;
+            originalIdx++;
+          }
+          if (newIdx < newLines.length) {
+            diffLines.push(`+ ${newLines[newIdx]}`);
+            linesAdded++;
+            newIdx++;
+          }
+        }
+      }
+    }
+
+    previewText = diffLines.join('\n');
+
+    preview += `\n--- Diff Preview (first ${maxPreviewLines} lines) ---\n`;
+    preview += previewText;
+    preview += `\n--- End Diff Preview ---\n`;
+    preview += `\nSummary: Lines added: ${linesAdded}, Lines removed: ${linesRemoved}`;
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: preview
+        }
+      ]
+    };
+  }
+
+  private escapeRegex(text: string): string {
+    return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 }
 
