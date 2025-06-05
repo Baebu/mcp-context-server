@@ -21,4 +21,28 @@
   }>;
   // Added reinitializeZones method to the interface
   reinitializeZones?(): void;
+  
+  // Enhanced safe zone management methods
+  expandSafeZoneRecursively?(safeZonePath: string): void;
+  autoDiscoverSubdirectories?(safeZonePath: string): Promise<string[]>;
+  addSafeZoneWithWildcards?(safeZonePath: string): void;
+  refreshSafeZonesWithAutoExpansion?(): Promise<void>;
+  getSafeZoneHierarchy?(): {
+    totalZones: number;
+    configuredZones: string[];
+    expandedZones: string[];
+    wildcardPatterns: string[];
+    restrictedOverrides: string[];
+  };
+  validateSafeZoneAccess?(safeZonePath: string): Promise<{
+    safeZone: string;
+    accessible: boolean;
+    subdirectories: Array<{
+      path: string;
+      accessible: boolean;
+      reason?: string;
+    }>;
+    totalChecked: number;
+  }>;
+  reinitializeZonesWithExpansion?(): Promise<void>;
 }

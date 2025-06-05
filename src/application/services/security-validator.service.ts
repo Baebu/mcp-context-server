@@ -730,4 +730,309 @@ export class SecurityValidatorService implements ISecurityValidator {
   getConfig(): Readonly<SecurityConfig> {
     return { ...this.config };
   }
+
+  // ===== ENHANCED SAFE ZONE MANAGEMENT METHODS =====
+
+  /**
+   * Explicitly allows all subdirectories within a safe zone with wildcard patterns
+   */
+  public expandSafeZoneRecursively(safeZonePath: string): void {
+    const resolvedPath = path.resolve(this.resolvePathWithTilde(safeZonePath));
+    
+    // Add the main path if not already present
+    if (!this.allowedSafezoneDirectories.includes(resolvedPath)) {
+      this.allowedSafezoneDirectories.push(resolvedPath);
+    }
+    
+    // Add comprehensive wildcard patterns for deeper nesting
+    const wildcardPatterns = [
+      path.join(resolvedPath, '**'), // All subdirectories and files recursively
+      path.join(resolvedPath, '*'), // Direct children
+      path.join(resolvedPath, '**', '*'), // All files in all subdirectories
+      path.join(resolvedPath, '**', '**'), // All nested directories
+    ];
+    
+    wildcardPatterns.forEach(pattern => {
+      if (!this.allowedSafezoneDirectories.includes(pattern)) {
+        this.allowedSafezoneDirectories.push(pattern);
+      }
+    });
+    
+    this.auditSecurityEvent({
+      action: 'safe_zone_expanded',
+      path: safeZonePath,
+      result: 'allowed',
+      reason: `Expanded safe zone with ${wildcardPatterns.length} recursive patterns`
+    });
+    
+    logger.info({ 
+      path: safeZonePath, 
+      resolvedPath,
+      patterns: wildcardPatterns,
+      totalSafeZones: this.allowedSafezoneDirectories.length
+    }, 'Expanded safe zone with recursive patterns');
+  }
+
+  /**
+   * Auto-discovers and allows all existing subdirectories within a safe zone
+   */
+  public async autoDiscoverSubdirectories(safeZonePath: string): Promise<string[]> {
+    const resolvedSafeZone = path.resolve(this.resolvePathWithTilde(safeZonePath));
+    const discoveredPaths: string[] = [];
+    
+    const discoverRecursively = async (currentPath: string, depth: number = 0): Promise<void> => {
+      if (depth > 10) { // Prevent infinite recursion
+        logger.warn({ path: currentPath, depth }, 'Maximum directory depth reached during auto-discovery');
+        return;
+      }
+      
+      try {
+        const stats = await fs.stat(currentPath);
+        if (!stats.isDirectory()) return;
+        
+        // Add current directory to safe zones if not restricted
+        if (!this.isPathRestricted(currentPath).restricted) {
+          if (!this.allowedSafezoneDirectories.includes(currentPath)) {
+            this.allowedSafezoneDirectories.push(currentPath);
+            discoveredPaths.push(currentPath);
+          }
+        }
+        
+        // Discover subdirectories
+        const entries = await fs.readdir(currentPath, { withFileTypes: true });
+        const subdirectoryPromises = entries
+          .filter(entry => entry.isDirectory())
+          .map(async (entry) => {
+            const subdirPath = path.join(currentPath, entry.name);
+            await discoverRecursively(subdirPath, depth + 1);
+          });
+        
+        await Promise.all(subdirectoryPromises);
+        
+      } catch (error) {
+        // Skip directories we can't access
+        logger.debug({ path: currentPath, error }, 'Could not access directory during auto-discovery');
+      }
+    };
+    
+    await discoverRecursively(resolvedSafeZone);
+    
+    this.auditSecurityEvent({
+      action: 'auto_discovery_completed',
+      path: safeZonePath,
+      result: 'allowed',
+      reason: `Auto-discovered ${discoveredPaths.length} subdirectories`
+    });
+    
+    logger.info({ 
+      safeZone: safeZonePath,
+      discovered: discoveredPaths.length,
+      paths: discoveredPaths.slice(0, 10), // Log first 10 for brevity
+      totalSafeZones: this.allowedSafezoneDirectories.length
+    }, 'Auto-discovery of subdirectories completed');
+    
+    return discoveredPaths;
+  }
+
+  /**
+   * Adds a safe zone with comprehensive wildcard patterns for maximum subdirectory access
+   */
+  public addSafeZoneWithWildcards(safeZonePath: string): void {
+    const resolvedPath = path.resolve(this.resolvePathWithTilde(safeZonePath));
+    
+    // Comprehensive patterns for Windows and Unix systems
+    const patterns = [
+      resolvedPath,                           // Exact path
+      path.join(resolvedPath, '**'),          // All subdirectories recursively
+      path.join(resolvedPath, '*'),           // Direct children
+      path.join(resolvedPath, '**', '*'),     // All files in subdirectories
+      `${resolvedPath}${path.sep}**`,         // Alternative recursive pattern
+      `${resolvedPath}${path.sep}*`,          // Alternative direct children
+    ];
+    
+    patterns.forEach(pattern => {
+      if (!this.allowedSafezoneDirectories.includes(pattern)) {
+        this.allowedSafezoneDirectories.push(pattern);
+      }
+    });
+    
+    // Also update the config for persistence
+    if (!this.config.safezones.includes(safeZonePath)) {
+      this.config.safezones.push(safeZonePath);
+    }
+    
+    this.auditSecurityEvent({
+      action: 'safe_zone_added_with_wildcards',
+      path: safeZonePath,
+      result: 'allowed',
+      reason: `Added safe zone with ${patterns.length} wildcard patterns`
+    });
+    
+    logger.info({ 
+      path: safeZonePath,
+      resolvedPath,
+      patterns,
+      totalSafeZones: this.allowedSafezoneDirectories.length
+    }, 'Added safe zone with wildcard patterns');
+  }
+
+  /**
+   * Refreshes all safe zones and applies auto-expansion if enabled
+   */
+  public async refreshSafeZonesWithAutoExpansion(): Promise<void> {
+    logger.info('Refreshing safe zones with auto-expansion...');
+    
+    // Reinitialize zones first
+    this.initializeConfiguredZones();
+    
+    // If auto-expand is enabled, apply enhancements
+    if (this.config.autoExpandSafezones) {
+      const originalSafeZones = [...this.config.safezones];
+      
+      for (const safeZone of originalSafeZones) {
+        try {
+          // Expand with wildcards
+          this.expandSafeZoneRecursively(safeZone);
+          
+          // Auto-discover existing subdirectories
+          await this.autoDiscoverSubdirectories(safeZone);
+          
+        } catch (error) {
+          logger.warn({ safeZone, error }, 'Failed to auto-expand safe zone');
+        }
+      }
+    }
+    
+    this.auditSecurityEvent({
+      action: 'safe_zones_refreshed',
+      path: 'all_safe_zones',
+      result: 'allowed',
+      reason: `Refreshed ${this.allowedSafezoneDirectories.length} safe zone entries`
+    });
+    
+    logger.info({ 
+      totalSafeZones: this.allowedSafezoneDirectories.length,
+      autoExpansionEnabled: this.config.autoExpandSafezones
+    }, 'Safe zones refresh with auto-expansion completed');
+  }
+
+  /**
+   * Gets the hierarchy of safe zones for debugging and management
+   */
+  public getSafeZoneHierarchy(): {
+    totalZones: number;
+    configuredZones: string[];
+    expandedZones: string[];
+    wildcardPatterns: string[];
+    restrictedOverrides: string[];
+  } {
+    const wildcardPatterns = this.allowedSafezoneDirectories.filter(zone => 
+      zone.includes('*') || zone.includes('**')
+    );
+    
+    const exactPaths = this.allowedSafezoneDirectories.filter(zone => 
+      !zone.includes('*')
+    );
+    
+    const restrictedOverrides = this.allowedSafezoneDirectories.filter(zone => 
+      this.isPathRestricted(zone.replace(/\*+/g, 'test')).restricted
+    );
+    
+    return {
+      totalZones: this.allowedSafezoneDirectories.length,
+      configuredZones: this.config.safezones,
+      expandedZones: exactPaths,
+      wildcardPatterns,
+      restrictedOverrides
+    };
+  }
+
+  /**
+   * Validates that all subdirectories of a safe zone are accessible
+   */
+  public async validateSafeZoneAccess(safeZonePath: string): Promise<{
+    safeZone: string;
+    accessible: boolean;
+    subdirectories: Array<{
+      path: string;
+      accessible: boolean;
+      reason?: string;
+    }>;
+    totalChecked: number;
+  }> {
+    const resolvedSafeZone = path.resolve(this.resolvePathWithTilde(safeZonePath));
+    const subdirectories: Array<{ path: string; accessible: boolean; reason?: string }> = [];
+    
+    const checkAccess = async (currentPath: string, depth: number = 0): Promise<void> => {
+      if (depth > 5) return; // Limit depth for performance
+      
+      try {
+        const stats = await fs.stat(currentPath);
+        if (!stats.isDirectory()) return;
+        
+        const validationResult = await this._validatePathInternal(currentPath);
+        subdirectories.push({
+          path: currentPath,
+          accessible: validationResult.isValid,
+          reason: validationResult.reason
+        });
+        
+        const entries = await fs.readdir(currentPath, { withFileTypes: true });
+        const subdirPromises = entries
+          .filter(entry => entry.isDirectory())
+          .slice(0, 20) // Limit to first 20 subdirectories per level
+          .map(entry => {
+            const subdirPath = path.join(currentPath, entry.name);
+            return checkAccess(subdirPath, depth + 1);
+          });
+        
+        await Promise.all(subdirPromises);
+        
+      } catch (error) {
+        subdirectories.push({
+          path: currentPath,
+          accessible: false,
+          reason: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    };
+    
+    await checkAccess(resolvedSafeZone);
+    
+    const accessibleCount = subdirectories.filter(sub => sub.accessible).length;
+    
+    logger.info({ 
+      safeZone: safeZonePath,
+      totalChecked: subdirectories.length,
+      accessible: accessibleCount,
+      accessRate: accessibleCount / subdirectories.length
+    }, 'Safe zone access validation completed');
+    
+    return {
+      safeZone: safeZonePath,
+      accessible: accessibleCount > 0,
+      subdirectories,
+      totalChecked: subdirectories.length
+    };
+  }
+
+  /**
+   * Enhanced reinitializeZones with auto-expansion support
+   */
+  public async reinitializeZonesWithExpansion(): Promise<void> {
+    logger.info('Reinitializing security zones with expansion support...');
+    
+    // Call the original reinitializeZones
+    this.reinitializeZones();
+    
+    // Apply auto-expansion if enabled
+    if (this.config.autoExpandSafezones) {
+      await this.refreshSafeZonesWithAutoExpansion();
+    }
+    
+    logger.info({ 
+      totalSafeZones: this.allowedSafezoneDirectories.length,
+      hierarchy: this.getSafeZoneHierarchy()
+    }, 'Zone reinitialization with expansion completed');
+  }
 }

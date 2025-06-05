@@ -115,10 +115,24 @@ async function main() {
     container.bind('Config').toConstantValue(config);
     await ContainerInitializer.initialize(container);
 
-    // After DI initialization and potential CWD change, reinitialize security zones
+    // After DI initialization and potential CWD change, reinitialize security zones with enhanced features
     try {
       const securityValidator = container.get<ISecurityValidator>('SecurityValidator');
-      if (typeof securityValidator.reinitializeZones === 'function') {
+      
+      // Use enhanced reinitializationif available, otherwise fall back to basic
+      if (typeof securityValidator.reinitializeZonesWithExpansion === 'function') {
+        logger.info('[Index] Initializing security zones with enhanced expansion features...');
+        await securityValidator.reinitializeZonesWithExpansion();
+        
+        // Log the hierarchy for debugging
+        if (typeof securityValidator.getSafeZoneHierarchy === 'function') {
+          const hierarchy = securityValidator.getSafeZoneHierarchy();
+          logger.info({ hierarchy }, '[Index] Enhanced security zone hierarchy initialized');
+        }
+        
+        logger.info('[Index] Enhanced security zone initialization completed');
+      } else if (typeof securityValidator.reinitializeZones === 'function') {
+        logger.info('[Index] Using basic security zone initialization (enhanced features not available)');
         securityValidator.reinitializeZones();
       } else {
         logger.warn(

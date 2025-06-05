@@ -143,8 +143,10 @@ export class EnhancedCLIAdapter extends EventEmitter implements IEnhancedCLIHand
       const spawnOptions: SpawnOptions = {
         cwd: options.cwd,
         env: { ...process.env, ...shellInfo.env },
-        stdio: ['pipe', 'pipe', 'pipe'],
-        shell: false
+        stdio: options.visibleTerminal ? ['ignore', 'ignore', 'ignore'] : ['pipe', 'pipe', 'pipe'],
+        shell: false,
+        detached: shellInfo.detached || false,
+        windowsHide: shellInfo.windowsHide !== false
       };
 
       // Spawn the process
@@ -179,18 +181,37 @@ export class EnhancedCLIAdapter extends EventEmitter implements IEnhancedCLIHand
       let stdout = '';
       let stderr = '';
 
-      // Handle stdout
-      if (childProcess.stdout) {
-        childProcess.stdout.on('data', data => {
-          stdout += data.toString();
-        });
-      }
+      // Handle output for non-visible terminals
+      if (!options.visibleTerminal) {
+        // Handle stdout
+        if (childProcess.stdout) {
+          childProcess.stdout.on('data', data => {
+            stdout += data.toString();
+          });
+        }
 
-      // Handle stderr
-      if (childProcess.stderr) {
-        childProcess.stderr.on('data', data => {
-          stderr += data.toString();
-        });
+        // Handle stderr
+        if (childProcess.stderr) {
+          childProcess.stderr.on('data', data => {
+            stderr += data.toString();
+          });
+        }
+      } else {
+        // For visible terminals, we don't capture output
+        stdout = '[Output displayed in visible terminal window]';
+        stderr = '';
+
+        // Log that a visible terminal was opened
+        logger.info(
+          {
+            processId,
+            command,
+            args,
+            terminalType: options.terminalType || 'auto',
+            title: options.title || 'CLI Command Execution'
+          },
+          'Opened visible terminal window for command execution'
+        );
       }
 
       // Handle process completion
@@ -239,28 +260,223 @@ export class EnhancedCLIAdapter extends EventEmitter implements IEnhancedCLIHand
   }
 
   private getShellInfo(
-    _command: string, // _command is unused
-    _args: string[], // _args is unused
+    command: string,
+    args: string[],
     options: CommandOptions
   ): {
     command: string;
     args: string[];
     env?: Record<string, string>;
+    detached?: boolean;
+    windowsHide?: boolean;
   } {
     const platform = process.platform;
+    const fullCommand = `${command} ${args.join(' ')}`;
 
+    // Handle visible terminal requests
+    if (options.visibleTerminal) {
+      return this.getVisibleTerminalInfo(fullCommand, options);
+    }
+
+    // Default background execution
     if (platform === 'win32') {
       return {
         command: 'cmd.exe',
-        args: ['/c'], // Command and args will be combined later
-        env: options.env
+        args: ['/c', fullCommand],
+        env: options.env,
+        windowsHide: true
       };
     } else {
       return {
-        command: 'sh', // Use sh as a more universal default than bash
-        args: ['-c'], // Command and args will be combined later
+        command: 'sh',
+        args: ['-c', fullCommand],
         env: options.env
       };
+    }
+  }
+
+  private getVisibleTerminalInfo(
+    fullCommand: string,
+    options: CommandOptions
+  ): {
+    command: string;
+    args: string[];
+    env?: Record<string, string>;
+    detached?: boolean;
+    windowsHide?: boolean;
+  } {
+    const platform = process.platform;
+    const terminalType = options.terminalType || 'auto';
+    const title = options.title || 'CLI Command Execution';
+    const keepOpen = options.keepOpen !== false; // Default to true
+
+    if (platform === 'win32') {
+      return this.getWindowsVisibleTerminal(fullCommand, terminalType, title, keepOpen, options);
+    } else if (platform === 'darwin') {
+      return this.getMacOSVisibleTerminal(fullCommand, title, keepOpen, options);
+    } else {
+      return this.getLinuxVisibleTerminal(fullCommand, title, keepOpen, options);
+    }
+  }
+
+  private getWindowsVisibleTerminal(
+    fullCommand: string,
+    terminalType: string,
+    title: string,
+    keepOpen: boolean,
+    options: CommandOptions
+  ): {
+    command: string;
+    args: string[];
+    env?: Record<string, string>;
+    detached?: boolean;
+    windowsHide?: boolean;
+  } {
+    const pauseCommand = keepOpen ? ' & pause' : '';
+
+    switch (terminalType) {
+      case 'wt':
+        // Windows Terminal
+        return {
+          command: 'wt.exe',
+          args: ['new-tab', '--title', title, 'cmd.exe', '/c', `title ${title} && ${fullCommand}${pauseCommand}`],
+          env: options.env,
+          detached: true,
+          windowsHide: false
+        };
+
+      case 'powershell':
+        // PowerShell
+        return {
+          command: 'powershell.exe',
+          args: [
+            '-NoExit',
+            '-WindowStyle',
+            'Normal',
+            '-Command',
+            `$Host.UI.RawUI.WindowTitle = '${title}'; ${fullCommand}`
+          ],
+          env: options.env,
+          detached: true,
+          windowsHide: false
+        };
+
+      case 'cmd':
+        // Command Prompt
+        return {
+          command: 'cmd.exe',
+          args: [
+            '/c',
+            'start',
+            `"${title}"`,
+            '/wait',
+            'cmd.exe',
+            '/k',
+            `title ${title} && ${fullCommand}${pauseCommand}`
+          ],
+          env: options.env,
+          detached: false,
+          windowsHide: false
+        };
+
+      case 'auto':
+      default:
+        // Try Windows Terminal first, fall back to cmd
+        const hasWindowsTerminal = this.hasWindowsTerminal();
+        if (hasWindowsTerminal) {
+          return this.getWindowsVisibleTerminal(fullCommand, 'wt', title, keepOpen, options);
+        } else {
+          return this.getWindowsVisibleTerminal(fullCommand, 'cmd', title, keepOpen, options);
+        }
+    }
+  }
+
+  private getMacOSVisibleTerminal(
+    fullCommand: string,
+    title: string,
+    keepOpen: boolean,
+    options: CommandOptions
+  ): {
+    command: string;
+    args: string[];
+    env?: Record<string, string>;
+    detached?: boolean;
+  } {
+    // Use title in the AppleScript to set terminal window name
+    const titleScript = `tell application "Terminal" to set custom title of front window to "${title}"`;
+    const commandScript = keepOpen
+      ? `tell application "Terminal" to do script "${fullCommand}; echo 'Press any key to continue...'; read -n 1"`
+      : `tell application "Terminal" to do script "${fullCommand}"`;
+
+    const combinedScript = `${commandScript}; ${titleScript}`;
+
+    return {
+      command: 'osascript',
+      args: ['-e', combinedScript],
+      env: options.env,
+      detached: true
+    };
+  }
+
+  private getLinuxVisibleTerminal(
+    fullCommand: string,
+    title: string,
+    keepOpen: boolean,
+    options: CommandOptions
+  ): {
+    command: string;
+    args: string[];
+    env?: Record<string, string>;
+    detached?: boolean;
+  } {
+    const holdOption = keepOpen ? '--hold' : '';
+
+    // Try common Linux terminal emulators
+    const terminals = [
+      { name: 'gnome-terminal', args: ['--title', title, holdOption, '--', 'bash', '-c', fullCommand] },
+      { name: 'konsole', args: ['--title', title, holdOption, '-e', 'bash', '-c', fullCommand] },
+      { name: 'xterm', args: ['-title', title, holdOption, '-e', 'bash', '-c', fullCommand] },
+      { name: 'urxvt', args: ['-title', title, holdOption, '-e', 'bash', '-c', fullCommand] }
+    ];
+
+    // Use the first available terminal
+    for (const terminal of terminals) {
+      if (this.commandExists(terminal.name)) {
+        return {
+          command: terminal.name,
+          args: terminal.args.filter(arg => arg !== ''), // Remove empty args
+          env: options.env,
+          detached: true
+        };
+      }
+    }
+
+    // Fallback to xterm
+    return {
+      command: 'xterm',
+      args: ['-title', title, '-e', 'bash', '-c', fullCommand],
+      env: options.env,
+      detached: true
+    };
+  }
+
+  private hasWindowsTerminal(): boolean {
+    try {
+      const { execSync } = require('child_process');
+      execSync('where wt.exe', { stdio: 'ignore' });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private commandExists(command: string): boolean {
+    try {
+      const { execSync } = require('child_process');
+      execSync(`which ${command}`, { stdio: 'ignore' });
+      return true;
+    } catch {
+      return false;
     }
   }
 

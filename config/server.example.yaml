@@ -104,7 +104,6 @@ security:
     - ./examples
     - ~/user_projects
     - /mnt/shared_data
-    - A:/
   maxExecutionTime: 900000
   unsafeArgumentPatterns:
     - \$\(.*\)|`.*`|\$\{.*\}
@@ -286,5 +285,3 @@ features:
   realTimeMonitoring: true
   sessionManagement: true
   auditLogging: true
-# ui:
-#   consentPort: 3003 # REMOVED as consent UI is removed

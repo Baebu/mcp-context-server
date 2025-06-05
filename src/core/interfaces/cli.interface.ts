@@ -11,6 +11,10 @@ export interface CommandOptions {
   env?: Record<string, string> | undefined;
   timeout?: number | undefined;
   shell?: 'default' | 'powershell' | 'bash' | undefined;
+  visibleTerminal?: boolean | undefined;
+  terminalType?: 'cmd' | 'powershell' | 'wt' | 'terminal' | 'auto' | undefined;
+  keepOpen?: boolean | undefined;
+  title?: string | undefined;
 }
 
 export interface ICLIHandler {
