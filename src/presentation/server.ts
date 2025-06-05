@@ -127,7 +127,8 @@ export class MCPContextServer {
 
       try {
         const validatedArgs = tool.schema.parse(request.params?.arguments || {});
-        const context = this.createToolContext();
+        // Pass toolName to createToolContext for more granular logging
+        const context = this.createToolContext(toolName);
         const result = await tool.execute(validatedArgs, context);
 
         // Ensure proper response format
@@ -293,10 +294,11 @@ export class MCPContextServer {
     logger.debug(`Registered ${prompts.length} prompts`);
   }
 
-  private createToolContext() {
+  // Updated to accept toolName for more granular logging
+  private createToolContext(toolName?: string) {
     return {
       config: this.config,
-      logger: logger.child({ component: 'tool' }),
+      logger: logger.child({ component: 'tool', tool: toolName }), // Pass toolName to child logger
       container: this.container
     };
   }

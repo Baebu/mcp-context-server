@@ -88,8 +88,18 @@ export class SecurityValidatorService implements ISecurityValidator {
     this.dangerousArgumentPatterns = (this.config.unsafeArgumentPatterns || []).map(p => new RegExp(p, 'i'));
 
     this.initializeDefaultSystemRestrictedZones();
-    this.initializeConfiguredZones();
+    this.initializeConfiguredZones(); // Initial call
     this.startSessionCleanup();
+  }
+
+  /**
+   * Reinitializes configured safe and restricted zones.
+   * This should be called after the application's working directory has been set,
+   * to ensure relative paths are resolved correctly.
+   */
+  public reinitializeZones(): void {
+    logger.info('Reinitializing security zones based on current working directory.');
+    this.initializeConfiguredZones();
   }
 
   private resolvePathWithTilde(filePath: string): string {
@@ -410,8 +420,35 @@ export class SecurityValidatorService implements ISecurityValidator {
         throw new Error(`Potentially dangerous argument pattern detected in command: ${fullCommandString}`);
       }
     }
+    // Call validateShellSpecific to ensure shell-specific checks are performed
+    await this.validateShellSpecific(command, args);
+    logger.debug({ command, args }, 'Command validated successfully');
   }
 
+  private async validateShellSpecific(command: string, args: string[]): Promise<void> {
+    if (command.toLowerCase().includes('powershell')) {
+      const blockedCmdlets = [
+        'Invoke-Expression',
+        'Invoke-Command',
+        'Start-Process',
+        'Remove-Item',
+        'Set-ExecutionPolicy'
+      ];
+      const argsString = args.join(' ');
+      for (const cmdlet of blockedCmdlets) {
+        if (argsString.includes(cmdlet)) throw new Error(`Blocked PowerShell cmdlet: ${cmdlet}`);
+      }
+    }
+
+    if (['bash', 'sh', 'zsh'].includes(command)) {
+      const blockedFeatures = ['eval', 'exec', 'source', '$((', '$['];
+      const argsString = args.join(' ');
+      for (const feature of blockedFeatures) {
+        if (argsString.includes(feature)) throw Error(`Blocked shell feature: ${feature}`);
+      }
+    }
+  }
+  // Implementation for getSecurityInfo
   getSecurityInfo(): { safeZones: string[]; restrictedZones: string[]; safeZoneMode: string; blockedPatterns: number } {
     return {
       safeZones: this.config.safezones,
@@ -421,6 +458,7 @@ export class SecurityValidatorService implements ISecurityValidator {
     };
   }
 
+  // Implementation for testPathAccess
   async testPathAccess(inputPath: string): Promise<{
     allowed: boolean;
     reason: string;

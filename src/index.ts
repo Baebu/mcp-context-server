@@ -8,6 +8,7 @@ import { container } from './infrastructure/di/container.js';
 import { ContainerInitializer } from './infrastructure/di/container-initializer.js';
 import { loadConfig } from './infrastructure/config/loader.js'; // This now uses the enhanced loader
 import { logger } from './utils/logger.js';
+import type { ISecurityValidator } from './core/interfaces/security.interface.js'; // Import SecurityValidator interface
 
 async function ensureDataDirectory(dbPath: string): Promise<void> {
   // dbPath is now expected to be absolute after CWD change and config update
@@ -113,6 +114,23 @@ async function main() {
 
     container.bind('Config').toConstantValue(config);
     await ContainerInitializer.initialize(container);
+
+    // After DI initialization and potential CWD change, reinitialize security zones
+    try {
+      const securityValidator = container.get<ISecurityValidator>('SecurityValidator');
+      if (typeof securityValidator.reinitializeZones === 'function') {
+        securityValidator.reinitializeZones();
+      } else {
+        logger.warn(
+          '[Index] SecurityValidator does not have reinitializeZones method. Relative path security zones might not be correctly resolved after CWD change.'
+        );
+      }
+    } catch (err) {
+      logger.error(
+        { error: err },
+        '[Index] Failed to get or reinitialize SecurityValidator. Security zones might be misconfigured.'
+      );
+    }
 
     const server = new MCPContextServer(container, config);
     await server.start();

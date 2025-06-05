@@ -14,16 +14,28 @@ const createSmartPathSchema = z.object({
         paths: z.array(z.string()).optional(),
         query: z.string().optional(),
         items: z.array(z.string()).optional(),
-        keys: z.array(z.string()).optional(),
+        keys: z.array(z.string()).optional(), // This 'keys' is part of the definition object
         metadata: z.record(z.unknown()).optional()
       }),
-      z.string()
+      z.string() // Allows definition to be a JSON string
     ])
     .optional()
     .describe('Smart path definition object or JSON string'),
+  /**
+   * @deprecated Use `name` instead. This parameter is for backward compatibility.
+   */
   path_name: z.string().optional().describe('Alias for name (backward compatibility)'),
+  /**
+   * @deprecated Use `definition.items` instead. This parameter is for backward compatibility.
+   */
   context_keys: z.string().optional().describe('JSON array of context keys (backward compatibility)'),
+  /**
+   * @deprecated Use `definition.metadata.description` instead. This parameter is for backward compatibility.
+   */
   description: z.string().optional().describe('Description (stored in metadata)'),
+  /**
+   * @deprecated This parameter is for backward compatibility and is no longer actively processed for logic.
+   */
   steps: z.string().optional().describe('Legacy steps parameter (backward compatibility)')
 });
 type CreateSmartPathParams = z.infer<typeof createSmartPathSchema>;
@@ -32,12 +44,13 @@ interface DefinitionWithKeys {
   paths?: string[];
   query?: string;
   items?: string[];
-  keys?: string[];
+  keys?: string[]; // This 'keys' is part of the definition object
   metadata?: Record<string, unknown>;
 }
 
 @injectable()
 export class CreateSmartPathTool implements IMCPTool<CreateSmartPathParams> {
+  // Added export
   name = 'create_smart_path';
   description = 'Create a smart path for efficient context bundling';
   schema = createSmartPathSchema; // This assignment is fine
@@ -55,6 +68,7 @@ export class CreateSmartPathTool implements IMCPTool<CreateSmartPathParams> {
         metadata?: Record<string, unknown>;
       } = {};
 
+      // Handle 'definition' parameter
       if (typeof params.definition === 'string') {
         try {
           definition = JSON.parse(params.definition) as DefinitionWithKeys;
@@ -65,10 +79,13 @@ export class CreateSmartPathTool implements IMCPTool<CreateSmartPathParams> {
         definition = { ...params.definition };
       }
 
+      // Backward compatibility for 'path_name'
       if (params.path_name && !name) {
         name = params.path_name;
+        context.logger.warn("Using deprecated 'path_name' parameter. Please use 'name' instead.");
       }
 
+      // Backward compatibility for 'steps'
       if (params.steps && (!definition.items || definition.items.length === 0)) {
         try {
           const steps = JSON.parse(params.steps);
@@ -76,12 +93,14 @@ export class CreateSmartPathTool implements IMCPTool<CreateSmartPathParams> {
             const items = steps.filter(step => step.action === 'get' && step.key).map(step => step.key);
             definition.items = items;
             type = type || 'item_bundle';
+            context.logger.warn("Using deprecated 'steps' parameter. Please use 'definition.items' directly.");
           }
         } catch {
           /* If steps isn't valid JSON, ignore */
         }
       }
 
+      // Backward compatibility for 'context_keys'
       if (params.context_keys && (!definition.items || definition.items.length === 0)) {
         try {
           const keys = JSON.parse(params.context_keys);
@@ -90,38 +109,50 @@ export class CreateSmartPathTool implements IMCPTool<CreateSmartPathParams> {
             if (!type) {
               type = 'item_bundle';
             }
+            context.logger.warn("Using deprecated 'context_keys' parameter. Please use 'definition.items' instead.");
           }
         } catch {
+          // If not a JSON array, treat as single key
           definition.items = [params.context_keys];
           if (!type) {
             type = 'item_bundle';
           }
+          context.logger.warn("Using deprecated 'context_keys' parameter. Please use 'definition.items' instead.");
         }
       }
 
+      // Handle 'keys' within definition object (if it was used as an alias for items)
       const definitionWithKeys = definition as DefinitionWithKeys;
       if (definitionWithKeys.keys && Array.isArray(definitionWithKeys.keys) && !definition.items) {
         definition.items = definitionWithKeys.keys;
+        // Reconstruct definition to ensure 'items' is the canonical property
         definition = {
           paths: definitionWithKeys.paths,
           query: definitionWithKeys.query,
           items: definition.items,
           metadata: definitionWithKeys.metadata
         };
+        context.logger.warn("Using deprecated 'definition.keys' property. Please use 'definition.items' instead.");
       }
 
+      // Backward compatibility for 'description'
       if (params.description) {
         definition.metadata = { ...definition.metadata, description: params.description };
+        context.logger.warn(
+          "Using deprecated 'description' parameter. Please use 'definition.metadata.description' instead."
+        );
       }
 
+      // Determine type if not explicitly provided
       if (!type) {
-        if (definition.items && Array.isArray(definition.items)) {
+        if (definition.items && Array.isArray(definition.items) && definition.items.length > 0) {
           type = 'item_bundle';
         } else if (definition.query) {
           type = 'query_template';
-        } else if (definition.paths && Array.isArray(definition.paths)) {
+        } else if (definition.paths && Array.isArray(definition.paths) && definition.paths.length > 0) {
           type = 'file_set';
         } else {
+          // Default to item_bundle if no clear type is inferred and no items/query/paths
           type = 'item_bundle';
         }
       }
@@ -168,6 +199,7 @@ type ExecuteSmartPathParams = z.infer<typeof executeSmartPathSchema>;
 
 @injectable()
 export class ExecuteSmartPathTool implements IMCPTool<ExecuteSmartPathParams> {
+  // Added export
   name = 'execute_smart_path';
   description = 'Execute a smart path to retrieve bundled context';
   schema = executeSmartPathSchema; // This assignment is fine
@@ -191,6 +223,7 @@ type ListSmartPathsParams = z.infer<typeof listSmartPathsSchema>;
 
 @injectable()
 export class ListSmartPathsTool implements IMCPTool<ListSmartPathsParams> {
+  // Added export
   name = 'list_smart_paths';
   description = 'List all available smart paths';
   // Let TypeScript infer the type from the schema definition to avoid type incompatibility.

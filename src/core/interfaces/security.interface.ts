@@ -19,4 +19,6 @@
     matchedSafeZone?: string;
     matchedRestrictedZone?: string;
   }>;
+  // Added reinitializeZones method to the interface
+  reinitializeZones?(): void;
 }
