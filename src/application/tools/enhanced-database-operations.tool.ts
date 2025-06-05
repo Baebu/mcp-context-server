@@ -42,7 +42,7 @@ export class EnhancedStoreContextTool implements IMCPTool {
   constructor(@inject('EmbeddingService') private embeddingService: EmbeddingService) {}
 
   async execute(params: z.infer<typeof enhancedStoreContextSchema>, context: ToolContext): Promise<ToolResult> {
-    const db = context.container.get('DatabaseHandler') as IDatabaseHandler;
+    const db = context.container.get<IDatabaseHandler>('DatabaseHandler'); // Use IDatabaseHandler
 
     try {
       // Handle backward compatibility
@@ -90,7 +90,7 @@ export class EnhancedStoreContextTool implements IMCPTool {
       }
 
       // DIRECT SEMANTIC STORAGE - Use database instance directly
-      const dbInstance = (db as any).getDatabase();
+      const dbInstance = db.getDatabase(); // Use the interface method
 
       if (dbInstance) {
         // Use direct SQL with semantic columns (confirmed working)
@@ -172,10 +172,10 @@ export class EnhancedQueryContextTool implements IMCPTool {
   constructor(@inject('EmbeddingService') private embeddingService: EmbeddingService) {}
 
   async execute(params: z.infer<typeof enhancedQueryContextSchema>, context: ToolContext): Promise<ToolResult> {
-    const db = context.container.get('DatabaseHandler') as IDatabaseHandler;
+    const db = context.container.get<IDatabaseHandler>('DatabaseHandler'); // Use IDatabaseHandler
 
     try {
-      const dbInstance = (db as any).getDatabase();
+      const dbInstance = db.getDatabase(); // Use the interface method
       let results: any[] = [];
 
       // Define searchPattern in the outer scope so it's available for the return statement

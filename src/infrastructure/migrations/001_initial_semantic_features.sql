@@ -1,13 +1,14 @@
--- Migration: Add semantic search capabilities to context_items table
--- File: migrations/001_add_semantic_columns.sql
--- Created: 2025-06-02
+-- Migration: Initial semantic features for context_items table
+-- File: src/infrastructure/migrations/001_initial_semantic_features.sql
 -- Description: Adds columns for vector embeddings, semantic tags, and relationships
+-- This migration corresponds to the original '001_add_semantic_columns.sql' from the root migrations folder.
 
 -- Add semantic columns to existing context_items table
-ALTER TABLE context_items ADD COLUMN embedding TEXT; -- JSON array of floats for vector similarity
-ALTER TABLE context_items ADD COLUMN semantic_tags TEXT; -- JSON array of extracted keywords/tags  
-ALTER TABLE context_items ADD COLUMN context_type TEXT DEFAULT 'generic'; -- Enhanced type classification
-ALTER TABLE context_items ADD COLUMN relationships TEXT; -- JSON relationships to other context items
+-- Ensure these columns are added only if they don't already exist to prevent errors on re-run
+ALTER TABLE context_items ADD COLUMN IF NOT EXISTS embedding TEXT; -- JSON array of floats for vector similarity
+ALTER TABLE context_items ADD COLUMN IF NOT EXISTS semantic_tags TEXT; -- JSON array of extracted keywords/tags
+ALTER TABLE context_items ADD COLUMN IF NOT EXISTS context_type TEXT DEFAULT 'generic'; -- Enhanced type classification
+ALTER TABLE context_items ADD COLUMN IF NOT EXISTS relationships TEXT; -- JSON relationships to other context items
 
 -- Create indexes for efficient semantic search
 CREATE INDEX IF NOT EXISTS idx_context_type ON context_items(context_type);
@@ -36,7 +37,7 @@ CREATE TABLE IF NOT EXISTS embedding_models (
 ) WITHOUT ROWID;
 
 -- Insert default embedding model configuration
-INSERT OR REPLACE INTO embedding_models (id, name, dimensions, version, is_active) 
+INSERT OR REPLACE INTO embedding_models (id, name, dimensions, version, is_active)
 VALUES ('simple-hash-384', 'Simple Hash Embedding', 384, '1.0.0', 1);
 
 -- Create table for semantic relationships between context items
@@ -57,5 +58,5 @@ CREATE INDEX IF NOT EXISTS idx_relationship_type ON context_relationships(relati
 CREATE INDEX IF NOT EXISTS idx_relationship_similarity ON context_relationships(similarity_score DESC);
 
 -- Create unique constraint to prevent duplicate relationships
-CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_relationship 
+CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_relationship
 ON context_relationships(source_key, target_key, relationship_type);

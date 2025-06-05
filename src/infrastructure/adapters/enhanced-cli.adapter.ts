@@ -3,13 +3,20 @@ import { spawn, ChildProcess } from 'node:child_process';
 import type { SpawnOptions } from 'node:child_process';
 import { injectable, inject } from 'inversify';
 import { EventEmitter } from 'node:events';
-import type { ICLIHandler, CommandResult, CommandOptions } from '@core/interfaces/cli.interface.js';
+import type {
+  CommandResult,
+  CommandOptions,
+  IEnhancedCLIHandler, // Import new interface
+  ProcessInfoPublic,
+  ProcessLimitsPublic,
+  ProcessManagerStatsPublic
+} from '@core/interfaces/cli.interface.js';
 import type { ISecurityValidator } from '@core/interfaces/security.interface.js';
 import { logger } from '../../utils/logger.js';
 import type { ServerConfig } from '../../infrastructure/config/schema.js'; // Corrected import
 import os from 'node:os';
 
-interface ProcessInfo {
+interface ProcessInfoInternal {
   id: string;
   command: string;
   args: string[];
@@ -21,38 +28,20 @@ interface ProcessInfo {
   cpuUsage: number;
   status: 'running' | 'completed' | 'failed' | 'timeout' | 'killed';
   maxMemoryMB: number;
-  maxCpuPercent: number;
-}
-
-interface ProcessLimits {
-  maxConcurrentProcesses: number;
-  maxProcessMemoryMB: number;
   maxProcessCpuPercent: number;
-  defaultTimeoutMs: number;
-  maxTimeoutMs: number;
-  cleanupIntervalMs: number;
-  resourceCheckIntervalMs: number;
 }
 
-interface ProcessManagerStats {
-  activeProcesses: number;
-  totalProcesses: number;
-  completedProcesses: number;
-  failedProcesses: number;
-  timeoutProcesses: number;
-  killedProcesses: number;
-  totalMemoryUsageMB: number;
-  totalCpuUsage: number;
-}
+// Using ProcessLimitsPublic directly as ProcessLimits
+// Using ProcessManagerStatsPublic directly as ProcessManagerStats
 
 @injectable()
-export class EnhancedCLIAdapter extends EventEmitter implements ICLIHandler {
-  private processes = new Map<string, ProcessInfo>();
+export class EnhancedCLIAdapter extends EventEmitter implements IEnhancedCLIHandler {
+  private processes = new Map<string, ProcessInfoInternal>();
   private processCounter = 0;
-  private limits: ProcessLimits;
+  private limits: ProcessLimitsPublic;
   private cleanupInterval: NodeJS.Timeout | null = null;
   private resourceMonitorInterval: NodeJS.Timeout | null = null;
-  private stats: ProcessManagerStats;
+  private stats: ProcessManagerStatsPublic;
 
   constructor(
     @inject('SecurityValidator') private security: ISecurityValidator,
@@ -167,7 +156,7 @@ export class EnhancedCLIAdapter extends EventEmitter implements ICLIHandler {
       }
 
       // Create process info
-      const processInfo: ProcessInfo = {
+      const processInfo: ProcessInfoInternal = {
         id: processId,
         command,
         args,
@@ -179,7 +168,7 @@ export class EnhancedCLIAdapter extends EventEmitter implements ICLIHandler {
         cpuUsage: 0,
         status: 'running',
         maxMemoryMB: this.limits.maxProcessMemoryMB,
-        maxCpuPercent: this.limits.maxProcessCpuPercent
+        maxProcessCpuPercent: this.limits.maxProcessCpuPercent
       };
 
       // Register process
@@ -335,15 +324,29 @@ export class EnhancedCLIAdapter extends EventEmitter implements ICLIHandler {
     return killedCount;
   }
 
-  public getProcesses(): ProcessInfo[] {
-    return Array.from(this.processes.values());
+  private mapToProcessInfoPublic(processInfo: ProcessInfoInternal): ProcessInfoPublic {
+    return {
+      id: processInfo.id,
+      command: processInfo.command,
+      args: processInfo.args,
+      pid: processInfo.pid,
+      startTime: processInfo.startTime,
+      memoryUsage: processInfo.memoryUsage,
+      cpuUsage: processInfo.cpuUsage,
+      status: processInfo.status
+    };
   }
 
-  public getProcessInfo(processId: string): ProcessInfo | undefined {
-    return this.processes.get(processId);
+  public getProcesses(): ProcessInfoPublic[] {
+    return Array.from(this.processes.values()).map(this.mapToProcessInfoPublic);
   }
 
-  public getStats(): ProcessManagerStats & { systemResources: any } {
+  public getProcessInfo(processId: string): ProcessInfoPublic | undefined {
+    const processInfo = this.processes.get(processId);
+    return processInfo ? this.mapToProcessInfoPublic(processInfo) : undefined;
+  }
+
+  public getStats(): ProcessManagerStatsPublic & { systemResources: any } {
     const systemMemory = process.memoryUsage();
     const loadAverage = os.loadavg();
 
@@ -366,12 +369,12 @@ export class EnhancedCLIAdapter extends EventEmitter implements ICLIHandler {
     };
   }
 
-  public updateLimits(newLimits: Partial<ProcessLimits>): void {
+  public updateLimits(newLimits: Partial<ProcessLimitsPublic>): void {
     this.limits = { ...this.limits, ...newLimits };
     logger.info('Process limits updated');
   }
 
-  public getLimits(): ProcessLimits {
+  public getLimits(): ProcessLimitsPublic {
     return { ...this.limits };
   }
 
@@ -456,7 +459,7 @@ export class EnhancedCLIAdapter extends EventEmitter implements ICLIHandler {
         }
 
         // Check CPU limits (warning only, don't kill)
-        if (usage.cpu > processInfo.maxCpuPercent) {
+        if (usage.cpu > processInfo.maxProcessCpuPercent) {
           logger.warn(`Process ${processInfo.id} high CPU usage: ${usage.cpu.toFixed(1)}%`);
         }
       } catch (error) {

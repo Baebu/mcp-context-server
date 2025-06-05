@@ -3,7 +3,8 @@
 
 import { promises as fs } from 'fs';
 import { parse as parseYaml } from 'yaml';
-import { serverConfigSchema, configSchema, type ServerConfig } from './schema.js'; // Added configSchema import
+import path from 'node:path'; // Import path
+import { serverConfigSchema, configSchema, type ServerConfig } from './schema.js';
 import { logger } from '../../utils/logger.js';
 
 export class ConfigurationLoader {
@@ -19,69 +20,145 @@ export class ConfigurationLoader {
 
   async loadConfiguration(configPath?: string): Promise<ServerConfig> {
     if (this.loadedConfig) {
-      return this.loadedConfig;
+      // If already loaded and no specific new path is given, return cached.
+      // If a specific configPath is given, force reload.
+      if (!configPath) {
+        return this.loadedConfig;
+      }
+      logger.info('[ConfigLoader] Forcing reload due to explicit configPath argument.');
+      this.loadedConfig = null; // Reset for forced reload
     }
 
+    logger.info('[ConfigLoader] Attempting to load configuration...');
+    logger.debug(
+      {
+        message: '[ConfigLoader] Environment Variables Check:',
+        MCP_SERVER_CONFIG_PATH_ENV: process.env.MCP_SERVER_CONFIG_PATH,
+        CONFIG_PATH_ENV: process.env.CONFIG_PATH,
+        CWD_at_load_time: process.cwd()
+      },
+      '[ConfigLoader] Environment State'
+    );
+
     try {
-      // Determine config file path
-      const configFile = configPath || process.env.CONFIG_PATH || './config/server.yaml';
+      const mcpConfigPath = process.env.MCP_SERVER_CONFIG_PATH;
+      const generalConfigPath = process.env.CONFIG_PATH;
+      const defaultConfigPath = './config/server.yaml'; // Relative to CWD
 
-      logger.info(`Loading configuration from: ${configFile}`);
+      let configFile: string;
+      let source: string;
+      let attemptedPrimaryLoad = false;
 
-      // Load raw configuration
-      const rawConfig = await this.loadFromFile(configFile);
+      if (configPath) {
+        configFile = configPath;
+        source = 'direct argument';
+        attemptedPrimaryLoad = true;
+      } else if (mcpConfigPath) {
+        configFile = mcpConfigPath;
+        source = 'MCP_SERVER_CONFIG_PATH';
+        attemptedPrimaryLoad = true;
+      } else if (generalConfigPath) {
+        configFile = generalConfigPath;
+        source = 'CONFIG_PATH';
+        attemptedPrimaryLoad = true;
+      } else {
+        configFile = defaultConfigPath;
+        source = 'default path';
+      }
 
-      // Merge with environment variables
+      logger.info(`[ConfigLoader] Using configuration source: ${source}, initial path: "${configFile}"`);
+
+      // Resolve the path to an absolute path for clarity in logs and consistent loading
+      // If configFile is already absolute, path.resolve will correctly handle it.
+      // If it's relative, it will be resolved against process.cwd().
+      const absoluteConfigFile = path.resolve(configFile);
+      logger.info(
+        `[ConfigLoader] Attempting to load resolved absolute configuration from: "${absoluteConfigFile}" (CWD for resolution was: "${process.cwd()}")`
+      );
+
+      let rawConfig = await this.loadFromFile(absoluteConfigFile);
+
+      if (
+        Object.keys(rawConfig).length === 0 &&
+        attemptedPrimaryLoad &&
+        configFile !== path.resolve(defaultConfigPath)
+      ) {
+        logger.warn(
+          `[ConfigLoader] Loaded empty configuration from "${absoluteConfigFile}" (source: ${source}). This might indicate the file was not found or is empty. Attempting fallback to default path.`
+        );
+        const absoluteDefaultConfigFile = path.resolve(defaultConfigPath); // Default is relative to CWD
+        logger.info(
+          `[ConfigLoader] Falling back to default config path: "${absoluteDefaultConfigFile}" (CWD: "${process.cwd()}")`
+        );
+        const defaultRawConfig = await this.loadFromFile(absoluteDefaultConfigFile);
+        if (Object.keys(defaultRawConfig).length > 0) {
+          logger.info(
+            `[ConfigLoader] Successfully loaded from default path "${absoluteDefaultConfigFile}" after primary attempt failed.`
+          );
+          rawConfig = defaultRawConfig; // Use default config content
+          source = 'default path (fallback)';
+        } else {
+          logger.warn(
+            `[ConfigLoader] Default config path "${absoluteDefaultConfigFile}" also yielded empty/no config. Proceeding with Zod defaults.`
+          );
+        }
+      } else if (Object.keys(rawConfig).length === 0) {
+        logger.warn(
+          `[ConfigLoader] Loaded empty configuration from "${absoluteConfigFile}" (source: ${source}). Will proceed with Zod defaults.`
+        );
+      }
+
       const configWithEnv = this.mergeEnvironmentVariables(rawConfig);
+      const parsedConfig = serverConfigSchema.parse(configWithEnv);
+      this.loadedConfig = parsedConfig;
 
-      // Validate against comprehensive schema
-      this.loadedConfig = serverConfigSchema.parse(configWithEnv);
+      if (Object.keys(rawConfig).length === 0 && source !== 'direct argument') {
+        logger.warn(
+          '[ConfigLoader] Parsed configuration is effectively all defaults. This usually means the config file specified (or defaulted to) was not found or was empty.'
+        );
+      } else {
+        logger.info('[ConfigLoader] ✅ Configuration loaded and validated successfully.');
+      }
 
-      logger.info('✅ Configuration loaded and validated successfully');
-
-      // Fixed logger.debug call with proper typing
       const configSummary = {
-        features: Object.keys(this.loadedConfig.features || {}).filter(
-          // Added null check for features
-          key => this.loadedConfig!.features![key as keyof typeof this.loadedConfig.features]
-        ),
-        pluginsEnabled: this.loadedConfig.plugins?.enabled?.length || 0, // Added null check
-        securityPaths: this.loadedConfig.security?.allowedPaths?.length || 0 // Added null check
+        sourceFileUsed: absoluteConfigFile, // Log the actual file path it attempted for the final successful (or empty) load
+        sourceType: source,
+        serverName: this.loadedConfig.server?.name,
+        workingDirectoryConfig: this.loadedConfig.server?.workingDirectory,
+        safezonesConfig: this.loadedConfig.security?.safezones,
+        dbPathConfig: this.loadedConfig.database?.path
       };
 
-      logger.debug({ message: 'Configuration details:', details: JSON.stringify(configSummary, null, 2) });
+      logger.debug({
+        message: '[ConfigLoader] Loaded Configuration Summary:',
+        details: JSON.stringify(configSummary, null, 2)
+      });
+
+      // Log working directory intention
+      if (this.loadedConfig.server?.workingDirectory) {
+        const targetWorkingDirectory = path.resolve(this.loadedConfig.server.workingDirectory); // Resolve if relative
+        logger.info(
+          `[ConfigLoader] Configuration specifies workingDirectory: "${targetWorkingDirectory}". The server should chdir to this path upon startup if possible.`
+        );
+      } else {
+        logger.info(
+          `[ConfigLoader] No workingDirectory specified in configuration. Server will use CWD at launch: "${process.cwd()}".`
+        );
+      }
 
       return this.loadedConfig;
     } catch (error) {
       logger.error({
-        message: '❌ Configuration loading failed:',
-        error: error instanceof Error ? error.message : String(error)
+        message: '[ConfigLoader] ❌ Configuration loading failed catastrophically:',
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
       });
 
-      // Return default configuration with all parameters properly defined
-      logger.warn('🔄 Using default configuration with all features enabled');
-
-      // Use Zod schema's parse with an empty object to get all defaults
-      this.loadedConfig = serverConfigSchema.parse({
-        // Explicitly enable all features for development
-        // These will be merged with Zod defaults if features schema has defaults
-        features: {
-          fastmcpIntegration: true,
-          semanticMemory: true,
-          vectorStorage: true,
-          enhancedSecurity: true,
-          memoryOptimization: true,
-          pluginSystem: true,
-          advancedBackup: true,
-          realTimeMonitoring: true,
-          sessionManagement: true,
-          auditLogging: true
-        },
-        development: {
-          // Ensure development block is present for defaults
-          enabled: true,
-          debugMode: process.env.NODE_ENV === 'development'
-        }
+      logger.warn('[ConfigLoader] 🔄 Using Zod default configuration due to error during loading/parsing.');
+      this.loadedConfig = serverConfigSchema.parse({}); // Fallback to Zod defaults
+      logger.debug({
+        message: '[ConfigLoader] Applied Zod Defaults after error:',
+        details: JSON.stringify(this.loadedConfig, null, 2)
       });
 
       return this.loadedConfig;
@@ -89,27 +166,38 @@ export class ConfigurationLoader {
   }
 
   private async loadFromFile(filePath: string): Promise<any> {
+    // filePath is now absolute
     try {
+      logger.debug(`[ConfigLoader] Reading file: "${filePath}"`);
       const configContent = await fs.readFile(filePath, 'utf-8');
+      logger.debug(`[ConfigLoader] Successfully read file: "${filePath}" (length: ${configContent.length})`);
+
+      if (configContent.trim() === '') {
+        logger.warn(`[ConfigLoader] Config file "${filePath}" is empty.`);
+        return {};
+      }
 
       if (filePath.endsWith('.yaml') || filePath.endsWith('.yml')) {
         return parseYaml(configContent);
       } else if (filePath.endsWith('.json')) {
         return JSON.parse(configContent);
       } else {
+        logger.error(`[ConfigLoader] Unsupported config file format: ${filePath}`);
         throw new Error(`Unsupported config file format: ${filePath}`);
       }
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        logger.warn(`Configuration file not found: ${filePath}`);
-        return {};
+        logger.warn(`[ConfigLoader] Configuration file not found at: "${filePath}"`);
+        return {}; // Return empty object if file not found
       }
+      logger.error({ error, filePath }, `[ConfigLoader] Error reading or parsing config file: "${filePath}"`);
+      // Do not re-throw ENOENT as we want to fall back to defaults.
+      // Re-throw other errors (like parsing errors for an existing file).
       throw error;
     }
   }
 
   private mergeEnvironmentVariables(config: any): any {
-    // Map environment variables to config structure
     const envMappings: Record<string, string> = {
       NODE_ENV: 'development.enabled',
       DEBUG: 'development.debugMode',
@@ -117,10 +205,10 @@ export class ConfigurationLoader {
       SERVER_PORT: 'server.port',
       SERVER_HOST: 'server.host',
       MAX_MEMORY_MB: 'memory.maxMemoryMB',
-      SEMANTIC_SEARCH_ENABLED: 'semanticSearch.enabled', // Ensure this path exists in schema
-      PLUGINS_ENABLED: 'plugins.autoDiscover', // Ensure this path exists in schema
-      BACKUP_ENABLED: 'backup.enabled', // Ensure this path exists in schema
-      MONITORING_ENABLED: 'monitoring.enabled' // Ensure this path exists in schema
+      SEMANTIC_SEARCH_ENABLED: 'semanticSearch.enabled',
+      PLUGINS_ENABLED: 'plugins.autoDiscover',
+      BACKUP_ENABLED: 'backup.enabled',
+      MONITORING_ENABLED: 'monitoring.enabled'
     };
 
     const result = { ...config };
@@ -128,59 +216,51 @@ export class ConfigurationLoader {
     for (const [envVar, configPath] of Object.entries(envMappings)) {
       const envValue = process.env[envVar];
       if (envValue !== undefined) {
+        logger.debug(`[ConfigLoader] Applying env var ${envVar}="${envValue}" to config path "${configPath}"`);
         this.setNestedProperty(result, configPath, this.parseEnvValue(envValue));
       }
     }
-
     return result;
   }
 
-  private setNestedProperty(obj: any, path: string, value: any): void {
-    const keys = path.split('.');
+  private setNestedProperty(obj: any, pathStr: string, value: any): void {
+    const keys = pathStr.split('.');
     const lastKey = keys.pop()!;
 
     let current = obj;
     for (const key of keys) {
-      if (!(key in current) || typeof current[key] !== 'object' || current[key] === null) {
-        // Ensure intermediate paths are objects
+      if (typeof current[key] !== 'object' || current[key] === null) {
         current[key] = {};
       }
       current = current[key];
     }
     if (current && typeof current === 'object') {
-      // Ensure current is an object before setting property
       current[lastKey] = value;
     }
   }
 
   private parseEnvValue(value: string): any {
-    // Parse environment variable values
     if (value.toLowerCase() === 'true') return true;
     if (value.toLowerCase() === 'false') return false;
-    if (/^\d+$/.test(value)) return parseInt(value, 10);
-    if (/^\d+\.\d+$/.test(value)) return parseFloat(value);
+    if (/^\d+$/.test(value) && !isNaN(parseInt(value, 10))) return parseInt(value, 10);
+    if (/^\d+\.\d+$/.test(value) && !isNaN(parseFloat(value))) return parseFloat(value);
     return value;
   }
 
-  // Get current configuration
   getCurrentConfig(): ServerConfig | null {
     return this.loadedConfig;
   }
 
-  // Reload configuration
   async reloadConfiguration(configPath?: string): Promise<ServerConfig> {
-    this.loadedConfig = null;
+    logger.info(`[ConfigLoader] Reloading configuration. Explicit path: ${configPath || 'none'}`);
+    this.loadedConfig = null; // Force reload
     return this.loadConfiguration(configPath);
   }
 }
 
-// Export singleton instance
 export const configLoader = ConfigurationLoader.getInstance();
-
-// Export configSchema for compatibility
 export { configSchema };
 
-// Helper function for backward compatibility
 export async function loadConfig(configPath?: string): Promise<ServerConfig> {
   return configLoader.loadConfiguration(configPath);
 }

@@ -3,8 +3,8 @@
     "target": "ES2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "lib": ["ES2022", "DOM"],
-    "outDir": "./build",
+    "lib": ["ES2022", "DOM"], // Includes DOM typings
+    "outDir": "./build", // Output directory for general compilation (e.g., by IDEs, not necessarily for final build)
     "rootDir": "./src",
     "strict": true,
     "esModuleInterop": true,
@@ -14,15 +14,15 @@
     "emitDecoratorMetadata": true,
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "removeComments": false,
+    "declaration": true, // Generates .d.ts files
+    "declarationMap": true, // Generates .d.ts.map files (source maps for declarations)
+    "sourceMap": true, // Generates .js.map files (source maps for JS output)
+    "removeComments": false, // Keeps comments in the output
     "noImplicitAny": true,
     "noImplicitReturns": true,
     "noImplicitThis": true,
     "noUnusedLocals": true,
-    "noUnusedParameters": false,
+    "noUnusedParameters": false, // Allows unused parameters (common in dev/interfaces)
     "exactOptionalPropertyTypes": false,
     "noImplicitOverride": true,
     "useDefineForClassFields": true,
@@ -35,11 +35,12 @@
       "@presentation/*": ["presentation/*"],
       "@utils/*": ["utils/*"]
     },
-    "types": ["node"]
+    "types": ["node"] // Specifies type definitions to include
   },
-  "include": ["src/**/*", "tests/**/*"],
-  "exclude": ["node_modules", "build", "**/*.spec.ts", "**/*.test.ts"],
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "coverage", "build", "**/*.spec.ts", "**/*.test.ts"],
   "ts-node": {
+    // Configuration for ts-node
     "esm": true,
     "experimentalSpecifierResolution": "node"
   }

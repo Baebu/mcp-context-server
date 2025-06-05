@@ -17,28 +17,11 @@
     "start": "node -r tsconfig-paths/register dist/index.js",
     "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest",
     "test:watch": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --watch",
-    "test:semantic": "cross-env NODE_OPTIONS=--experimental-vm-modules jest tests/integration/semantic-search.test.ts",
-    "debug:semantic": "tsx scripts/debug-semantic-storage.ts",
-    "debug:di": "tsx scripts/debug-di-database.ts",
-    "debug:dbpath": "tsx scripts/debug-db-path.ts",
-    "debug:container": "tsx scripts/debug-container.ts",
-    "test:getdb": "tsx scripts/test-getdatabase-method.ts",
-    "test:mcpdb": "tsx scripts/test-mcp-db-schema.ts",
-    "consent-ui": "tsx scripts/consent-ui.ts",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
-    "migrate:phase2": "tsx scripts/migrate-phase2-schema.ts",
-    "test:mcp-db": "tsx scripts/test-mcp-database.ts",
     "format": "prettier --write \"src/**/*.{ts,js,json}\" \"config/**/*.{yaml,json}\" \"*.{json,md}\"",
-    "migrate:vector": "tsx scripts/migrate-vector-storage.ts",
-    "migrate:phase1": "tsx scripts/apply-phase1-migration.ts",
-    "validate:phase1": "tsx scripts/validate-phase1-simple.ts",
-    "inspect:db": "tsx scripts/inspect-db.ts",
-    "cleanup:experimental": "tsx scripts/cleanup-experimental.ts",
-    "cleanup:final": "tsx scripts/final-cleanup.ts",
     "claude-config": "node scripts/claude-config.js",
-    "migrate": "tsx scripts/migrate.ts",
-    "test:fastmcp": "tsx scripts/test-fastmcp.ts"
+    "create-workspace": "tsx scripts/create-test-fs-workspace.ts"
   },
   "keywords": [
     "mcp",
@@ -66,7 +49,6 @@
     "@tensorflow/tfjs-node": "^4.15.0",
     "better-sqlite3": "^11.6.0",
     "convict": "^6.2.4",
-    "crypto": "^1.0.1",
     "fastmcp": "^2.0.0",
     "glob": "^10.3.10",
     "inversify": "^6.0.2",
@@ -74,6 +56,7 @@
     "node-cron": "^3.0.3",
     "p-queue": "^8.0.1",
     "pino": "^9.7.0",
+    "crypto": "^1.0.1",
     "pino-pretty": "^13.0.0",
     "reflect-metadata": "^0.2.1",
     "stream-json": "^1.8.0",
@@ -112,9 +95,7 @@
     "tsx": "^4.7.0",
     "typescript": "^5.3.3"
   },
-  "peerDependencies": {
-    "typescript": ">=5.0.0"
-  },
+  "peerDependencies": {},
   "lint-staged": {
     "*.{ts,js}": [
       "eslint --fix",

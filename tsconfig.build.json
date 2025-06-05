@@ -1,18 +1,18 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022"],
+    "lib": ["ES2022"], // Does NOT include DOM typings
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "allowJs": false,
-    "outDir": "./dist",
+    "outDir": "./dist", // Output directory for the final production build
     "rootDir": "./src",
-    "removeComments": true,
-    "declaration": false,
-    "declarationMap": false,
-    "sourceMap": false,
+    "removeComments": true, // Removes comments to reduce file size
+    "declaration": false, // Does NOT generate .d.ts files
+    "declarationMap": false, // Does NOT generate .d.ts.map files
+    "sourceMap": false, // Does NOT generate .js.map files (often disabled for production to reduce size/complexity, or generated separately)
     "composite": false,
-    "incremental": false,
+    "incremental": false, // Disables incremental builds (can make clean builds more reliable)
     "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
@@ -22,7 +22,7 @@
     "noImplicitThis": true,
     "alwaysStrict": true,
     "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    "noUnusedParameters": true, // Stricter: disallows unused parameters for cleaner production code
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
@@ -37,7 +37,7 @@
     "verbatimModuleSyntax": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "types": ["node"],
+    "types": ["node"], // Specifies type definitions to include
     "baseUrl": "./src",
     "paths": {
       "@core/*": ["core/*"],
@@ -47,11 +47,12 @@
       "@utils/*": ["utils/*"]
     }
   },
-  "include": ["src/**/*", "config/**/*", "tests/**/*"],
+  "include": ["src/**/*"],
   "exclude": [
+    // More specific exclusion for builds
     "node_modules",
-    "dist",
-    "build",
+    "build", // Excludes the output of the other tsconfig
+    "dist", // Excludes its own output if run multiple times
     "coverage",
     "tests/**/*",
     "**/*.test.ts",

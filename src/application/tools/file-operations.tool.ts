@@ -1,11 +1,11 @@
-﻿// src/application/tools/file-operations.tool.ts - Enhanced with consent
-import { injectable } from 'inversify'; // Removed unused 'inject'
+﻿// src/application/tools/file-operations.tool.ts - Consent Removed
+import { injectable } from 'inversify';
 import { z } from 'zod';
 import type { IMCPTool, ToolContext, ToolResult } from '../../core/interfaces/tool-registry.interface.js';
 import type { IFilesystemHandler, FileContent, DirectoryEntry } from '../../core/interfaces/filesystem.interface.js';
-import type { IUserConsentService } from '@core/interfaces/consent.interface.js';
+// IUserConsentService import removed
 
-// Schema for ReadFileTool
+// Schema for ReadFileTool (remains unchanged)
 const readFileSchema = z.object({
   path: z.string().describe('Path to the file to read'),
   maxSize: z.number().optional().default(1048576).describe('Maximum size in bytes to read'), // Default 1MB
@@ -45,46 +45,23 @@ const writeFileSchema = z.object({
   path: z.string().describe('Path where to write the file'),
   content: z.string().describe('Content to write to the file'),
   append: z.boolean().optional().default(false),
-  createDirs: z.boolean().optional().default(true),
-  requireConsent: z.boolean().optional().default(true) // New parameter
+  createDirs: z.boolean().optional().default(true)
+  // requireConsent parameter removed
 });
 
 @injectable()
-export class WriteFileToolWithConsent implements IMCPTool {
+export class WriteFileTool implements IMCPTool {
+  // Renamed class
   name = 'write_file';
-  description = 'Write content to a file with optional directory creation and consent';
+  description = 'Write content to a file with optional directory creation'; // Updated description
   schema = writeFileSchema;
 
   async execute(params: z.infer<typeof writeFileSchema>, context: ToolContext): Promise<ToolResult> {
     const filesystem = context.container.get<IFilesystemHandler>('FilesystemHandler');
-    const consentService = context.container.get<IUserConsentService>('UserConsentService');
+    // consentService injection and usage removed
 
     try {
-      // Check if consent is required
-      if (params.requireConsent) {
-        const consentRequest = {
-          operation: 'file_write' as const,
-          severity: this.determineSeverity(params.path),
-          details: {
-            path: params.path,
-            description: `Write ${params.content.length} bytes to ${params.path}${params.append ? ' (append mode)' : ''}`,
-            risks: this.identifyRisks(params.path)
-          }
-        };
-
-        const consentResponse = await consentService.requestConsent(consentRequest);
-
-        if (consentResponse.decision !== 'allow') {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: `Operation denied by user consent: ${consentResponse.decision}`
-              }
-            ]
-          };
-        }
-      }
+      // Consent checking logic removed
 
       await filesystem.writeFile(params.path, params.content, {
         append: params.append,
@@ -105,30 +82,11 @@ export class WriteFileToolWithConsent implements IMCPTool {
     }
   }
 
-  private determineSeverity(path: string): 'low' | 'medium' | 'high' | 'critical' {
-    if (path.includes('.ssh') || path.includes('.key') || path.includes('.pem')) {
-      return 'critical';
-    }
-    if (path.includes('/etc/') || path.includes('\\System32\\')) {
-      return 'high';
-    }
-    if (path.includes('.env') || path.includes('config')) {
-      return 'medium';
-    }
-    return 'low';
-  }
-
-  private identifyRisks(path: string): string[] {
-    const risks = [];
-    if (path.includes('.ssh')) risks.push('Modifying SSH configuration could affect system access');
-    if (path.includes('.env')) risks.push('Environment variables may contain sensitive data');
-    if (path.includes('/etc/')) risks.push('System configuration file - changes may affect system behavior');
-    if (path.endsWith('.key') || path.endsWith('.pem')) risks.push('Security key file - handle with extreme care');
-    return risks;
-  }
+  // Removed private methods: determineSeverity, identifyRisks
+  // as they were specific to the consent flow.
 }
 
-// Schema for ListDirectoryTool
+// Schema for ListDirectoryTool (remains unchanged)
 const listDirectorySchema = z.object({
   path: z.string().describe('Path to the directory to list'),
   includeHidden: z.boolean().optional().default(false).describe('Include hidden files/directories'),

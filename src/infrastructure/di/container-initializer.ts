@@ -4,14 +4,14 @@ import type { IToolRegistry } from '../../core/interfaces/tool-registry.interfac
 import type { IResourceRegistry } from '../../core/interfaces/resource-registry.interface.js';
 import type { IPromptRegistry } from '../../core/interfaces/prompt-registry.interface.js';
 import type { IEmbeddingService } from '../../core/interfaces/semantic-context.interface.js';
-import type { IDatabaseHandler } from '../../core/interfaces/database.interface.js'; // Added import
-import type { DatabaseAdapter } from '../adapters/database.adapter.js'; // Added import for casting
+import type { IDatabaseHandler } from '../../core/interfaces/database.interface.js';
+import type { DatabaseAdapter } from '../adapters/database.adapter.js';
 
 // Tools
 import {
   ReadFileTool,
   ListDirectoryTool,
-  WriteFileToolWithConsent
+  WriteFileTool // Renamed from WriteFileToolWithConsent
 } from '../../application/tools/file-operations.tool.js';
 
 // Enhanced File Operations Tools
@@ -22,23 +22,37 @@ import {
   FindFilesTool
 } from '../../application/tools/enhanced-file-operations.tool.js';
 
+// Backup Management Tools
+import {
+  ListBackupsTool,
+  BackupStatsTool,
+  RestoreBackupTool,
+  ViewBackupTool,
+  CleanupBackupsTool
+} from '../../application/tools/backup-management.tool.js';
+
 // Other Tools
-import { ExecuteCommandToolWithConsent } from '../../application/tools/command-execution.tool.js';
+import { ExecuteCommandTool } from '../../application/tools/command-execution.tool.js'; // Renamed from ExecuteCommandToolWithConsent
+
+// Import database operation tools using a direct relative path
 import {
   StoreContextTool,
   GetContextTool,
   QueryContextTool
-} from '../../application/tools/database-operations.tool.js';
+} from '../../application/tools/database-operations.tool.js'; // Using relative path
+
 import {
   CreateSmartPathTool,
   ExecuteSmartPathTool,
   ListSmartPathsTool
 } from '../../application/tools/smart-path.tool.js';
+
 import { ParseFileTool } from '../../application/tools/file-parsing.tool.js';
 import { GetMetricsTool } from '../../application/tools/metrics.tool.js';
 import { SecurityDiagnosticsTool } from '../../application/tools/security-diagnostics.tool.js';
+
 import { DatabaseHealthTool } from '../../application/tools/database-health.tool.js';
-import { ProcessManagementTool } from '../../application/tools/process-management.tool.js'; // NEW
+import { ProcessManagementTool } from '../../application/tools/process-management.tool.js';
 
 // Workspace Tools
 import {
@@ -60,6 +74,7 @@ import {
   UpdateEmbeddingsTool,
   SemanticStatsTool
 } from '../../application/tools/semantic-search.tool.js';
+
 import {
   EnhancedStoreContextTool,
   EnhancedQueryContextTool
@@ -70,10 +85,6 @@ import { ProjectFilesResource } from '../../application/resources/project-files.
 
 // Prompts
 import { ContextSummaryPrompt } from '../../application/prompts/context-summary.prompt.js';
-
-// UI Bridges
-import { ConsentUIBridge } from '../../presentation/consent-ui-bridge.js';
-
 import { logger } from '../../utils/logger.js';
 
 export class ContainerInitializer {
@@ -90,9 +101,9 @@ export class ContainerInitializer {
       );
     }
 
-    // Initialize consent UI bridge
-    const consentUIBridge = container.get<ConsentUIBridge>(ConsentUIBridge);
-    consentUIBridge.start();
+    // Initialize consent UI bridge - REMOVED
+    // const consentUIBridge = container.get<ConsentUIBridge>(ConsentUIBridge);
+    // consentUIBridge.start();
 
     // Initialize embedding service
     await this.initializeSemanticServices(container);
@@ -124,9 +135,9 @@ export class ContainerInitializer {
   private static async initializeTools(container: Container): Promise<void> {
     const toolRegistry = container.get<IToolRegistry>('ToolRegistry');
 
-    // File operations (enhanced with consent)
+    // File operations (consent removed)
     toolRegistry.register(new ReadFileTool());
-    toolRegistry.register(new WriteFileToolWithConsent());
+    toolRegistry.register(new WriteFileTool()); // Renamed
     toolRegistry.register(new ListDirectoryTool());
 
     // Enhanced file operations (NEW)
@@ -135,13 +146,20 @@ export class ContainerInitializer {
     toolRegistry.register(container.get<SearchFilesTool>(SearchFilesTool));
     toolRegistry.register(container.get<FindFilesTool>(FindFilesTool));
 
-    // Command execution (enhanced with consent)
-    toolRegistry.register(new ExecuteCommandToolWithConsent());
+    // Backup management tools (NEW)
+    toolRegistry.register(container.get<ListBackupsTool>(ListBackupsTool));
+    toolRegistry.register(container.get<BackupStatsTool>(BackupStatsTool));
+    toolRegistry.register(container.get<RestoreBackupTool>(RestoreBackupTool));
+    toolRegistry.register(container.get<ViewBackupTool>(ViewBackupTool));
+    toolRegistry.register(container.get<CleanupBackupsTool>(CleanupBackupsTool));
+
+    // Command execution (consent removed)
+    toolRegistry.register(new ExecuteCommandTool()); // Renamed
 
     // Process management (NEW)
     toolRegistry.register(container.get<ProcessManagementTool>(ProcessManagementTool));
 
-    // Database operations (original tools)
+    // Database operations (original tools) - use named import with relative path
     toolRegistry.register(new StoreContextTool());
     toolRegistry.register(new GetContextTool());
     toolRegistry.register(new QueryContextTool());

@@ -33,6 +33,7 @@ export class DatabaseAdapter implements IDatabaseHandler {
    * Used by semantic extensions and other advanced database operations
    */
   getDatabase(): Database.Database {
+    // Implements the interface method
     return this.db;
   }
 
@@ -503,6 +504,7 @@ export class DatabaseAdapter implements IDatabaseHandler {
    * Used by semantic extensions and other advanced database operations
    */
   getDatabaseInstance(): Database.Database {
+    // This was a duplicate, getDatabase() is the one from interface
     return this.db;
   }
 

@@ -1,4 +1,6 @@
-﻿export interface ContextItem {
+﻿import type Database from 'better-sqlite3'; // Import the type
+
+export interface ContextItem {
   key: string;
   value: unknown; // Changed from any
   type: string;
@@ -24,4 +26,7 @@ export interface IDatabaseHandler {
   executeQuery(sql: string, params: unknown[]): Promise<unknown[]>; // Changed from any[]
   executeCommand(sql: string, params: unknown[]): Promise<{ changes: number }>; // Changed from any[]
   getSingle(sql: string, params: unknown[]): Promise<unknown | null>; // Changed from any[]
+
+  // Method to get the raw database instance
+  getDatabase(): Database.Database;
 }

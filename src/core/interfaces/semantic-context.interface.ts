@@ -174,7 +174,11 @@ export interface IEmbeddingService {
   /**
    * Find the most similar embeddings to a query embedding
    */
-  findMostSimilar(queryEmbedding: number[], candidateEmbeddings: number[][], limit?: number): Array<{ index: number; similarity: number }>;
+  findMostSimilar(
+    queryEmbedding: number[],
+    candidateEmbeddings: number[][],
+    limit?: number
+  ): Array<{ index: number; similarity: number }>;
 
   /**
    * Cleanup resources
@@ -206,10 +210,13 @@ export const semanticSearchSchema = z.object({
   minSimilarity: z.number().optional().default(0.7).describe('Minimum similarity threshold (0-1)'),
   contextTypes: z.array(z.string()).optional().describe('Filter by context types'),
   includeRelated: z.boolean().optional().default(false).describe('Include semantically related entries'),
-  timeRange: z.object({
-    from: z.date().optional().describe('Start of time range filter'),
-    to: z.date().optional().describe('End of time range filter')
-  }).optional().describe('Filter by time range')
+  timeRange: z
+    .object({
+      from: z.date().optional().describe('Start of time range filter'),
+      to: z.date().optional().describe('End of time range filter')
+    })
+    .optional()
+    .describe('Filter by time range')
 });
 
 export const relationshipTypeSchema = z.enum(['similar', 'related', 'child', 'parent', 'reference']);

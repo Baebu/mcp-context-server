@@ -8,6 +8,7 @@ import * as path from 'path';
 import { glob } from 'glob';
 import type { IMCPTool, ToolContext, ToolResult } from '../../core/interfaces/tool-registry.interface.js';
 import type { IFilesystemHandler } from '../../core/interfaces/filesystem.interface.js';
+import { RollingBackupManager } from '../../utils/backup-manager.js';
 
 // Schema for EditFileTool
 const editFileSchema = z.object({
@@ -48,11 +49,21 @@ export class EditFileTool implements IMCPTool {
         return this.generatePreview(lines, params);
       }
 
-      // Create backup if requested
+      // Create backup if requested using new organized backup system
       if (params.createBackup) {
-        const backupPath = `${params.path}.backup.${Date.now()}`;
-        await filesystem.writeFile(backupPath, fileContent.content);
-        context.logger.info(`Backup created: ${backupPath}`);
+        const backupManager = new RollingBackupManager({
+          maxBackupsPerDay: 15,
+          keepDays: 14
+        });
+        
+        const backupPath = await backupManager.createRollingBackup(
+          params.path,
+          fileContent.content,
+          params.operation
+        );
+        
+        const relativePath = path.relative(process.cwd(), backupPath);
+        context.logger.info(`Organized backup created: ${relativePath}`);
       }
 
       // Perform the operation
@@ -229,11 +240,21 @@ export class BatchEditFileTool implements IMCPTool {
         return this.generateBatchPreview(originalLines, sortedOperations);
       }
 
-      // Create backup if requested
+      // Create backup if requested using new organized backup system
       if (params.createBackup) {
-        const backupPath = `${params.path}.backup.${Date.now()}`;
-        await filesystem.writeFile(backupPath, fileContent.content);
-        context.logger.info(`Backup created: ${backupPath}`);
+        const backupManager = new RollingBackupManager({
+          maxBackupsPerDay: 15,
+          keepDays: 14
+        });
+        
+        const backupPath = await backupManager.createRollingBackup(
+          params.path,
+          fileContent.content,
+          'batch'
+        );
+        
+        const relativePath = path.relative(process.cwd(), backupPath);
+        context.logger.info(`Organized backup created: ${relativePath}`);
       }
 
       // Apply operations in reverse order (highest line numbers first)
@@ -613,4 +634,4 @@ export class FindFilesTool implements IMCPTool {
 }
 
 // Re-export existing tools for completeness
-export { ReadFileTool, WriteFileToolWithConsent, ListDirectoryTool } from './file-operations.tool.js';
+export { ReadFileTool, WriteFileTool, ListDirectoryTool } from './file-operations.tool.js';

@@ -188,11 +188,30 @@ export class SecurityValidatorService implements ISecurityValidator {
       logger.warn({ path: inputPath, depth: relativeDepth }, 'Path contains excessive relative components.');
       return true;
     }
-    // Check for characters that are problematic in paths or indicative of injection
-    if (/[<>:"|?*\x00-\x1F\x7F]/.test(inputPath)) {
-      // Added control characters
-      logger.warn({ path: inputPath }, 'Path contains problematic characters.');
+
+    // Check for generally problematic characters (excluding colon).
+    if (/[<>"|?*\x00-\x1F\x7F]/.test(inputPath)) {
+      logger.warn({ path: inputPath }, 'Path contains universally problematic characters (excluding colon).');
       return true;
+    }
+
+    // Specifically handle colons.
+    // A colon is only allowed if it's the second character and preceded by a letter (drive letter).
+    // Any other colons are considered suspicious.
+    for (let i = 0; i < inputPath.length; i++) {
+      if (inputPath[i] === ':') {
+        if (i === 1 && inputPath.length >= 2 && /^[a-zA-Z]$/.test(inputPath[0]!)) {
+          // This is a valid drive letter colon (e.g., C:).
+          // It's allowed here. Continue checking the rest of the string for other colons.
+        } else {
+          // This colon is not part of a valid drive letter at the start (e.g., "file:name.txt" or "C:/foo:bar").
+          logger.warn(
+            { path: inputPath, colonPosition: i },
+            'Path contains a suspicious colon not part of a drive letter.'
+          );
+          return true;
+        }
+      }
     }
     return false;
   }

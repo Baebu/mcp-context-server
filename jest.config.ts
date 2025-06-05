@@ -1,9 +1,9 @@
 ﻿// jest.config.js
 export default {
-  preset: 'ts-jest/presets/default-esm', // For ESM support
+  status: false,
+  preset: 'ts-jest/presets/default-esm',
   testEnvironment: 'node',
   moduleNameMapper: {
-    // If you use path aliases like @core/*
     '^@core/(.*)$': '<rootDir>/src/core/$1',
     '^@application/(.*)$': '<rootDir>/src/application/$1',
     '^@infrastructure/(.*)$': '<rootDir>/src/infrastructure/$1',
@@ -14,5 +14,5 @@ export default {
     '^.+\\.tsx?$': ['ts-jest', { useESM: true }]
   },
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
-  extensionsToTreatAsEsm: ['.ts'] // Treat .ts files as ESM
+  extensionsToTreatAsEsm: ['.ts']
 };

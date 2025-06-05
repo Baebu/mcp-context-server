@@ -94,14 +94,14 @@ const databaseConfigSchema = z
         schedule: z.string().default('0 2 * * *'),
         threshold: z.number().default(0.3)
       })
-      .default({ enabled: true, schedule: '0 2 * * *', threshold: 0.3 }), // Ensure sub-object defaults
+      .default({ enabled: true, schedule: '0 2 * * *', threshold: 0.3 }),
     vectorStorage: z
       .object({
         enabled: z.boolean().default(true),
         embeddingDimensions: z.number().default(384),
         similarityThreshold: z.number().default(0.7)
       })
-      .default({ enabled: true, embeddingDimensions: 384, similarityThreshold: 0.7 }) // Ensure sub-object defaults
+      .default({ enabled: true, embeddingDimensions: 384, similarityThreshold: 0.7 })
   })
   .default({});
 
@@ -118,19 +118,19 @@ const memoryConfigSchema = z
         monitoringInterval: z.number().default(30000),
         chunkSize: z.number().default(1024)
       })
-      .default({ enabled: true, gcThreshold: 0.85, monitoringInterval: 30000, chunkSize: 1024 }), // Ensure sub-object defaults
+      .default({ enabled: true, gcThreshold: 0.85, monitoringInterval: 30000, chunkSize: 1024 }),
     embeddingCache: z
       .object({
         maxSize: z.number().default(1000),
         ttl: z.number().default(3600000)
       })
-      .default({ maxSize: 1000, ttl: 3600000 }), // Ensure sub-object defaults
+      .default({ maxSize: 1000, ttl: 3600000 }),
     relevanceCache: z
       .object({
         maxSize: z.number().default(2000),
         ttl: z.number().default(1800000)
       })
-      .default({ maxSize: 2000, ttl: 1800000 }) // Ensure sub-object defaults
+      .default({ maxSize: 2000, ttl: 1800000 })
   })
   .default({});
 
@@ -149,7 +149,7 @@ const pluginsConfigSchema = z
         allowFileSystemAccess: z.boolean().default(false),
         allowProcessExecution: z.boolean().default(false)
       })
-      .default({ allowNetworkAccess: false, allowFileSystemAccess: false, allowProcessExecution: false }) // Ensure sub-object defaults
+      .default({ allowNetworkAccess: false, allowFileSystemAccess: false, allowProcessExecution: false })
   })
   .default({});
 
@@ -166,13 +166,13 @@ const developmentConfigSchema = z
         enabled: z.boolean().default(false),
         seedDatabase: z.boolean().default(false)
       })
-      .default({ enabled: false, seedDatabase: false }), // Ensure sub-object defaults
+      .default({ enabled: false, seedDatabase: false }),
     profiling: z
       .object({
         enabled: z.boolean().default(false),
         samplingRate: z.number().default(0.1)
       })
-      .default({ enabled: false, samplingRate: 0.1 }) // Ensure sub-object defaults
+      .default({ enabled: false, samplingRate: 0.1 })
   })
   .default({});
 
@@ -188,7 +188,7 @@ const loggingConfigSchema = z
         maxFiles: z.number().default(5),
         rotateDaily: z.boolean().default(true)
       })
-      .default({ enabled: true, path: './logs/server.log', maxSize: 10485760, maxFiles: 5, rotateDaily: true }), // Ensure sub-object defaults
+      .default({ enabled: true, path: './logs/server.log', maxSize: 10485760, maxFiles: 5, rotateDaily: true }),
     audit: z
       .object({
         enabled: z.boolean().default(true),
@@ -196,7 +196,7 @@ const loggingConfigSchema = z
         maxSize: z.number().default(5242880),
         maxFiles: z.number().default(10)
       })
-      .default({ enabled: true, path: './logs/audit.log', maxSize: 5242880, maxFiles: 10 }) // Ensure sub-object defaults
+      .default({ enabled: true, path: './logs/audit.log', maxSize: 5242880, maxFiles: 10 })
   })
   .default({});
 
@@ -211,14 +211,14 @@ const performanceConfigSchema = z
         databaseOperations: z.number().default(30000),
         semanticSearch: z.number().default(45000)
       })
-      .default({ default: 30000, fileOperations: 60000, databaseOperations: 30000, semanticSearch: 45000 }), // Ensure sub-object defaults
+      .default({ default: 30000, fileOperations: 60000, databaseOperations: 30000, semanticSearch: 45000 }),
     rateLimiting: z
       .object({
         enabled: z.boolean().default(true),
         windowMs: z.number().default(60000),
         maxRequests: z.number().default(1000)
       })
-      .default({ enabled: true, windowMs: 60000, maxRequests: 1000 }) // Ensure sub-object defaults
+      .default({ enabled: true, windowMs: 60000, maxRequests: 1000 })
   })
   .default({});
 
@@ -237,38 +237,8 @@ const featuresSchema = z
   })
   .default({});
 
-const consentConfigSchema = z
-  .object({
-    alwaysAllow: z
-      .array(z.string())
-      .default([])
-      .describe("Patterns for operations to always allow without consent (e.g., 'file_write:*.log')."),
-    alwaysDeny: z
-      .array(z.string())
-      .default([])
-      .describe("Patterns for operations to always deny (e.g., 'command_execute:rm -rf /*')."),
-    requireConsent: z
-      .array(z.string())
-      .default([])
-      .describe(
-        "Patterns for operations that must always seek consent if not auto-decided by risk (e.g., 'recursive_delete:*')."
-      ),
-    defaultActionForRequiredConsent: z
-      .enum(['deny', 'allow', 'prompt'])
-      .default('deny')
-      .describe(
-        "Default action if an operation requires consent and no interactive UI responds. 'deny' is safest. 'prompt' will wait for UI/timeout."
-      ),
-    policy: z.any().optional().describe('Full policy object for advanced rule-based consent.'), // Kept for potential advanced use
-    settings: z.any().optional().describe('Additional consent service settings (e.g., risk thresholds).') // Kept for potential advanced use
-  })
-  .default({});
-
-const uiConfigSchema = z
-  .object({
-    consentPort: z.number().default(3003)
-  })
-  .default({});
+// consentConfigSchema removed
+// uiConfigSchema removed (as consentPort was its only property)
 
 const semanticSearchConfigSchema = z
   .object({
@@ -284,7 +254,7 @@ const semanticSearchConfigSchema = z
         typeWeight: z.number().default(0.2),
         accessWeight: z.number().default(0.1)
       })
-      .default({ semanticWeight: 0.4, recencyWeight: 0.3, typeWeight: 0.2, accessWeight: 0.1 }) // Ensure sub-object defaults
+      .default({ semanticWeight: 0.4, recencyWeight: 0.3, typeWeight: 0.2, accessWeight: 0.1 })
   })
   .default({});
 
@@ -299,18 +269,18 @@ const backupConfigSchema = z
         auto: z.string().default('0 */4 * * *'),
         cleanup: z.string().default('0 1 * * 0')
       })
-      .default({ auto: '0 */4 * * *', cleanup: '0 1 * * 0' }), // Ensure sub-object defaults
+      .default({ auto: '0 */4 * * *', cleanup: '0 1 * * 0' }),
     types: z
       .object({
         emergency: z
           .object({ maxCount: z.number().default(5), retention: z.number().default(2592000000) })
-          .default({ maxCount: 5, retention: 2592000000 }), // Ensure sub-object defaults
+          .default({ maxCount: 5, retention: 2592000000 }),
         manual: z
           .object({ maxCount: z.number().default(20), retention: z.number().default(7776000000) })
-          .default({ maxCount: 20, retention: 7776000000 }), // Ensure sub-object defaults
+          .default({ maxCount: 20, retention: 7776000000 }),
         auto: z
           .object({ maxCount: z.number().default(48), retention: z.number().default(1209600000) })
-          .default({ maxCount: 48, retention: 1209600000 }) // Ensure sub-object defaults
+          .default({ maxCount: 48, retention: 1209600000 })
       })
       .default({})
   })
@@ -324,14 +294,14 @@ const monitoringConfigSchema = z
         interval: z.number().default(60000),
         endpoints: z.array(z.string()).default(['database', 'memory', 'filesystem', 'security'])
       })
-      .default({ interval: 60000, endpoints: ['database', 'memory', 'filesystem', 'security'] }), // Ensure sub-object defaults
+      .default({ interval: 60000, endpoints: ['database', 'memory', 'filesystem', 'security'] }),
     metrics: z
       .object({
         enabled: z.boolean().default(true),
         collectInterval: z.number().default(30000),
         retention: z.number().default(86400000)
       })
-      .default({ enabled: true, collectInterval: 30000, retention: 86400000 }), // Ensure sub-object defaults
+      .default({ enabled: true, collectInterval: 30000, retention: 86400000 }),
     alerts: z
       .object({
         enabled: z.boolean().default(true),
@@ -342,7 +312,7 @@ const monitoringConfigSchema = z
             errorRate: z.number().default(0.1),
             responseTime: z.number().default(5000)
           })
-          .default({ memoryUsage: 0.9, diskUsage: 0.95, errorRate: 0.1, responseTime: 5000 }) // Ensure sub-object defaults
+          .default({ memoryUsage: 0.9, diskUsage: 0.95, errorRate: 0.1, responseTime: 5000 })
       })
       .default({})
   })
@@ -359,8 +329,8 @@ export const serverConfigSchema = z.object({
   logging: loggingConfigSchema,
   performance: performanceConfigSchema,
   features: featuresSchema,
-  consent: consentConfigSchema.optional(), // Now includes defaultActionForRequiredConsent
-  ui: uiConfigSchema.optional(),
+  // consent: consentConfigSchema.optional(), // REMOVED
+  // ui: uiConfigSchema.optional(), // REMOVED
   semanticSearch: semanticSearchConfigSchema.optional(),
   backup: backupConfigSchema.optional(),
   monitoring: monitoringConfigSchema.optional()
@@ -406,8 +376,8 @@ export function mergeConfigs(base: ServerConfig, override: Partial<ServerConfig>
     logging: { ...base.logging, ...override.logging },
     performance: { ...base.performance, ...override.performance },
     features: { ...base.features, ...override.features },
-    consent: { ...base.consent, ...override.consent },
-    ui: { ...base.ui, ...override.ui },
+    // consent: { ...base.consent, ...override.consent }, // REMOVED
+    // ui: { ...base.ui, ...override.ui }, // REMOVED
     semanticSearch: { ...base.semanticSearch, ...override.semanticSearch },
     backup: { ...base.backup, ...override.backup },
     monitoring: { ...base.monitoring, ...override.monitoring }

@@ -1,4 +1,3 @@
-# Enhanced Server Configuration for FastMCP Integration and Phase 1 Features
 # Version: 2.0.0
 
 server:
@@ -128,20 +127,7 @@ security:
     - chown\s+root(\s|$)
     - (^|[\s;]):.*\{\s*:|.*&\s*\}.*:(\s|$)
 
-# Consent Configuration (NEW section or update existing)
-consent:
-  alwaysAllow:
-    - 'file_write:*.log'
-    - 'file_write:*.tmp'
-    - 'command_execute:ls'
-  alwaysDeny:
-    - 'command_execute:rm -rf /*'
-    - 'file_delete:**/.ssh/**'
-  requireConsent:
-    - 'recursive_delete:*'
-    - 'file_write:**/*.key'
-  # defaultActionForRequiredConsent: 'deny' # Options: 'deny', 'allow', 'prompt'. 'deny' is the safest default.
-  # If 'prompt' is used and no UI responds, it will timeout and likely be denied.
+# Consent Configuration section REMOVED
 
 # Enhanced Database Configuration with Vector Storage
 database:
@@ -300,3 +286,5 @@ features:
   realTimeMonitoring: true
   sessionManagement: true
   auditLogging: true
+# ui:
+#   consentPort: 3003 # REMOVED as consent UI is removed

@@ -160,5 +160,14 @@
       }
     }
   ],
-  "ignorePatterns": ["dist/", "build/", "node_modules/", "coverage/", "*.d.ts", "**/*.js.map", "**/*.backup"]
+  "ignorePatterns": [
+    "dist/",
+    "build/",
+    "node_modules/",
+    "coverage/",
+    "*.d.ts",
+    "**/*.js.map",
+    "**/*.backup",
+    "test-fs-workspace/**"
+  ]
 }

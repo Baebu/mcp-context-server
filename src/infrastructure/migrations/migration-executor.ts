@@ -16,9 +16,9 @@ export class MigrationExecutor {
   constructor(private db: Database.Database) {}
 
   /**
-   * Apply semantic database migration
+   * Apply all pending database migrations in sequential order.
    */
-  async applySemantic(): Promise<void> {
+  async applyAllPending(): Promise<void> {
     try {
       // Create migrations tracking table if it doesn't exist
       this.db.exec(`
@@ -29,80 +29,64 @@ export class MigrationExecutor {
         );
       `);
 
-      // Check if semantic migration already applied
-      const existing = this.db
-        .prepare('SELECT version FROM migrations WHERE version = ? AND name = ?')
-        .get(2, 'add_semantic_columns');
+      // Read all migration SQL files from the directory
+      const migrationFiles = await this.getMigrationFiles();
 
-      if (existing) {
-        logger.info('Semantic migration already applied');
-        return;
-      }
-
-      // Read migration SQL file
-      // Adjust path to correctly locate SQL file from either src or dist
-      let migrationPath = path.join(__dirname, '002_add_semantic_columns.sql');
-
-      // If running from dist, __dirname will be .../dist/infrastructure/migrations
-      // We need to go up three levels to project root, then to src/infrastructure/migrations
-      if (!existsSync(migrationPath) && __dirname.includes(path.sep + 'dist' + path.sep)) {
-        migrationPath = path.resolve(
-          __dirname,
-          '..',
-          '..',
-          '..',
-          'src',
-          'infrastructure',
-          'migrations',
-          '002_add_semantic_columns.sql'
-        );
-        logger.debug({ newPath: migrationPath }, 'Adjusted migration path for dist environment');
-      } else if (!existsSync(migrationPath)) {
-        // Fallback for other scenarios or if the above doesn't work, try relative to a known root if possible
-        // This part might need adjustment based on actual deployment structure if the above isn't robust enough
-        logger.warn({ migrationPath }, 'Migration SQL file not found at primary path, attempting fallback.');
-      }
-
-      logger.info({ migrationPathAttempted: migrationPath }, 'Attempting to read migration file for semantic schema.');
-      if (!existsSync(migrationPath)) {
-        throw new Error(`Migration SQL file not found: 002_add_semantic_columns.sql. Attempted path: ${migrationPath}`);
-      }
-
-      const migrationSql = await fs.readFile(migrationPath, 'utf-8');
-      logger.debug('Successfully read migration SQL file.');
-
-      // Apply migration in transaction
-      const transaction = this.db.transaction(() => {
-        // Execute migration SQL
-        logger.info('Executing semantic migration SQL...');
-        this.db.exec(migrationSql);
-        logger.info('Semantic migration SQL executed.');
-
-        // Record migration as applied
-        this.db
-          .prepare(
-            `
-          INSERT INTO migrations (version, name)
-          VALUES (?, ?)
-        `
-          )
-          .run(2, 'add_semantic_columns');
-        logger.info('Migration recorded in migrations table.');
+      // Sort files by version number (e.g., 001_, 002_)
+      migrationFiles.sort((a, b) => {
+        const versionA = parseInt(a.split('_')[0] || '0', 10);
+        const versionB = parseInt(b.split('_')[0] || '0', 10);
+        return versionA - versionB;
       });
 
-      transaction();
+      for (const file of migrationFiles) {
+        const versionName = file.replace(/\.sql$/, ''); // e.g., "001_initial_semantic_features"
+        const versionNumber = parseInt(file.split('_')[0] || '0', 10);
 
-      logger.info('Semantic database migration applied successfully');
+        const existing = this.db.prepare('SELECT version FROM migrations WHERE version = ?').get(versionNumber);
+
+        if (existing) {
+          logger.info(`Migration ${versionName} (v${versionNumber}) already applied.`);
+          continue; // Skip already applied migrations
+        }
+
+        logger.info(`Applying migration: ${versionName} (v${versionNumber})...`);
+
+        const migrationSql = await fs.readFile(path.join(__dirname, file), 'utf-8');
+
+        // Apply migration in a transaction
+        const transaction = this.db.transaction(() => {
+          this.db.exec(migrationSql);
+          this.db
+            .prepare(
+              `
+            INSERT INTO migrations (version, name)
+            VALUES (?, ?)
+          `
+            )
+            .run(versionNumber, versionName);
+        });
+
+        transaction();
+        logger.info(`Migration ${versionName} (v${versionNumber}) applied successfully.`);
+      }
+
+      logger.info('All pending database migrations applied successfully');
     } catch (error) {
       logger.error(
         {
           error: error instanceof Error ? error.message : String(error),
           stack: error instanceof Error ? error.stack : undefined
         },
-        'Failed to apply semantic migration'
+        'Failed to apply database migrations'
       );
       throw error; // Re-throw to ensure failure is handled upstream
     }
+  }
+
+  private async getMigrationFiles(): Promise<string[]> {
+    const files = await fs.readdir(__dirname);
+    return files.filter(file => file.match(/^\d{3}_.*\.sql$/)); // Only match NNN_name.sql files
   }
 
   /**
@@ -128,10 +112,14 @@ export class MigrationExecutor {
         )
         .all();
 
-      // Check if semantic columns exist
+      // Check if semantic columns exist (from 001_initial_semantic_features.sql)
       const hasEmbedding = contextColumns.some((col: any) => col.name === 'embedding');
       const hasSemanticTags = contextColumns.some((col: any) => col.name === 'semantic_tags');
       const hasContextType = contextColumns.some((col: any) => col.name === 'context_type');
+
+      // Check if vector storage columns exist (from 002_vector_storage_and_enhanced_context.sql)
+      const hasEmbeddingVector = contextColumns.some((col: any) => col.name === 'embedding_vector');
+      const hasRelevanceScore = contextColumns.some((col: any) => col.name === 'relevance_score');
 
       return {
         contextColumns: contextColumns.length,
@@ -140,7 +128,8 @@ export class MigrationExecutor {
           hasEmbedding,
           hasSemanticTags,
           hasContextType,
-          isComplete: hasEmbedding && hasSemanticTags && hasContextType
+          hasVectorStorage: hasEmbeddingVector && hasRelevanceScore,
+          isComplete: hasEmbedding && hasSemanticTags && hasContextType && hasEmbeddingVector && hasRelevanceScore // Assuming all are needed for "complete"
         },
         migrations
       };
@@ -152,8 +141,3 @@ export class MigrationExecutor {
     }
   }
 }
-
-// Helper to check file existence, as fs.existsSync is synchronous
-// and we are in an async function context for readFile.
-// For the path resolution logic, sync check is okay.
-import { existsSync } from 'node:fs';

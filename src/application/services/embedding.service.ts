@@ -28,21 +28,70 @@ export class EmbeddingService implements IEmbeddingService {
 
     // Common English stop words for better semantic representation
     this.stopWords = new Set([
-      'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by',
-      'this', 'that', 'these', 'those', 'is', 'are', 'was', 'were', 'be', 'been',
-      'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should',
-      'can', 'may', 'might', 'must', 'shall', 'a', 'an', 'as', 'if', 'it', 'its',
-      'i', 'you', 'he', 'she', 'we', 'they', 'me', 'him', 'her', 'us', 'them'
+      'the',
+      'and',
+      'or',
+      'but',
+      'in',
+      'on',
+      'at',
+      'to',
+      'for',
+      'of',
+      'with',
+      'by',
+      'this',
+      'that',
+      'these',
+      'those',
+      'is',
+      'are',
+      'was',
+      'were',
+      'be',
+      'been',
+      'have',
+      'has',
+      'had',
+      'do',
+      'does',
+      'did',
+      'will',
+      'would',
+      'could',
+      'should',
+      'can',
+      'may',
+      'might',
+      'must',
+      'shall',
+      'a',
+      'an',
+      'as',
+      'if',
+      'it',
+      'its',
+      'i',
+      'you',
+      'he',
+      'she',
+      'we',
+      'they',
+      'me',
+      'him',
+      'her',
+      'us',
+      'them'
     ]);
 
     // Patterns for identifying important semantic elements
     this.commonPatterns = [
-      /\b\d+(?:\.\d+)?\b/g,           // Numbers
+      /\b\d+(?:\.\d+)?\b/g, // Numbers
       /\b[A-Z][a-z]+(?:[A-Z][a-z]+)*\b/g, // CamelCase
-      /\b[a-zA-Z]+_[a-zA-Z_]+\b/g,    // snake_case
-      /\b[a-zA-Z]+-[a-zA-Z-]+\b/g,    // kebab-case
+      /\b[a-zA-Z]+_[a-zA-Z_]+\b/g, // snake_case
+      /\b[a-zA-Z]+-[a-zA-Z-]+\b/g, // kebab-case
       /\b(?:https?|ftp):\/\/[^\s]+\b/g, // URLs
-      /\b[A-Z]{2,}\b/g,               // UPPERCASE acronyms
+      /\b[A-Z]{2,}\b/g // UPPERCASE acronyms
     ];
   }
 
@@ -54,17 +103,21 @@ export class EmbeddingService implements IEmbeddingService {
 
     try {
       // Lightweight initialization - no external dependencies needed
-      logger.info({
-        model: this.modelInfo.name,
-        dimensions: this.modelInfo.dimensions,
-        type: 'hash-based'
-      }, 'Lightweight embedding service initialized');
+      logger.info(
+        {
+          model: this.modelInfo.name,
+          dimensions: this.modelInfo.dimensions,
+          type: 'hash-based'
+        },
+        'Lightweight embedding service initialized'
+      );
 
       this.isInitialized = true;
-
     } catch (error) {
       logger.error({ error }, 'Failed to initialize embedding service');
-      throw new Error(`Embedding service initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Embedding service initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
@@ -84,14 +137,16 @@ export class EmbeddingService implements IEmbeddingService {
         throw new Error('Generated embedding is invalid');
       }
 
-      logger.debug({
-        textLength: text.length,
-        embeddingDimensions: embedding.length,
-        magnitude: this.calculateMagnitude(embedding)
-      }, 'Generated lightweight embedding');
+      logger.debug(
+        {
+          textLength: text.length,
+          embeddingDimensions: embedding.length,
+          magnitude: this.calculateMagnitude(embedding)
+        },
+        'Generated lightweight embedding'
+      );
 
       return embedding;
-
     } catch (error) {
       logger.error({ error, textLength: text.length }, 'Failed to generate embedding');
       throw new Error(`Embedding generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -109,13 +164,28 @@ export class EmbeddingService implements IEmbeddingService {
     this.addWordFeatures(embedding, features.words, 0, Math.floor(this.modelInfo.dimensions * 0.6));
 
     // 2. N-gram features for context (20% of embedding space)
-    this.addNGramFeatures(embedding, features.words, Math.floor(this.modelInfo.dimensions * 0.6), Math.floor(this.modelInfo.dimensions * 0.8));
+    this.addNGramFeatures(
+      embedding,
+      features.words,
+      Math.floor(this.modelInfo.dimensions * 0.6),
+      Math.floor(this.modelInfo.dimensions * 0.8)
+    );
 
     // 3. Structural and pattern features (15% of embedding space)
-    this.addStructuralFeatures(embedding, features, Math.floor(this.modelInfo.dimensions * 0.8), Math.floor(this.modelInfo.dimensions * 0.95));
+    this.addStructuralFeatures(
+      embedding,
+      features,
+      Math.floor(this.modelInfo.dimensions * 0.8),
+      Math.floor(this.modelInfo.dimensions * 0.95)
+    );
 
     // 4. Statistical features (5% of embedding space)
-    this.addStatisticalFeatures(embedding, features, Math.floor(this.modelInfo.dimensions * 0.95), this.modelInfo.dimensions);
+    this.addStatisticalFeatures(
+      embedding,
+      features,
+      Math.floor(this.modelInfo.dimensions * 0.95),
+      this.modelInfo.dimensions
+    );
 
     // Normalize the embedding to unit vector
     return this.normalizeVector(embedding);
@@ -144,10 +214,8 @@ export class EmbeddingService implements IEmbeddingService {
       .trim();
 
     const words = normalizedText.split(/\\s+/).filter(word => word.length > 0);
-    const meaningfulWords = words.filter(word =>
-      word.length >= 2 &&
-      !this.stopWords.has(word) &&
-      !/^\\d+$/.test(word) // Exclude pure numbers
+    const meaningfulWords = words.filter(
+      word => word.length >= 2 && !this.stopWords.has(word) && !/^\\d+$/.test(word) // Exclude pure numbers
     );
 
     // Extract patterns from original text
@@ -208,7 +276,7 @@ export class EmbeddingService implements IEmbeddingService {
 
         // Safe array access with bounds checking
         if (charIdx >= 0 && charIdx < embedding.length) {
-          embedding[charIdx] = (embedding[charIdx] || 0) + (0.1 * tfWeight);
+          embedding[charIdx] = (embedding[charIdx] || 0) + 0.1 * tfWeight;
         }
       }
     }
@@ -268,7 +336,7 @@ export class EmbeddingService implements IEmbeddingService {
         `len_${Math.floor(features.stats.length / 100)}`, // Length buckets
         `words_${Math.floor(features.stats.wordCount / 10)}`, // Word count buckets
         `avglen_${Math.floor(features.stats.avgWordLength)}`, // Average word length
-        `unique_${Math.floor(features.stats.uniqueWords / 10)}`, // Unique word buckets
+        `unique_${Math.floor(features.stats.uniqueWords / 10)}` // Unique word buckets
       ];
 
       structuralFeatures.forEach(feature => {
@@ -292,7 +360,7 @@ export class EmbeddingService implements IEmbeddingService {
       features.stats.digitRatio * 10,
       Math.min(features.stats.length / 1000, 10), // Normalized length
       Math.min(features.stats.wordCount / 100, 10), // Normalized word count
-      Math.min(features.stats.avgWordLength, 10), // Capped average word length
+      Math.min(features.stats.avgWordLength, 10) // Capped average word length
     ];
 
     statFeatures.forEach((value, i) => {
@@ -308,7 +376,7 @@ export class EmbeddingService implements IEmbeddingService {
     // Implementation of djb2 hash algorithm for better distribution
     let hash = 5381;
     for (let i = 0; i < str.length; i++) {
-      hash = ((hash << 5) + hash) + str.charCodeAt(i);
+      hash = (hash << 5) + hash + str.charCodeAt(i);
       hash = hash & hash; // Convert to 32-bit integer
     }
     return Math.abs(hash);
@@ -374,10 +442,13 @@ export class EmbeddingService implements IEmbeddingService {
     }
 
     if (embedding.length !== this.modelInfo.dimensions) {
-      logger.warn({
-        expected: this.modelInfo.dimensions,
-        actual: embedding.length
-      }, 'Embedding has incorrect dimensions');
+      logger.warn(
+        {
+          expected: this.modelInfo.dimensions,
+          actual: embedding.length
+        },
+        'Embedding has incorrect dimensions'
+      );
       return false;
     }
 
@@ -402,9 +473,7 @@ export class EmbeddingService implements IEmbeddingService {
 
     for (let i = 0; i < texts.length; i += batchSize) {
       const batch = texts.slice(i, i + batchSize);
-      const batchEmbeddings = await Promise.all(
-        batch.map(text => this.generateEmbedding(text))
-      );
+      const batchEmbeddings = await Promise.all(batch.map(text => this.generateEmbedding(text)));
       embeddings.push(...batchEmbeddings);
 
       // Brief pause between batches for system breathing room
@@ -413,10 +482,13 @@ export class EmbeddingService implements IEmbeddingService {
       }
     }
 
-    logger.info({
-      processedCount: texts.length,
-      batchSize
-    }, 'Generated batch embeddings');
+    logger.info(
+      {
+        processedCount: texts.length,
+        batchSize
+      },
+      'Generated batch embeddings'
+    );
 
     return embeddings;
   }
@@ -426,7 +498,9 @@ export class EmbeddingService implements IEmbeddingService {
    */
   calculatePairwiseSimilarities(embeddings: number[][]): number[][] {
     const n = embeddings.length;
-    const similarities: number[][] = Array(n).fill(null).map(() => Array(n).fill(0));
+    const similarities: number[][] = Array(n)
+      .fill(null)
+      .map(() => Array(n).fill(0));
 
     for (let i = 0; i < n; i++) {
       for (let j = i; j < n; j++) {
@@ -464,7 +538,11 @@ export class EmbeddingService implements IEmbeddingService {
   /**
    * Find the most similar embeddings to a query embedding
    */
-  findMostSimilar(queryEmbedding: number[], candidateEmbeddings: number[][], limit: number = 5): Array<{ index: number; similarity: number }> {
+  findMostSimilar(
+    queryEmbedding: number[],
+    candidateEmbeddings: number[][],
+    limit: number = 5
+  ): Array<{ index: number; similarity: number }> {
     const similarities = candidateEmbeddings
       .map((embedding, index) => {
         if (!embedding) {
@@ -477,9 +555,7 @@ export class EmbeddingService implements IEmbeddingService {
       })
       .filter(item => item.similarity > 0); // Filter out invalid similarities
 
-    return similarities
-      .sort((a, b) => b.similarity - a.similarity)
-      .slice(0, limit);
+    return similarities.sort((a, b) => b.similarity - a.similarity).slice(0, limit);
   }
 
   /**

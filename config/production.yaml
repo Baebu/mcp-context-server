@@ -26,15 +26,14 @@ logging:
 performance:
   maxConcurrency: 20
   queueSize: 2000
-
-consent:
-  alwaysAllow:
-    - 'file_write:*.log'
-    - 'file_write:*.tmp'
-    - 'command_execute:ls'
-  alwaysDeny:
-    - 'command_execute:rm -rf /*'
-    - 'file_delete:**/.ssh/**'
-  requireConsent:
-    - 'recursive_delete:*'
-    - 'file_write:**/*.key'
+# consent: # REMOVED
+#   alwaysAllow:
+#     - 'file_write:*.log'
+#     - 'file_write:*.tmp'
+#     - 'command_execute:ls'
+#   alwaysDeny:
+#     - 'command_execute:rm -rf /*'
+#     - 'file_delete:**/.ssh/**'
+#   requireConsent:
+#     - 'recursive_delete:*'
+#     - 'file_write:**/*.key'
