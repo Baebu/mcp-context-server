@@ -28,8 +28,6 @@ import { SecurityValidatorService } from '../../application/services/security-va
 
 // Enhanced File Operations Tools
 import {
-  EditFileTool,
-  BatchEditFileTool,
   SearchFilesTool,
   FindFilesTool,
   ContentEditFileTool
@@ -47,8 +45,7 @@ import {
 // Database operation tools (now consolidated and enhanced)
 import {
   StoreContextTool, // Now represents the enhanced version
-  GetContextTool,
-  QueryContextTool // Now represents the enhanced version
+  GetContextTool
 } from '../../application/tools/database-operations.tool.js'; // Consolidated path
 
 // Tools, Resources, Prompts
@@ -58,16 +55,16 @@ import { ProjectFilesResource } from '../../application/resources/project-files.
 // Process Management Tool (NEW)
 import { ProcessManagementTool } from '../../application/tools/process-management.tool.js';
 
-// Enhanced Security Diagnostics Tool (NEW)
-import { EnhancedSecurityDiagnosticsTool } from '../../application/tools/enhanced-security-diagnostics.tool.js';
+// New Consolidated Tools
+import { GetSystemHealthTool } from '../../application/tools/system-health.tool.js';
+import { GetProjectOverviewTool } from '../../application/tools/project-overview.tool.js';
 
 // Semantic Tools
 import {
   SemanticSearchTool,
   FindRelatedContextTool,
   CreateContextRelationshipTool,
-  UpdateEmbeddingsTool,
-  SemanticStatsTool
+  UpdateEmbeddingsTool
 } from '../../application/tools/semantic-search.tool.js';
 
 export const container = new Container({ autoBindInjectable: true });
@@ -84,8 +81,6 @@ container.bind<IEnhancedCLIHandler>('CLIHandler').to(EnhancedCLIAdapter).inSingl
 container.bind<ISecurityValidator>('SecurityValidator').to(SecurityValidatorService).inSingletonScope();
 
 // Enhanced File Operations Tools
-container.bind<EditFileTool>(EditFileTool).to(EditFileTool).inSingletonScope();
-container.bind<BatchEditFileTool>(BatchEditFileTool).to(BatchEditFileTool).inSingletonScope();
 container.bind<SearchFilesTool>(SearchFilesTool).to(SearchFilesTool).inSingletonScope();
 container.bind<FindFilesTool>(FindFilesTool).to(FindFilesTool).inSingletonScope();
 container.bind<ContentEditFileTool>(ContentEditFileTool).to(ContentEditFileTool).inSingletonScope();
@@ -100,9 +95,8 @@ container.bind<CleanupBackupsTool>(CleanupBackupsTool).to(CleanupBackupsTool).in
 // Database Operation Tools (now consolidated and enhanced)
 container.bind<StoreContextTool>(StoreContextTool).to(StoreContextTool).inSingletonScope(); // Binding the renamed class
 container.bind<GetContextTool>(GetContextTool).to(GetContextTool).inSingletonScope(); // Keep GetContextTool binding
-container.bind<QueryContextTool>(QueryContextTool).to(QueryContextTool).inSingletonScope(); // Binding the renamed class
 
-// Removed: EnhancedStoreContextTool and EnhancedQueryContextTool bindings
+// Removed: QueryContextTool, EnhancedStoreContextTool and EnhancedQueryContextTool bindings
 
 container.bind<ISmartPathManager>('SmartPathManager').to(SmartPathManager).inSingletonScope();
 container.bind<IWorkspaceManager>('WorkspaceManager').to(WorkspaceManager).inSingletonScope();
@@ -113,8 +107,9 @@ container.bind<IEmbeddingService>('EmbeddingService').to(EmbeddingService).inSin
 // Process Management Tool (NEW)
 container.bind<ProcessManagementTool>(ProcessManagementTool).to(ProcessManagementTool).inSingletonScope();
 
-// Enhanced Security Diagnostics Tool (NEW)
-container.bind<EnhancedSecurityDiagnosticsTool>(EnhancedSecurityDiagnosticsTool).to(EnhancedSecurityDiagnosticsTool).inSingletonScope();
+// New Consolidated Tools
+container.bind<GetSystemHealthTool>(GetSystemHealthTool).to(GetSystemHealthTool).inSingletonScope();
+container.bind<GetProjectOverviewTool>(GetProjectOverviewTool).to(GetProjectOverviewTool).inSingletonScope();
 
 // Bind injectable tools and resources
 container.bind<ParseFileTool>(ParseFileTool).to(ParseFileTool).inSingletonScope();
@@ -128,4 +123,4 @@ container
   .to(CreateContextRelationshipTool)
   .inSingletonScope();
 container.bind<UpdateEmbeddingsTool>(UpdateEmbeddingsTool).to(UpdateEmbeddingsTool).inSingletonScope();
-container.bind<SemanticStatsTool>(SemanticStatsTool).to(SemanticStatsTool).inSingletonScope();
+// SemanticStatsTool removed - functionality consolidated into system-health.tool.ts

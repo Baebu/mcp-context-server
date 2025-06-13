@@ -216,7 +216,10 @@ export const semanticSearchSchema = z.object({
       to: z.date().optional().describe('End of time range filter')
     })
     .optional()
-    .describe('Filter by time range')
+    .describe('Filter by time range'),
+  // Traditional query filters for consolidation
+  keyPattern: z.string().optional().describe('Key pattern to match for traditional search'),
+  type: z.string().optional().describe('Filter by context type for traditional search')
 });
 
 export const relationshipTypeSchema = z.enum(['similar', 'related', 'child', 'parent', 'reference']);

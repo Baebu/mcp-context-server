@@ -28,25 +28,68 @@ export class SemanticSearchTool implements IMCPTool {
       const dbInstance = db.getDatabase(); // Use the interface method
       const semanticDb = new SemanticDatabaseExtension(dbInstance);
 
-      // Generate embedding for search query
-      const queryEmbedding = await this.embeddingService.generateEmbedding(params.query);
+      let results: any[] = [];
 
-      // Perform semantic search
-      const results = await semanticDb.semanticSearch({
-        ...params,
-        queryEmbedding
-      });
+      // If traditional query filters are provided, use traditional search
+      if (params.keyPattern || params.type) {
+        // Perform traditional database search with filters
+        let query = 'SELECT * FROM context_items WHERE 1=1';
+        const queryParams: any[] = [];
+
+        // Type filter
+        if (params.type) {
+          query += ' AND (type = ? OR context_type = ?)';
+          queryParams.push(params.type, params.type);
+        }
+
+        // Pattern filter
+        if (params.keyPattern) {
+          query += ' AND key LIKE ?';
+          queryParams.push(`%${params.keyPattern}%`);
+        }
+
+        query += ' ORDER BY updated_at DESC LIMIT ?';
+        queryParams.push(params.limit || 5);
+
+        const stmt = dbInstance.prepare(query);
+        const traditionalResults = stmt.all(...queryParams);
+
+        // Format results to match semantic search format
+        results = traditionalResults.map((row: any) => ({
+          key: row.key,
+          type: row.type || row.context_type,
+          similarity: 1.0, // Traditional search doesn't have similarity score
+          value: this.safeJsonParse(row.value),
+          metadata: {
+            timestamp: new Date(row.updated_at || row.created_at),
+            source: 'traditional_query',
+            tags: row.semantic_tags ? this.safeJsonParse(row.semantic_tags) : []
+          }
+        }));
+      } else {
+        // Generate embedding for semantic search query
+        const queryEmbedding = await this.embeddingService.generateEmbedding(params.query);
+
+        // Perform semantic search
+        results = await semanticDb.semanticSearch({
+          ...params,
+          queryEmbedding
+        });
+      }
 
       const responseData = {
         query: params.query,
+        searchType: (params.keyPattern || params.type) ? 'traditional' : 'semantic',
         resultsCount: results.length,
         results: results.map(result => ({
           key: result.key,
           type: result.type,
-          similarity: Math.round(result.similarity * 100) / 100,
+          similarity: Math.round((result.similarity || 1.0) * 100) / 100,
           preview: this.generatePreview(result.value),
           metadata: {
-            timestamp: result.metadata.timestamp.toISOString(),
+            timestamp: result.metadata.timestamp instanceof Date 
+              ? result.metadata.timestamp.toISOString() 
+              : result.metadata.timestamp,
             source: result.metadata.source,
             tags: result.metadata.tags || []
           }
@@ -55,8 +98,10 @@ export class SemanticSearchTool implements IMCPTool {
           minSimilarity: params.minSimilarity || 0.7,
           contextTypesFilter: params.contextTypes,
           includeRelated: params.includeRelated || false,
+          keyPatternFilter: params.keyPattern,
+          typeFilter: params.type,
           timestamp: new Date().toISOString(),
-          embeddingDimensions: queryEmbedding.length
+          embeddingDimensions: params.keyPattern || params.type ? null : (await this.embeddingService.generateEmbedding(params.query)).length
         }
       };
 
@@ -78,6 +123,15 @@ export class SemanticSearchTool implements IMCPTool {
           }
         ]
       };
+    }
+  }
+
+  private safeJsonParse(jsonString: any): any {
+    if (typeof jsonString !== 'string') return jsonString;
+    try {
+      return JSON.parse(jsonString);
+    } catch {
+      return jsonString;
     }
   }
 
@@ -333,71 +387,4 @@ export class UpdateEmbeddingsTool implements IMCPTool {
   }
 }
 
-/**
- * Tool for getting semantic search statistics
- */
-@injectable()
-export class SemanticStatsTool implements IMCPTool {
-  name = 'get_semantic_stats';
-  description = 'Get statistics about semantic search capabilities and coverage';
-  schema = z.object({});
-
-  async execute(_: z.infer<typeof this.schema>, context: ToolContext): Promise<ToolResult> {
-    const db = context.container.get<IDatabaseHandler>('DatabaseHandler'); // Use IDatabaseHandler
-
-    try {
-      const dbInstance = db.getDatabase(); // Use the interface method
-      const semanticDb = new SemanticDatabaseExtension(dbInstance);
-
-      const stats = await semanticDb.getSemanticStats();
-
-      const responseData = {
-        semanticSearchStats: {
-          totalContextItems: stats.totalItems,
-          itemsWithEmbeddings: stats.itemsWithEmbeddings,
-          embeddingCoverage: `${stats.embeddingCoverage}%`,
-          totalRelationships: stats.totalRelationships
-        },
-        recommendations: this.generateRecommendations(stats),
-        timestamp: new Date().toISOString()
-      };
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(responseData, null, 2)
-          }
-        ]
-      };
-    } catch (error) {
-      context.logger.error({ error }, 'Get semantic stats failed');
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `Getting semantic stats failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-          }
-        ]
-      };
-    }
-  }
-
-  private generateRecommendations(stats: any): string[] {
-    const recommendations: string[] = [];
-
-    if (stats.embeddingCoverage < 50) {
-      recommendations.push('Consider running update_missing_embeddings to improve semantic search coverage');
-    }
-
-    if (stats.totalRelationships === 0 && stats.totalItems > 10) {
-      recommendations.push('Create relationships between related items to improve search relevance');
-    }
-
-    if (stats.totalItems > 100 && stats.embeddingCoverage > 80) {
-      recommendations.push('Great embedding coverage! Your semantic search should work well');
-    }
-
-    return recommendations;
-  }
-}
+// SemanticStatsTool REMOVED - Functionality consolidated into system-health.tool.ts

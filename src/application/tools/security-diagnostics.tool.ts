@@ -11,11 +11,17 @@ import type { ISecurityValidator } from '@core/interfaces/security.interface.js'
 
 const securityDiagnosticsSchema = z.object({
   action: z
-    .enum(['info', 'test-path', 'test-command', 'list-safe-zones', 'list-restricted-zones', 'suggest-config'])
+    .enum([
+      'info', 'test-path', 'test-command', 'list-safe-zones', 'list-restricted-zones', 'suggest-config',
+      'expand-safe-zone', 'auto-discover', 'add-with-wildcards', 'refresh-zones', 'get-hierarchy', 
+      'validate-access', 'reinitialize-enhanced', 'test-multiple-paths'
+    ])
     .describe('Diagnostic action to perform'),
   path: z.string().optional().describe('Path to test (for test-path action)'),
   command: z.string().optional().describe('Command to test (for test-command action)'),
-  args: z.array(z.string()).optional().default([]).describe('Command arguments (for test-command action)')
+  args: z.array(z.string()).optional().default([]).describe('Command arguments (for test-command action)'),
+  safeZonePath: z.string().optional().describe('Safe zone path for expansion, discovery, or validation actions'),
+  testPaths: z.array(z.string()).optional().describe('Array of paths to test for access (used with test-multiple-paths action)')
 });
 
 // No longer need ExtendedSecurityValidator cast due to interface update
@@ -130,6 +136,54 @@ export class SecurityDiagnosticsTool implements IMCPTool {
 
         case 'suggest-config':
           await this.suggestConfiguration(result, context);
+          break;
+
+        // Enhanced security actions
+        case 'expand-safe-zone':
+          if (!params.safeZonePath) {
+            throw new Error('safeZonePath is required for expand-safe-zone action');
+          }
+          await this.expandSafeZone(result, params.safeZonePath, securityValidator);
+          break;
+
+        case 'auto-discover':
+          if (!params.safeZonePath) {
+            throw new Error('safeZonePath is required for auto-discover action');
+          }
+          await this.autoDiscoverSubdirectories(result, params.safeZonePath, securityValidator);
+          break;
+
+        case 'add-with-wildcards':
+          if (!params.safeZonePath) {
+            throw new Error('safeZonePath is required for add-with-wildcards action');
+          }
+          await this.addSafeZoneWithWildcards(result, params.safeZonePath, securityValidator);
+          break;
+
+        case 'refresh-zones':
+          await this.refreshSafeZones(result, securityValidator);
+          break;
+
+        case 'get-hierarchy':
+          await this.getSafeZoneHierarchy(result, securityValidator);
+          break;
+
+        case 'validate-access':
+          if (!params.safeZonePath) {
+            throw new Error('safeZonePath is required for validate-access action');
+          }
+          await this.validateSafeZoneAccess(result, params.safeZonePath, securityValidator);
+          break;
+
+        case 'reinitialize-enhanced':
+          await this.reinitializeEnhanced(result, securityValidator);
+          break;
+
+        case 'test-multiple-paths':
+          if (!params.testPaths || params.testPaths.length === 0) {
+            throw new Error('testPaths array is required for test-multiple-paths action');
+          }
+          await this.testMultiplePaths(result, params.testPaths, securityValidator);
           break;
 
         default:
@@ -538,5 +592,270 @@ export class SecurityDiagnosticsTool implements IMCPTool {
       "🔧 Test your configuration changes thoroughly using the 'test-path' and 'test-command' actions of this tool.",
       '🔧 Keep `autoExpandSafezones: true` for convenience in development, but consider setting to `false` and explicitly listing all zones for production for tighter control.'
     ];
+  }
+
+  // Enhanced Security Methods (merged from enhanced-security-diagnostics.tool.ts)
+  private async expandSafeZone(
+    result: SecurityDiagnosticResult,
+    safeZonePath: string,
+    securityValidator: ISecurityValidator
+  ): Promise<void> {
+    if (typeof (securityValidator as any).expandSafeZoneRecursively === 'function') {
+      (securityValidator as any).expandSafeZoneRecursively(safeZonePath);
+
+      const hierarchy = typeof (securityValidator as any).getSafeZoneHierarchy === 'function' 
+        ? (securityValidator as any).getSafeZoneHierarchy() 
+        : null;
+
+      Object.assign(result, {
+        success: true,
+        safeZonePath,
+        message: 'Safe zone expanded with recursive wildcard patterns',
+        hierarchy,
+        suggestions: [
+          '✅ Safe zone has been expanded with wildcard patterns for subdirectory access',
+          '📁 All subdirectories within the safe zone should now be accessible',
+          '🔍 Use validate-access action to verify subdirectory accessibility'
+        ]
+      });
+    } else {
+      throw new Error('Enhanced safe zone expansion not supported by current SecurityValidator');
+    }
+  }
+
+  private async autoDiscoverSubdirectories(
+    result: SecurityDiagnosticResult,
+    safeZonePath: string,
+    securityValidator: ISecurityValidator
+  ): Promise<void> {
+    if (typeof (securityValidator as any).autoDiscoverSubdirectories === 'function') {
+      const discoveredPaths = await (securityValidator as any).autoDiscoverSubdirectories(safeZonePath);
+
+      Object.assign(result, {
+        success: true,
+        safeZonePath,
+        discoveredPaths,
+        totalDiscovered: discoveredPaths.length,
+        message: `Auto-discovered ${discoveredPaths.length} subdirectories`,
+        suggestions: [
+          `✅ Found ${discoveredPaths.length} accessible subdirectories`,
+          '📁 All discovered directories have been added to safe zones',
+          '🔄 Run refresh-zones to ensure all patterns are active'
+        ]
+      });
+    } else {
+      throw new Error('Auto-discovery not supported by current SecurityValidator');
+    }
+  }
+
+  private async addSafeZoneWithWildcards(
+    result: SecurityDiagnosticResult,
+    safeZonePath: string,
+    securityValidator: ISecurityValidator
+  ): Promise<void> {
+    if (typeof (securityValidator as any).addSafeZoneWithWildcards === 'function') {
+      (securityValidator as any).addSafeZoneWithWildcards(safeZonePath);
+
+      Object.assign(result, {
+        success: true,
+        safeZonePath,
+        message: 'Safe zone added with comprehensive wildcard patterns',
+        patterns: [
+          'Exact path',
+          'All subdirectories recursively (**)',
+          'Direct children (*)',
+          'All files in subdirectories (**/*)',
+          'Alternative recursive patterns'
+        ],
+        suggestions: [
+          '✅ Safe zone added with maximum subdirectory coverage',
+          '🔍 Use get-hierarchy to see all active patterns',
+          '⚡ All subdirectories should now be accessible'
+        ]
+      });
+    } else {
+      throw new Error('Wildcard safe zone addition not supported by current SecurityValidator');
+    }
+  }
+
+  private async refreshSafeZones(
+    result: SecurityDiagnosticResult,
+    securityValidator: ISecurityValidator
+  ): Promise<void> {
+    if (typeof (securityValidator as any).refreshSafeZonesWithAutoExpansion === 'function') {
+      await (securityValidator as any).refreshSafeZonesWithAutoExpansion();
+
+      const hierarchy = typeof (securityValidator as any).getSafeZoneHierarchy === 'function' 
+        ? (securityValidator as any).getSafeZoneHierarchy() 
+        : null;
+
+      Object.assign(result, {
+        success: true,
+        message: 'Safe zones refreshed with auto-expansion',
+        hierarchy,
+        suggestions: [
+          '✅ All safe zones have been refreshed and expanded',
+          '📁 Auto-discovery applied to all configured safe zones',
+          '🔄 Security patterns are now up to date'
+        ]
+      });
+    } else {
+      throw new Error('Enhanced safe zone refresh not supported by current SecurityValidator');
+    }
+  }
+
+  private async getSafeZoneHierarchy(
+    result: SecurityDiagnosticResult,
+    securityValidator: ISecurityValidator
+  ): Promise<void> {
+    if (typeof (securityValidator as any).getSafeZoneHierarchy === 'function') {
+      const hierarchy = (securityValidator as any).getSafeZoneHierarchy();
+
+      Object.assign(result, {
+        success: true,
+        hierarchy,
+        analysis: {
+          hasWildcardPatterns: hierarchy.wildcardPatterns?.length > 0,
+          expansionRatio: hierarchy.totalZones / (hierarchy.configuredZones?.length || 1),
+          hasRestrictedOverrides: hierarchy.restrictedOverrides?.length > 0
+        },
+        suggestions: [
+          `📊 Total zones: ${hierarchy.totalZones || 0}`,
+          `🔧 Configured zones: ${hierarchy.configuredZones?.length || 0}`,
+          `🌟 Wildcard patterns: ${hierarchy.wildcardPatterns?.length || 0}`,
+          hierarchy.restrictedOverrides?.length > 0
+            ? '⚠️ Some safe zones have restricted overrides'
+            : '✅ No conflicting restrictions found'
+        ]
+      });
+    } else {
+      // Fallback to basic security info
+      const basicInfo = securityValidator.getSecurityInfo?.() || {};
+      Object.assign(result, {
+        success: true,
+        basicInfo,
+        message: 'Enhanced hierarchy not available, showing basic security info',
+        suggestions: [
+          '📊 Basic security information retrieved',
+          '⚠️ Enhanced hierarchy features not available',
+          '🔄 Consider updating SecurityValidator for full features'
+        ]
+      });
+    }
+  }
+
+  private async validateSafeZoneAccess(
+    result: SecurityDiagnosticResult,
+    safeZonePath: string,
+    securityValidator: ISecurityValidator
+  ): Promise<void> {
+    if (typeof (securityValidator as any).validateSafeZoneAccess === 'function') {
+      const validation = await (securityValidator as any).validateSafeZoneAccess(safeZonePath);
+
+      const accessRate = validation.totalChecked > 0
+        ? validation.subdirectories.filter((s: any) => s.accessible).length / validation.totalChecked
+        : 0;
+
+      Object.assign(result, {
+        success: true,
+        safeZonePath,
+        validation,
+        accessRate: Math.round(accessRate * 100),
+        summary: {
+          totalChecked: validation.totalChecked,
+          accessible: validation.subdirectories.filter((s: any) => s.accessible).length,
+          denied: validation.subdirectories.filter((s: any) => !s.accessible).length
+        },
+        suggestions: validation.accessible
+          ? [
+              `✅ Safe zone access validated (${Math.round(accessRate * 100)}% accessible)`,
+              '📁 Most subdirectories are accessible',
+              '🔍 Check individual subdirectory results for details'
+            ]
+          : [
+              '❌ Safe zone access issues detected',
+              '🔧 Consider running expand-safe-zone or refresh-zones',
+              '⚠️ Check for conflicting restricted zones'
+            ]
+      });
+    } else {
+      throw new Error('Safe zone access validation not supported by current SecurityValidator');
+    }
+  }
+
+  private async reinitializeEnhanced(
+    result: SecurityDiagnosticResult,
+    securityValidator: ISecurityValidator
+  ): Promise<void> {
+    if (typeof (securityValidator as any).reinitializeZonesWithExpansion === 'function') {
+      await (securityValidator as any).reinitializeZonesWithExpansion();
+
+      const hierarchy = typeof (securityValidator as any).getSafeZoneHierarchy === 'function' 
+        ? (securityValidator as any).getSafeZoneHierarchy() 
+        : null;
+
+      Object.assign(result, {
+        success: true,
+        message: 'Security zones reinitialized with enhanced features',
+        hierarchy,
+        suggestions: [
+          '✅ Security zones reinitialized with enhanced expansion',
+          '🔄 All safe zone patterns have been refreshed',
+          '📁 Maximum subdirectory access should now be available'
+        ]
+      });
+    } else {
+      throw new Error('Enhanced reinitialization not supported by current SecurityValidator');
+    }
+  }
+
+  private async testMultiplePaths(
+    result: SecurityDiagnosticResult,
+    testPaths: string[],
+    securityValidator: ISecurityValidator
+  ): Promise<void> {
+    const pathResults = [];
+
+    for (const testPath of testPaths) {
+      try {
+        const testResult = await (securityValidator as any).testPathAccess?.(testPath);
+        pathResults.push({
+          path: testPath,
+          allowed: testResult?.allowed || false,
+          reason: testResult?.reason || 'No test result available',
+          resolvedPath: testResult?.resolvedPath || testPath,
+          matchedSafeZone: testResult?.matchedSafeZone,
+          matchedRestrictedZone: testResult?.matchedRestrictedZone
+        });
+      } catch (error) {
+        pathResults.push({
+          path: testPath,
+          allowed: false,
+          reason: error instanceof Error ? error.message : 'Unknown error',
+          error: true
+        });
+      }
+    }
+
+    const allowedCount = pathResults.filter(r => r.allowed).length;
+    const deniedCount = pathResults.filter(r => !r.allowed).length;
+
+    Object.assign(result, {
+      success: true,
+      totalTested: testPaths.length,
+      results: pathResults,
+      summary: {
+        allowed: allowedCount,
+        denied: deniedCount,
+        accessRate: Math.round((allowedCount / testPaths.length) * 100)
+      },
+      suggestions: [
+        `📊 Tested ${testPaths.length} paths: ${allowedCount} allowed, ${deniedCount} denied`,
+        allowedCount === testPaths.length
+          ? '✅ All paths are accessible'
+          : '⚠️ Some paths are blocked - consider expanding safe zones',
+        '🔍 Check individual path results for specific access details'
+      ]
+    });
   }
 }

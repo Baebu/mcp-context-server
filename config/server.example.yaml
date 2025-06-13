@@ -12,6 +12,10 @@ server:
 
 # Enhanced Security Configuration
 security:
+  safeZoneMode: 'recursive'
+  autoExpandSafezones: true
+  safezones:
+    - '.'
   allowedPaths:
     - ./data
     - ./examples
@@ -98,12 +102,6 @@ security:
     - '**/.gnupg'
     - '**/.aws'
     - '**/node_modules/.bin'
-  safezones:
-    - .
-    - ./data
-    - ./examples
-    - ~/user_projects
-    - /mnt/shared_data
   maxExecutionTime: 900000
   unsafeArgumentPatterns:
     - \$\(.*\)|`.*`|\$\{.*\}

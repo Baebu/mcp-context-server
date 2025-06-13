@@ -12,8 +12,6 @@ import { ReadFileTool, ListDirectoryTool, WriteFileTool } from '../../applicatio
 
 // Enhanced File Operations Tools
 import {
-  EditFileTool,
-  BatchEditFileTool,
   SearchFilesTool,
   FindFilesTool,
   ContentEditFileTool
@@ -34,8 +32,7 @@ import { ExecuteCommandTool } from '../../application/tools/command-execution.to
 // Database operation tools (now consolidated and enhanced)
 import {
   StoreContextTool, // Now represents the enhanced version
-  GetContextTool,
-  QueryContextTool // Now represents the enhanced version
+  GetContextTool
 } from '../../application/tools/database-operations.tool.js'; // Consolidated path
 
 import {
@@ -45,12 +42,12 @@ import {
 } from '../../application/tools/smart-path.tool.js';
 
 import { ParseFileTool } from '../../application/tools/file-parsing.tool.js';
-import { GetMetricsTool } from '../../application/tools/metrics.tool.js';
 import { SecurityDiagnosticsTool } from '../../application/tools/security-diagnostics.tool.js';
-import { EnhancedSecurityDiagnosticsTool } from '../../application/tools/enhanced-security-diagnostics.tool.js';
-
-import { DatabaseHealthTool } from '../../application/tools/database-health.tool.js';
 import { ProcessManagementTool } from '../../application/tools/process-management.tool.js';
+
+// New Consolidated Tools
+import { GetSystemHealthTool } from '../../application/tools/system-health.tool.js';
+import { GetProjectOverviewTool } from '../../application/tools/project-overview.tool.js';
 
 // Workspace Tools
 import {
@@ -59,7 +56,6 @@ import {
   SwitchWorkspaceTool,
   SyncWorkspaceTool,
   TrackFileTool,
-  GetWorkspaceStatsTool,
   DeleteWorkspaceTool,
   ExportWorkspaceTemplateTool
 } from '../../application/tools/workspace-management.tools.js';
@@ -69,8 +65,7 @@ import {
   SemanticSearchTool,
   FindRelatedContextTool,
   CreateContextRelationshipTool,
-  UpdateEmbeddingsTool,
-  SemanticStatsTool
+  UpdateEmbeddingsTool
 } from '../../application/tools/semantic-search.tool.js';
 
 // Removed: EnhancedStoreContextTool and EnhancedQueryContextTool imports
@@ -131,9 +126,7 @@ export class ContainerInitializer {
     toolRegistry.register(new WriteFileTool());
     toolRegistry.register(new ListDirectoryTool());
 
-    // Enhanced file operations (NEW)
-    toolRegistry.register(container.get<EditFileTool>(EditFileTool));
-    toolRegistry.register(container.get<BatchEditFileTool>(BatchEditFileTool));
+    // Enhanced file operations (consolidated)
     toolRegistry.register(container.get<SearchFilesTool>(SearchFilesTool));
     toolRegistry.register(container.get<FindFilesTool>(FindFilesTool));
     toolRegistry.register(container.get<ContentEditFileTool>(ContentEditFileTool));
@@ -154,16 +147,15 @@ export class ContainerInitializer {
     // Database operations (consolidated and enhanced by default)
     toolRegistry.register(container.get<StoreContextTool>(StoreContextTool)); // Use container.get for injectable classes
     toolRegistry.register(new GetContextTool()); // GetContextTool has no injected dependencies in its constructor, so 'new' is fine
-    toolRegistry.register(container.get<QueryContextTool>(QueryContextTool)); // Use container.get for injectable classes
 
-    // Removed: EnhancedStoreContextTool and EnhancedQueryContextTool registrations
+    // Removed: QueryContextTool (consolidated into semantic search), EnhancedStoreContextTool and EnhancedQueryContextTool registrations
 
     // Semantic search tools
     toolRegistry.register(container.get<SemanticSearchTool>(SemanticSearchTool));
     toolRegistry.register(container.get<FindRelatedContextTool>(FindRelatedContextTool));
     toolRegistry.register(container.get<CreateContextRelationshipTool>(CreateContextRelationshipTool));
     toolRegistry.register(container.get<UpdateEmbeddingsTool>(UpdateEmbeddingsTool));
-    toolRegistry.register(container.get<SemanticStatsTool>(SemanticStatsTool));
+    // SemanticStatsTool removed - functionality consolidated into system-health.tool.ts
 
     // Smart path operations
     toolRegistry.register(new CreateSmartPathTool());
@@ -176,18 +168,18 @@ export class ContainerInitializer {
     toolRegistry.register(new SwitchWorkspaceTool());
     toolRegistry.register(new SyncWorkspaceTool());
     toolRegistry.register(new TrackFileTool());
-    toolRegistry.register(new GetWorkspaceStatsTool());
     toolRegistry.register(new DeleteWorkspaceTool());
     toolRegistry.register(new ExportWorkspaceTemplateTool());
+    // GetWorkspaceStatsTool removed - functionality consolidated into system-health.tool.ts
 
     // File parsing
     toolRegistry.register(container.get<ParseFileTool>(ParseFileTool));
 
-    // System monitoring
-    toolRegistry.register(new GetMetricsTool());
-    toolRegistry.register(new SecurityDiagnosticsTool());
-    toolRegistry.register(container.get<EnhancedSecurityDiagnosticsTool>(EnhancedSecurityDiagnosticsTool));
-    toolRegistry.register(new DatabaseHealthTool()); // Fix: Added 'new' to instantiate the class
+    // System monitoring (consolidated)
+    toolRegistry.register(new SecurityDiagnosticsTool()); // Now includes enhanced security functionality
+    toolRegistry.register(container.get<GetSystemHealthTool>(GetSystemHealthTool)); // Consolidated system health tool
+    toolRegistry.register(container.get<GetProjectOverviewTool>(GetProjectOverviewTool)); // New project overview tool
+    // GetMetricsTool, DatabaseHealthTool, EnhancedSecurityDiagnosticsTool - functionality consolidated into system-health.tool.ts
 
     try {
       const allTools = await toolRegistry.getAllTools();

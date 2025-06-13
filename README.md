@@ -111,9 +111,9 @@ Ensure you restart Claude Desktop after making changes to `claude_desktop_config
 - `read_file` - Read file contents with automatic truncation
 - `write_file` - Write content to files with directory creation
 - `list_directory` - List directory contents with metadata
-- `edit_file` - Edit specific lines in a file (replace, insert, delete)
-- `batch_edit_file` - Perform multiple line-based edits in a single transaction
 - `content_edit_file` - Find and replace content in a file using text or regex patterns
+- `search_files` - Search for text or patterns across multiple files in a directory tree
+- `find_files` - Find files by name or pattern in a directory tree
 
 ### Command Execution
 
@@ -121,11 +121,8 @@ Ensure you restart Claude Desktop after making changes to `claude_desktop_config
 
 ### Context Management
 
-- `store_context` - Store information for later retrieval
-- `get_context` - Retrieve stored context items
-- `query_context` - Search contexts with flexible filters
-- `store_context_semantic` - Store context with semantic embedding and tag extraction
-- `query_context_enhanced` - Query context with both traditional filters and semantic search capabilities
+- `store_context` - Store information with automatic semantic embedding and tag extraction
+- `get_context` - Retrieve stored context items by exact key
 
 ### Smart Paths
 
@@ -133,18 +130,21 @@ Ensure you restart Claude Desktop after making changes to `claude_desktop_config
 - `execute_smart_path` - Execute smart paths for efficient retrieval
 - `list_smart_paths` - List all available smart paths
 
-### Utilities
+### System Health & Monitoring
+
+- `get_system_health` - Get comprehensive system health metrics and diagnostics
+- `get_project_overview` - Get comprehensive overview and analysis of a project directory
+- `security_diagnostics` - Test and diagnose security configurations (includes enhanced features)
+- `manage_processes` - Manage system processes with limits, monitoring, and cleanup
+
+### File Management & Backup
 
 - `parse_file` - Parse JSON, YAML, and CSV files
-- `get_metrics` - Server performance metrics
-- `security_diagnostics` - Test and diagnose security configurations.
-- `database_health` - Monitor database, manage backups.
 - `list_backups` - List recent file backups
 - `backup_stats` - Get statistics about file backups
 - `restore_backup` - Restore a file from a specific backup
 - `view_backup` - View the contents of a backup file
 - `cleanup_backups` - Clean up old backups according to retention policy
-- `manage_processes` - Manage system processes with limits, monitoring, and cleanup
 
 ### Workspace Management
 
@@ -152,11 +152,42 @@ Ensure you restart Claude Desktop after making changes to `claude_desktop_config
 
 ### Semantic Search & Context
 
-- `semantic_search_context` - Search context using natural language queries with semantic understanding
+- `semantic_search_context` - Search context using natural language queries or traditional filters
 - `find_related_context` - Find context items semantically related to a given key
 - `create_context_relationship` - Create a semantic relationship between two context items
 - `update_missing_embeddings` - Generate embeddings for context items that don't have them
-- `get_semantic_stats` - Get statistics about semantic search capabilities and coverage
+
+## 🚀 Getting Started with a Project
+
+The MCP Context Server is designed to help you work efficiently with projects. Here's the recommended workflow:
+
+### 1. Create a Workspace
+```
+First, create a workspace for your project:
+- Use `create_workspace` with your project directory
+- This will automatically track files and manage context
+```
+
+### 2. Get Project Overview
+```
+Get a comprehensive overview of your project:
+- Use `get_project_overview` to analyze structure, technologies, and metrics
+- This provides insights about file types, dependencies, and recommendations
+```
+
+### 3. Store Project Context
+```
+Store important project information:
+- Use `store_context` to save key insights, decisions, and documentation
+- Context is automatically enhanced with semantic embeddings for better searchability
+```
+
+### 4. Monitor System Health
+```
+Keep track of system performance:
+- Use `get_system_health` to monitor server, database, workspace, and semantic search health
+- Get actionable recommendations for optimization
+```
 
 ## 📚 Usage Examples
 
@@ -183,7 +214,7 @@ Run safe commands within configured safe zones:
 - Check git status: "git status"
 ```
 
-### Content-based File Editing (New!)
+### Content-based File Editing
 
 ```
 Use the content_edit_file tool to replace a function name:
@@ -192,6 +223,17 @@ Use the content_edit_file tool to replace a function name:
 - Find: "oldFunctionName"
 - Replace: "newFunctionName"
 - All Occurrences: true
+- Preview: true (to see changes before applying)
+```
+
+### Project Analysis
+
+```
+Get comprehensive project insights:
+
+- Use `get_project_overview` to analyze your project structure
+- Includes file statistics, technology detection, and actionable recommendations
+- Automatically detects project type and provides relevant suggestions
 ```
 
 ## 🏗️ Development
