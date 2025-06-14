@@ -190,3 +190,9 @@ temp/
 
 # Content edit metadata files
 content-edit.meta.json
+*content-edit.meta.json
+*content-edit.ts
+
+# Temporary script files
+remove-tracked-files.sh
+*-tracked-files.sh
