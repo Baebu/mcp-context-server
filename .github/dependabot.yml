@@ -1,0 +1,55 @@
+version: 2
+updates:
+  # Enable version updates for npm
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '09:00'
+    # Limit the number of open PRs for version updates
+    open-pull-requests-limit: 10
+    # Assign reviewers and team members
+    reviewers:
+      - 'Baebu'
+    # Commit message preferences
+    commit-message:
+      prefix: 'chore'
+      prefix-development: 'chore'
+      include: 'scope' # Group updates by type
+    groups:
+      dependencies:
+        patterns:
+          - '*'
+        exclude-patterns:
+          - '@types/*'
+      dev-dependencies:
+        patterns:
+          - '@types/*'
+          - 'eslint*'
+          - 'prettier*'
+          - 'jest*'
+          - 'typescript*'
+        dependency-type: 'development'
+
+  # Enable version updates for GitHub Actions
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '09:00'
+    # Limit the number of open PRs for version updates
+    open-pull-requests-limit: 5
+    # Assign reviewers
+    reviewers:
+      - 'Baebu'
+    # Commit message preferences
+    commit-message:
+      prefix: 'ci'
+      include: 'scope'
+    # Group all GitHub Actions updates
+    groups:
+      github-actions:
+        patterns:
+          - '*'

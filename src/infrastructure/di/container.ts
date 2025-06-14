@@ -31,7 +31,12 @@ import { ConfigManagerService } from '../../application/services/config-manager.
 import {
   SearchFilesTool,
   FindFilesTool,
-  ContentEditFileTool
+  ContentEditFileTool,
+  MoveFileTool,
+  RecycleFileTool,
+  RestoreFromRecycleTool,
+  ListRecycleBinTool,
+  EmptyRecycleBinTool
 } from '../../application/tools/enhanced-file-operations.tool.js';
 
 // Backup Management Tools
@@ -64,6 +69,50 @@ import { GetProjectOverviewTool } from '../../application/tools/project-overview
 import { EnhancedSecurityDiagnosticsTool } from '../../application/tools/enhanced-security-diagnostics.tool.js';
 import { ConfigManagementTool } from '../../application/tools/config-management.tool.js';
 
+// Phase 3: Automatic State Management
+import { AutoStateManagerService } from '../../application/services/auto-state-manager.service.js';
+
+// Phase 4: Intelligent Batching
+import { IntelligentBatchingService } from '../../application/services/intelligent-batching.service.js';
+import {
+  FindActiveTasksTool,
+  TaskCompletionDetectionTool,
+  TaskGenealogyTool,
+  UpdateTaskProgressTool
+} from '../../application/tools/task-state-management.tool.js';
+import {
+  PanicStorageTool,
+  MinimalHandoffTool,
+  RecoverFromPanicTool,
+  BackupRedundancyTool
+} from '../../application/tools/emergency-protocols.tool.js';
+
+// Phase 7: Advanced Features
+import { AdvancedFeaturesService } from '../../application/services/advanced-features.service.js';
+import {
+  CompressionAlgorithmsTool,
+  TokenBudgetOptimizationTool,
+  ContextDeduplicationTool,
+  ArchiveOldContextsTool,
+  ContextTemplatesLibraryTool,
+  AdaptiveWorkflowCreationTool,
+  AutoSmartPathCreationTool
+} from '../../application/tools/advanced-features.tool.js';
+
+// Phase 4: Intelligent Batching Tools
+import {
+  BatchContextOperationsTool,
+  WorkflowExecutorTool,
+  CascadeStorageTool,
+  BulkRelationshipsTool,
+  BatchingStatsTool
+} from '../../application/tools/intelligent-batching.tool.js';
+import {
+  SmartPathEvolutionTool,
+  AdaptiveSmartPathsTool,
+  WorkflowTemplatesTool
+} from '../../application/tools/smart-path-evolution.tool.js';
+
 // Semantic Tools
 import {
   SemanticSearchTool,
@@ -90,6 +139,13 @@ container.bind<ConfigManagerService>(ConfigManagerService).to(ConfigManagerServi
 container.bind<SearchFilesTool>(SearchFilesTool).to(SearchFilesTool).inSingletonScope();
 container.bind<FindFilesTool>(FindFilesTool).to(FindFilesTool).inSingletonScope();
 container.bind<ContentEditFileTool>(ContentEditFileTool).to(ContentEditFileTool).inSingletonScope();
+
+// New File Operations Tools
+container.bind<MoveFileTool>(MoveFileTool).to(MoveFileTool).inSingletonScope();
+container.bind<RecycleFileTool>(RecycleFileTool).to(RecycleFileTool).inSingletonScope();
+container.bind<RestoreFromRecycleTool>(RestoreFromRecycleTool).to(RestoreFromRecycleTool).inSingletonScope();
+container.bind<ListRecycleBinTool>(ListRecycleBinTool).to(ListRecycleBinTool).inSingletonScope();
+container.bind<EmptyRecycleBinTool>(EmptyRecycleBinTool).to(EmptyRecycleBinTool).inSingletonScope();
 
 // Backup Management Tools
 container.bind<ListBackupsTool>(ListBackupsTool).to(ListBackupsTool).inSingletonScope();
@@ -137,3 +193,49 @@ container
   .inSingletonScope();
 container.bind<UpdateEmbeddingsTool>(UpdateEmbeddingsTool).to(UpdateEmbeddingsTool).inSingletonScope();
 // SemanticStatsTool removed - functionality consolidated into system-health.tool.ts
+
+// Phase 3: Automatic State Management Service
+container.bind<AutoStateManagerService>(AutoStateManagerService).to(AutoStateManagerService).inSingletonScope();
+
+// Phase 4: Intelligent Batching Service
+container.bind<IntelligentBatchingService>(IntelligentBatchingService).to(IntelligentBatchingService).inSingletonScope();
+
+// Task State Management Tools
+container.bind<FindActiveTasksTool>(FindActiveTasksTool).to(FindActiveTasksTool).inSingletonScope();
+container.bind<TaskCompletionDetectionTool>(TaskCompletionDetectionTool).to(TaskCompletionDetectionTool).inSingletonScope();
+container.bind<TaskGenealogyTool>(TaskGenealogyTool).to(TaskGenealogyTool).inSingletonScope();
+container.bind<UpdateTaskProgressTool>(UpdateTaskProgressTool).to(UpdateTaskProgressTool).inSingletonScope();
+
+// Emergency Protocol Tools
+container.bind<PanicStorageTool>(PanicStorageTool).to(PanicStorageTool).inSingletonScope();
+container.bind<MinimalHandoffTool>(MinimalHandoffTool).to(MinimalHandoffTool).inSingletonScope();
+container.bind<RecoverFromPanicTool>(RecoverFromPanicTool).to(RecoverFromPanicTool).inSingletonScope();
+container.bind<BackupRedundancyTool>(BackupRedundancyTool).to(BackupRedundancyTool).inSingletonScope();
+
+// Phase 4: Intelligent Batching Tools
+container.bind<BatchContextOperationsTool>(BatchContextOperationsTool).to(BatchContextOperationsTool).inSingletonScope();
+container.bind<WorkflowExecutorTool>(WorkflowExecutorTool).to(WorkflowExecutorTool).inSingletonScope();
+container.bind<CascadeStorageTool>(CascadeStorageTool).to(CascadeStorageTool).inSingletonScope();
+container.bind<BulkRelationshipsTool>(BulkRelationshipsTool).to(BulkRelationshipsTool).inSingletonScope();
+container.bind<BatchingStatsTool>(BatchingStatsTool).to(BatchingStatsTool).inSingletonScope();
+
+// Smart Path Evolution Tools
+container.bind<SmartPathEvolutionTool>(SmartPathEvolutionTool).to(SmartPathEvolutionTool).inSingletonScope();
+container.bind<AdaptiveSmartPathsTool>(AdaptiveSmartPathsTool).to(AdaptiveSmartPathsTool).inSingletonScope();
+container.bind<WorkflowTemplatesTool>(WorkflowTemplatesTool).to(WorkflowTemplatesTool).inSingletonScope();
+
+// Phase 7: Advanced Features Service
+container.bind<AdvancedFeaturesService>(AdvancedFeaturesService).to(AdvancedFeaturesService).inSingletonScope();
+
+// Phase 7: Advanced Features Tools
+container.bind<CompressionAlgorithmsTool>(CompressionAlgorithmsTool).to(CompressionAlgorithmsTool).inSingletonScope();
+container.bind<TokenBudgetOptimizationTool>(TokenBudgetOptimizationTool).to(TokenBudgetOptimizationTool).inSingletonScope();
+container.bind<ContextDeduplicationTool>(ContextDeduplicationTool).to(ContextDeduplicationTool).inSingletonScope();
+container.bind<ArchiveOldContextsTool>(ArchiveOldContextsTool).to(ArchiveOldContextsTool).inSingletonScope();
+container.bind<ContextTemplatesLibraryTool>(ContextTemplatesLibraryTool).to(ContextTemplatesLibraryTool).inSingletonScope();
+container.bind<AdaptiveWorkflowCreationTool>(AdaptiveWorkflowCreationTool).to(AdaptiveWorkflowCreationTool).inSingletonScope();
+container.bind<AutoSmartPathCreationTool>(AutoSmartPathCreationTool).to(AutoSmartPathCreationTool).inSingletonScope();
+
+// Phase 8: Integration Testing Tool
+import { IntegrationTestTool } from '../../application/tools/integration-test.tool.js';
+container.bind<IntegrationTestTool>(IntegrationTestTool).to(IntegrationTestTool).inSingletonScope();

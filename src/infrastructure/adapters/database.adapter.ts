@@ -90,6 +90,7 @@ export class DatabaseAdapter implements IDatabaseHandler {
   }
 
   private createTables(): void {
+    // Create the basic context_items table first
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS context_items (
         key TEXT PRIMARY KEY,
@@ -98,9 +99,57 @@ export class DatabaseAdapter implements IDatabaseHandler {
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
         updated_at TEXT DEFAULT CURRENT_TIMESTAMP
       ) WITHOUT ROWID;
+    `);
 
+    // Create basic indexes that work with the minimal schema
+    this.db.exec(`
       CREATE INDEX IF NOT EXISTS idx_context_type ON context_items(type);
       CREATE INDEX IF NOT EXISTS idx_context_updated ON context_items(updated_at);
+    `);
+
+    // Try to create enhanced schema indexes individually - these will fail gracefully if columns don't exist
+    const enhancedIndexes = [
+      'CREATE INDEX IF NOT EXISTS idx_context_token_count ON context_items(token_count)',
+      'CREATE INDEX IF NOT EXISTS idx_context_accessed ON context_items(accessed_at)',
+      'CREATE INDEX IF NOT EXISTS idx_context_access_count ON context_items(access_count)',
+      'CREATE INDEX IF NOT EXISTS idx_context_semantic_type ON context_items(context_type)'
+    ];
+
+    for (const indexSql of enhancedIndexes) {
+      try {
+        this.db.exec(indexSql);
+      } catch (error) {
+        // This index will be created after migrations add the column
+        logger.debug(`Enhanced index not created yet (column may not exist): ${indexSql}`);
+      }
+    }
+    // Create additional tables (these don't depend on the enhanced columns)
+    this.db.exec(`
+      -- Token tracking and budgeting tables
+      CREATE TABLE IF NOT EXISTS token_budgets (
+        session_id TEXT PRIMARY KEY,
+        total_tokens INTEGER DEFAULT 0,
+        used_tokens INTEGER DEFAULT 0,
+        remaining_tokens INTEGER DEFAULT 0,
+        max_tokens INTEGER DEFAULT 200000,
+        handoff_threshold INTEGER DEFAULT 180000,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS token_usage_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        session_id TEXT,
+        operation TEXT,
+        context_key TEXT,
+        tokens_used INTEGER,
+        cumulative_tokens INTEGER,
+        timestamp TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (session_id) REFERENCES token_budgets(session_id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_token_usage_session ON token_usage_log(session_id);
+      CREATE INDEX IF NOT EXISTS idx_token_usage_timestamp ON token_usage_log(timestamp);
 
       CREATE TABLE IF NOT EXISTS smart_paths (
         id TEXT PRIMARY KEY,
@@ -139,6 +188,29 @@ export class DatabaseAdapter implements IDatabaseHandler {
         checked_at TEXT DEFAULT CURRENT_TIMESTAMP
       );
     `);
+
+    // Create context relationships table without foreign key constraints initially
+    // The foreign keys will be added by migrations once the enhanced schema is in place
+    try {
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS context_relationships (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          source_key TEXT NOT NULL,
+          target_key TEXT NOT NULL,
+          relationship_type TEXT NOT NULL,
+          strength REAL DEFAULT 1.0,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(source_key, target_key, relationship_type)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_relationships_source ON context_relationships(source_key);
+        CREATE INDEX IF NOT EXISTS idx_relationships_target ON context_relationships(target_key);
+        CREATE INDEX IF NOT EXISTS idx_relationships_type ON context_relationships(relationship_type);
+      `);
+    } catch (error) {
+      // This will be created by migrations if it fails
+      logger.debug('Context relationships table creation deferred to migrations');
+    }
   }
 
   async applyInitialMigrations(): Promise<void> {
@@ -563,6 +635,390 @@ export class DatabaseAdapter implements IDatabaseHandler {
       return result;
     } catch (error) {
       logger.error({ error, sql, paramCount: params.length }, 'Raw SQL single query failed');
+      throw error;
+    }
+  }
+
+  // Enhanced Context Methods
+  async storeEnhancedContext(
+    entry: import('../../core/interfaces/database.interface.js').EnhancedContextEntry
+  ): Promise<void> {
+    try {
+      const embeddingJson = entry.embedding ? JSON.stringify(entry.embedding) : null;
+      const tagsJson = entry.semanticTags ? JSON.stringify(entry.semanticTags) : null;
+      const metadataJson = entry.metadata ? JSON.stringify(entry.metadata) : null;
+      const relationshipsJson = entry.relationships ? JSON.stringify(entry.relationships) : null;
+
+      let serializedValue: string;
+      try {
+        serializedValue = JSON.stringify(entry.value);
+      } catch (error) {
+        throw new Error(
+          `Failed to serialize enhanced context value for key '${entry.key}': ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+
+      const stmt = this.db.prepare(`
+        INSERT OR REPLACE INTO context_items
+        (key, value, type, embedding, semantic_tags, context_type, token_count, metadata, relationships, updated_at, accessed_at, access_count)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, COALESCE((SELECT access_count FROM context_items WHERE key = ?), 0) + 1)
+      `);
+
+      stmt.run(
+        entry.key,
+        serializedValue,
+        entry.type,
+        embeddingJson,
+        tagsJson,
+        entry.contextType || entry.type,
+        entry.tokenCount || 0,
+        metadataJson,
+        relationshipsJson,
+        entry.key // For the COALESCE query
+      );
+
+      logger.debug({ key: entry.key, type: entry.type, hasEmbedding: !!entry.embedding }, 'Enhanced context stored');
+    } catch (error) {
+      logger.error({ error, key: entry.key }, 'Failed to store enhanced context');
+      throw error;
+    }
+  }
+
+  async getEnhancedContext(
+    key: string
+  ): Promise<import('../../core/interfaces/database.interface.js').EnhancedContextEntry | null> {
+    try {
+      const stmt = this.db.prepare(`
+        SELECT * FROM context_items WHERE key = ?
+      `);
+      const row = stmt.get(key) as any;
+
+      if (!row) {
+        return null;
+      }
+
+      // Update access tracking
+      const updateStmt = this.db.prepare(`
+        UPDATE context_items
+        SET accessed_at = CURRENT_TIMESTAMP, access_count = access_count + 1
+        WHERE key = ?
+      `);
+      updateStmt.run(key);
+
+      let parsedValue: unknown;
+      try {
+        parsedValue = JSON.parse(row.value);
+      } catch {
+        parsedValue = row.value;
+      }
+
+      const entry: import('../../core/interfaces/database.interface.js').EnhancedContextEntry = {
+        key: row.key,
+        value: parsedValue,
+        type: row.type,
+        embedding: row.embedding ? JSON.parse(row.embedding) : undefined,
+        semanticTags: row.semantic_tags ? JSON.parse(row.semantic_tags) : undefined,
+        contextType: row.context_type,
+        tokenCount: row.token_count,
+        metadata: row.metadata ? JSON.parse(row.metadata) : undefined,
+        relationships: row.relationships ? JSON.parse(row.relationships) : undefined,
+        createdAt: new Date(row.created_at),
+        updatedAt: new Date(row.updated_at),
+        accessedAt: row.accessed_at ? new Date(row.accessed_at) : undefined,
+        accessCount: row.access_count
+      };
+
+      return entry;
+    } catch (error) {
+      logger.error({ error, key }, 'Failed to get enhanced context');
+      throw error;
+    }
+  }
+
+  async queryEnhancedContext(
+    options: import('../../core/interfaces/database.interface.js').EnhancedQueryOptions
+  ): Promise<import('../../core/interfaces/database.interface.js').EnhancedContextEntry[]> {
+    try {
+      let query = 'SELECT * FROM context_items WHERE 1=1';
+      const params: unknown[] = [];
+
+      if (options.type) {
+        query += ' AND type = ?';
+        params.push(options.type);
+      }
+      if (options.contextType) {
+        query += ' AND context_type = ?';
+        params.push(options.contextType);
+      }
+      if (options.keyPattern) {
+        query += ' AND key LIKE ?';
+        params.push(`%${options.keyPattern}%`);
+      }
+      if (options.hasEmbedding !== undefined) {
+        query += options.hasEmbedding ? ' AND embedding IS NOT NULL' : ' AND embedding IS NULL';
+      }
+      if (options.tags && options.tags.length > 0) {
+        query += ' AND semantic_tags IS NOT NULL';
+        // Check if any of the provided tags exist in the semantic_tags JSON
+        for (const tag of options.tags) {
+          query += ' AND semantic_tags LIKE ?';
+          params.push(`%"${tag}"%`);
+        }
+      }
+      if (options.minTokenCount !== undefined) {
+        query += ' AND token_count >= ?';
+        params.push(options.minTokenCount);
+      }
+      if (options.maxTokenCount !== undefined) {
+        query += ' AND token_count <= ?';
+        params.push(options.maxTokenCount);
+      }
+
+      // Sorting
+      const sortBy = options.sortBy || 'updated';
+      const sortOrder = options.sortOrder || 'desc';
+      const sortColumn =
+        {
+          created: 'created_at',
+          updated: 'updated_at',
+          accessed: 'accessed_at',
+          tokenCount: 'token_count',
+          accessCount: 'access_count'
+        }[sortBy] || 'updated_at';
+
+      query += ` ORDER BY ${sortColumn} ${sortOrder.toUpperCase()}`;
+
+      if (options.limit) {
+        query += ' LIMIT ?';
+        params.push(options.limit);
+      }
+
+      const stmt = this.db.prepare(query);
+      const rows = stmt.all(...params) as any[];
+
+      return rows.map(row => {
+        let parsedValue: unknown;
+        try {
+          parsedValue = JSON.parse(row.value);
+        } catch {
+          parsedValue = row.value;
+        }
+
+        return {
+          key: row.key,
+          value: parsedValue,
+          type: row.type,
+          embedding: row.embedding ? JSON.parse(row.embedding) : undefined,
+          semanticTags: row.semantic_tags ? JSON.parse(row.semantic_tags) : undefined,
+          contextType: row.context_type,
+          tokenCount: row.token_count,
+          metadata: row.metadata ? JSON.parse(row.metadata) : undefined,
+          relationships: row.relationships ? JSON.parse(row.relationships) : undefined,
+          createdAt: new Date(row.created_at),
+          updatedAt: new Date(row.updated_at),
+          accessedAt: row.accessed_at ? new Date(row.accessed_at) : undefined,
+          accessCount: row.access_count
+        };
+      });
+    } catch (error) {
+      logger.error({ error, options }, 'Failed to query enhanced context');
+      throw error;
+    }
+  }
+
+  // Token Budget Methods
+  async createTokenBudget(
+    sessionId: string,
+    maxTokens: number = 200000
+  ): Promise<import('../../core/interfaces/database.interface.js').TokenBudget> {
+    try {
+      const handoffThreshold = Math.floor(maxTokens * 0.9); // 90% of max tokens
+
+      const stmt = this.db.prepare(`
+        INSERT OR REPLACE INTO token_budgets
+        (session_id, total_tokens, used_tokens, remaining_tokens, max_tokens, handoff_threshold, updated_at)
+        VALUES (?, 0, 0, ?, ?, ?, CURRENT_TIMESTAMP)
+      `);
+
+      stmt.run(sessionId, maxTokens, maxTokens, handoffThreshold);
+
+      const budget: import('../../core/interfaces/database.interface.js').TokenBudget = {
+        sessionId,
+        totalTokens: 0,
+        usedTokens: 0,
+        remainingTokens: maxTokens,
+        maxTokens,
+        handoffThreshold,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      logger.debug({ sessionId, maxTokens, handoffThreshold }, 'Token budget created');
+      return budget;
+    } catch (error) {
+      logger.error({ error, sessionId }, 'Failed to create token budget');
+      throw error;
+    }
+  }
+
+  async getTokenBudget(
+    sessionId: string
+  ): Promise<import('../../core/interfaces/database.interface.js').TokenBudget | null> {
+    try {
+      const stmt = this.db.prepare('SELECT * FROM token_budgets WHERE session_id = ?');
+      const row = stmt.get(sessionId) as any;
+
+      if (!row) {
+        return null;
+      }
+
+      return {
+        sessionId: row.session_id,
+        totalTokens: row.total_tokens,
+        usedTokens: row.used_tokens,
+        remainingTokens: row.remaining_tokens,
+        maxTokens: row.max_tokens,
+        handoffThreshold: row.handoff_threshold,
+        createdAt: new Date(row.created_at),
+        updatedAt: new Date(row.updated_at)
+      };
+    } catch (error) {
+      logger.error({ error, sessionId }, 'Failed to get token budget');
+      throw error;
+    }
+  }
+
+  async updateTokenUsage(sessionId: string, operation: string, tokensUsed: number, contextKey?: string): Promise<void> {
+    try {
+      // Update the budget
+      const updateBudgetStmt = this.db.prepare(`
+        UPDATE token_budgets
+        SET used_tokens = used_tokens + ?,
+            remaining_tokens = max_tokens - (used_tokens + ?),
+            updated_at = CURRENT_TIMESTAMP
+        WHERE session_id = ?
+      `);
+      updateBudgetStmt.run(tokensUsed, tokensUsed, sessionId);
+
+      // Log the usage
+      const insertLogStmt = this.db.prepare(`
+        INSERT INTO token_usage_log (session_id, operation, context_key, tokens_used, cumulative_tokens)
+        VALUES (?, ?, ?, ?, (SELECT used_tokens FROM token_budgets WHERE session_id = ?))
+      `);
+      insertLogStmt.run(sessionId, operation, contextKey, tokensUsed, sessionId);
+
+      logger.debug({ sessionId, operation, tokensUsed, contextKey }, 'Token usage updated');
+    } catch (error) {
+      logger.error({ error, sessionId, operation, tokensUsed }, 'Failed to update token usage');
+      throw error;
+    }
+  }
+
+  async getTokenUsageHistory(
+    sessionId: string,
+    limit: number = 50
+  ): Promise<import('../../core/interfaces/database.interface.js').TokenUsageEntry[]> {
+    try {
+      const stmt = this.db.prepare(`
+        SELECT * FROM token_usage_log
+        WHERE session_id = ?
+        ORDER BY timestamp DESC
+        LIMIT ?
+      `);
+      const rows = stmt.all(sessionId, limit) as any[];
+
+      return rows.map(row => ({
+        id: row.id,
+        sessionId: row.session_id,
+        operation: row.operation,
+        contextKey: row.context_key,
+        tokensUsed: row.tokens_used,
+        cumulativeTokens: row.cumulative_tokens,
+        timestamp: new Date(row.timestamp)
+      }));
+    } catch (error) {
+      logger.error({ error, sessionId }, 'Failed to get token usage history');
+      throw error;
+    }
+  }
+
+  async checkHandoffThreshold(sessionId: string): Promise<{ needsHandoff: boolean; remainingTokens: number }> {
+    try {
+      const budget = await this.getTokenBudget(sessionId);
+      if (!budget) {
+        return { needsHandoff: false, remainingTokens: 0 };
+      }
+
+      const needsHandoff = budget.usedTokens >= budget.handoffThreshold;
+      return {
+        needsHandoff,
+        remainingTokens: budget.remainingTokens
+      };
+    } catch (error) {
+      logger.error({ error, sessionId }, 'Failed to check handoff threshold');
+      throw error;
+    }
+  }
+
+  // Context Relationship Methods
+  async createRelationship(
+    sourceKey: string,
+    targetKey: string,
+    relationshipType: string,
+    strength: number = 1.0
+  ): Promise<void> {
+    try {
+      const stmt = this.db.prepare(`
+        INSERT OR REPLACE INTO context_relationships
+        (source_key, target_key, relationship_type, strength)
+        VALUES (?, ?, ?, ?)
+      `);
+      stmt.run(sourceKey, targetKey, relationshipType, strength);
+      logger.debug({ sourceKey, targetKey, relationshipType, strength }, 'Context relationship created');
+    } catch (error) {
+      logger.error({ error, sourceKey, targetKey, relationshipType }, 'Failed to create context relationship');
+      throw error;
+    }
+  }
+
+  async getRelationships(
+    key: string
+  ): Promise<import('../../core/interfaces/database.interface.js').ContextRelationship[]> {
+    try {
+      const stmt = this.db.prepare(`
+        SELECT target_key, relationship_type, strength, created_at
+        FROM context_relationships
+        WHERE source_key = ?
+        ORDER BY strength DESC, created_at DESC
+      `);
+      const rows = stmt.all(key) as any[];
+
+      return rows.map(row => ({
+        targetKey: row.target_key,
+        relationshipType: row.relationship_type,
+        strength: row.strength,
+        createdAt: new Date(row.created_at)
+      }));
+    } catch (error) {
+      logger.error({ error, key }, 'Failed to get context relationships');
+      throw error;
+    }
+  }
+
+  async deleteRelationship(sourceKey: string, targetKey: string, relationshipType: string): Promise<boolean> {
+    try {
+      const stmt = this.db.prepare(`
+        DELETE FROM context_relationships
+        WHERE source_key = ? AND target_key = ? AND relationship_type = ?
+      `);
+      const result = stmt.run(sourceKey, targetKey, relationshipType);
+      logger.debug(
+        { sourceKey, targetKey, relationshipType, deleted: result.changes > 0 },
+        'Context relationship deletion attempted'
+      );
+      return result.changes > 0;
+    } catch (error) {
+      logger.error({ error, sourceKey, targetKey, relationshipType }, 'Failed to delete context relationship');
       throw error;
     }
   }

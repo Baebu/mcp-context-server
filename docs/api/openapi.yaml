@@ -1,0 +1,289 @@
+openapi: 3.1.0
+info:
+  title: Context-Savy-Server API
+  description: |
+    API documentation for the Context-Savy-Server.
+    This document describes all available endpoints and operations.
+  version: 1.0.0
+  contact:
+    name: Project Team
+    url: https://github.com/YOUR-USERNAME/context-savy-server
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+  - url: https://api.example.com
+    description: Production server (replace with actual URL)
+
+tags:
+  - name: Context
+    description: Operations related to context management
+  - name: System
+    description: System operations and health checks
+
+paths:
+  /health:
+    get:
+      summary: Server health check
+      description: Returns the current health status of the server
+      operationId: getHealth
+      tags:
+        - System
+      responses:
+        '200':
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: 'healthy'
+                  version:
+                    type: string
+                    example: '1.0.0'
+                  uptime:
+                    type: number
+                    example: 3600
+        '503':
+          description: Server is unhealthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: 'unhealthy'
+                  error:
+                    type: string
+                    example: 'Database connection failed'
+
+  /api/context:
+    get:
+      summary: Get all contexts
+      description: Returns a list of all available contexts
+      operationId: getAllContexts
+      tags:
+        - Context
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: Maximum number of items to return
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            default: 0
+          description: Number of items to skip
+      responses:
+        '200':
+          description: List of contexts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Context'
+                  total:
+                    type: integer
+                    example: 42
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      summary: Create a new context
+      description: Creates a new context based on the provided data
+      operationId: createContext
+      tags:
+        - Context
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContextInput'
+      responses:
+        '201':
+          description: Context created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Context'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/context/{id}:
+    parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+        description: Context ID
+
+    get:
+      summary: Get context by ID
+      description: Returns a single context by its ID
+      operationId: getContextById
+      tags:
+        - Context
+      responses:
+        '200':
+          description: Context found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Context'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      summary: Update context
+      description: Updates an existing context
+      operationId: updateContext
+      tags:
+        - Context
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContextInput'
+      responses:
+        '200':
+          description: Context updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Context'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      summary: Delete context
+      description: Deletes a context by its ID
+      operationId: deleteContext
+      tags:
+        - Context
+      responses:
+        '204':
+          description: Context deleted successfully
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  schemas:
+    Context:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: '123e4567-e89b-12d3-a456-426614174000'
+        name:
+          type: string
+          example: 'Project X Context'
+        data:
+          type: object
+          description: The context data structure
+          additionalProperties: true
+          example:
+            key1: 'value1'
+            key2: 'value2'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - data
+        - createdAt
+        - updatedAt
+
+    ContextInput:
+      type: object
+      properties:
+        name:
+          type: string
+          example: 'Project X Context'
+        data:
+          type: object
+          description: The context data structure
+          additionalProperties: true
+      required:
+        - name
+        - data
+
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+        code:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+      required:
+        - message
+
+  responses:
+    BadRequest:
+      description: Invalid input
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - ApiKeyAuth: []
+  - BearerAuth: []

@@ -14,7 +14,12 @@ import { ReadFileTool, ListDirectoryTool, WriteFileTool } from '../../applicatio
 import {
   SearchFilesTool,
   FindFilesTool,
-  ContentEditFileTool
+  ContentEditFileTool,
+  MoveFileTool,
+  RecycleFileTool,
+  RestoreFromRecycleTool,
+  ListRecycleBinTool,
+  EmptyRecycleBinTool
 } from '../../application/tools/enhanced-file-operations.tool.js';
 
 // Backup Management Tools
@@ -67,6 +72,60 @@ import {
   CreateContextRelationshipTool,
   UpdateEmbeddingsTool
 } from '../../application/tools/semantic-search.tool.js';
+
+// Phase 3: Automatic State Management Tools
+import {
+  FindActiveTasksTool,
+  TaskCompletionDetectionTool,
+  TaskGenealogyTool,
+  UpdateTaskProgressTool
+} from '../../application/tools/task-state-management.tool.js';
+import {
+  PanicStorageTool,
+  MinimalHandoffTool,
+  RecoverFromPanicTool,
+  BackupRedundancyTool
+} from '../../application/tools/emergency-protocols.tool.js';
+
+// Phase 4: Intelligent Batching Tools
+import {
+  BatchContextOperationsTool,
+  WorkflowExecutorTool,
+  CascadeStorageTool,
+  BulkRelationshipsTool,
+  BatchingStatsTool
+} from '../../application/tools/intelligent-batching.tool.js';
+import {
+  SmartPathEvolutionTool,
+  AdaptiveSmartPathsTool,
+  WorkflowTemplatesTool
+} from '../../application/tools/smart-path-evolution.tool.js';
+
+// Phase 5: Advanced Discovery Tools
+// Phase 6: Knowledge Management Tools - Currently not registered
+// import {
+//   VersionCacheManagementTool,
+//   KnowledgeFreshnessCheckTool,
+//   DependencyTrackingTool,
+//   UpdateNotificationsTool,
+//   FileChangeContextTool,
+//   AutoContextOnFileOpsTool,
+//   FileHistoryContextTool
+// } from '../../application/tools/knowledge-management.tool.js';
+
+// Phase 7: Advanced Features Tools
+import {
+  CompressionAlgorithmsTool,
+  TokenBudgetOptimizationTool,
+  ContextDeduplicationTool,
+  ArchiveOldContextsTool,
+  ContextTemplatesLibraryTool,
+  AdaptiveWorkflowCreationTool,
+  AutoSmartPathCreationTool
+} from '../../application/tools/advanced-features.tool.js';
+
+// Phase 8: Integration Testing Tool
+import { IntegrationTestTool } from '../../application/tools/integration-test.tool.js';
 
 // Removed: EnhancedStoreContextTool and EnhancedQueryContextTool imports
 
@@ -131,6 +190,13 @@ export class ContainerInitializer {
     toolRegistry.register(container.get<FindFilesTool>(FindFilesTool));
     toolRegistry.register(container.get<ContentEditFileTool>(ContentEditFileTool));
 
+    // New file operations (move and recycle system)
+    toolRegistry.register(container.get<MoveFileTool>(MoveFileTool));
+    toolRegistry.register(container.get<RecycleFileTool>(RecycleFileTool));
+    toolRegistry.register(container.get<RestoreFromRecycleTool>(RestoreFromRecycleTool));
+    toolRegistry.register(container.get<ListRecycleBinTool>(ListRecycleBinTool));
+    toolRegistry.register(container.get<EmptyRecycleBinTool>(EmptyRecycleBinTool));
+
     // Backup management tools (NEW)
     toolRegistry.register(container.get<ListBackupsTool>(ListBackupsTool));
     toolRegistry.register(container.get<BackupStatsTool>(BackupStatsTool));
@@ -155,6 +221,30 @@ export class ContainerInitializer {
     toolRegistry.register(container.get<FindRelatedContextTool>(FindRelatedContextTool));
     toolRegistry.register(container.get<CreateContextRelationshipTool>(CreateContextRelationshipTool));
     toolRegistry.register(container.get<UpdateEmbeddingsTool>(UpdateEmbeddingsTool));
+
+    // Phase 3: Automatic State Management Tools
+    toolRegistry.register(container.get<FindActiveTasksTool>(FindActiveTasksTool));
+    toolRegistry.register(container.get<TaskCompletionDetectionTool>(TaskCompletionDetectionTool));
+    toolRegistry.register(container.get<TaskGenealogyTool>(TaskGenealogyTool));
+    toolRegistry.register(container.get<UpdateTaskProgressTool>(UpdateTaskProgressTool));
+
+    // Emergency Protocol Tools
+    toolRegistry.register(container.get<PanicStorageTool>(PanicStorageTool));
+    toolRegistry.register(container.get<MinimalHandoffTool>(MinimalHandoffTool));
+    toolRegistry.register(container.get<RecoverFromPanicTool>(RecoverFromPanicTool));
+    toolRegistry.register(container.get<BackupRedundancyTool>(BackupRedundancyTool));
+
+    // Phase 4: Intelligent Batching Tools
+    toolRegistry.register(container.get<BatchContextOperationsTool>(BatchContextOperationsTool));
+    toolRegistry.register(container.get<WorkflowExecutorTool>(WorkflowExecutorTool));
+    toolRegistry.register(container.get<CascadeStorageTool>(CascadeStorageTool));
+    toolRegistry.register(container.get<BulkRelationshipsTool>(BulkRelationshipsTool));
+    toolRegistry.register(container.get<BatchingStatsTool>(BatchingStatsTool));
+
+    // Smart Path Evolution Tools
+    toolRegistry.register(container.get<SmartPathEvolutionTool>(SmartPathEvolutionTool));
+    toolRegistry.register(container.get<AdaptiveSmartPathsTool>(AdaptiveSmartPathsTool));
+    toolRegistry.register(container.get<WorkflowTemplatesTool>(WorkflowTemplatesTool));
     // SemanticStatsTool removed - functionality consolidated into system-health.tool.ts
 
     // Smart path operations
@@ -165,6 +255,19 @@ export class ContainerInitializer {
     // Workspace management
     toolRegistry.register(new CreateWorkspaceTool());
     toolRegistry.register(new ListWorkspacesTool());
+
+    // Phase 7: Advanced Features Tools (Compression & Optimization + Advanced Templates)
+    toolRegistry.register(container.get<CompressionAlgorithmsTool>(CompressionAlgorithmsTool));
+    toolRegistry.register(container.get<TokenBudgetOptimizationTool>(TokenBudgetOptimizationTool));
+    toolRegistry.register(container.get<ContextDeduplicationTool>(ContextDeduplicationTool));
+    toolRegistry.register(container.get<ArchiveOldContextsTool>(ArchiveOldContextsTool));
+    toolRegistry.register(container.get<ContextTemplatesLibraryTool>(ContextTemplatesLibraryTool));
+    toolRegistry.register(container.get<AdaptiveWorkflowCreationTool>(AdaptiveWorkflowCreationTool));
+    toolRegistry.register(container.get<AutoSmartPathCreationTool>(AutoSmartPathCreationTool));
+
+    // Phase 8: Integration Testing Tool
+    toolRegistry.register(container.get<IntegrationTestTool>(IntegrationTestTool));
+
     toolRegistry.register(new SwitchWorkspaceTool());
     toolRegistry.register(new SyncWorkspaceTool());
     toolRegistry.register(new TrackFileTool());

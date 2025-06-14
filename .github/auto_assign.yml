@@ -1,0 +1,18 @@
+# Configuration for auto-assign action
+addReviewers: true
+addAssignees: false
+
+reviewers:
+  - Baebu
+
+assignees: []
+
+numberOfReviewers: 1
+numberOfAssignees: 0
+
+# Skip draft PRs
+skipDraft: true
+
+# Skip PRs created by dependabot
+skipKeywords:
+  - dependabot

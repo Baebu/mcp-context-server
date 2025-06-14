@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  context-savy-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: context-savy-server
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config
+      - ./logs:/app/logs
+    environment:
+      - NODE_ENV=production
+    healthcheck:
+      test: ['CMD', 'node', 'scripts/health-check.js']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s

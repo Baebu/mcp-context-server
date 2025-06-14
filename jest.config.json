@@ -1,0 +1,28 @@
+{
+  "preset": "ts-jest/presets/default-esm",
+  "extensionsToTreatAsEsm": [".ts"],
+  "moduleNameMapping": {
+    "^(\\.{1,2}/.*)\\.js$": "$1"
+  },
+  "testEnvironment": "node",
+  "collectCoverage": true,
+  "coverageDirectory": "coverage",
+  "collectCoverageFrom": ["src/**/*.{ts,js}", "!src/**/*.d.ts", "!src/**/index.ts", "!**/node_modules/**"],
+  "coverageReporters": ["text", "lcov", "html"],
+  "testMatch": ["**/tests/**/*.test.{ts,js}", "**/?(*.)+(spec|test).{ts,js}"],
+  "testPathIgnorePatterns": ["/node_modules/", "/build/", "/dist/"],
+  "setupFilesAfterEnv": [],
+  "globals": {
+    "ts-jest": {
+      "useESM": true
+    }
+  },
+  "transform": {
+    "^.+\\.tsx?$": [
+      "ts-jest",
+      {
+        "useESM": true
+      }
+    ]
+  }
+}

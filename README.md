@@ -162,6 +162,7 @@ Ensure you restart Claude Desktop after making changes to `claude_desktop_config
 The MCP Context Server is designed to help you work efficiently with projects. Here's the recommended workflow:
 
 ### 1. Create a Workspace
+
 ```
 First, create a workspace for your project:
 - Use `create_workspace` with your project directory
@@ -169,6 +170,7 @@ First, create a workspace for your project:
 ```
 
 ### 2. Get Project Overview
+
 ```
 Get a comprehensive overview of your project:
 - Use `get_project_overview` to analyze structure, technologies, and metrics
@@ -176,6 +178,7 @@ Get a comprehensive overview of your project:
 ```
 
 ### 3. Store Project Context
+
 ```
 Store important project information:
 - Use `store_context` to save key insights, decisions, and documentation
@@ -183,6 +186,7 @@ Store important project information:
 ```
 
 ### 4. Monitor System Health
+
 ```
 Keep track of system performance:
 - Use `get_system_health` to monitor server, database, workspace, and semantic search health

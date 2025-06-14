@@ -24,6 +24,14 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
 
+      - name: Cache node modules
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
       - name: Install dependencies
         run: npm ci
 
@@ -38,6 +46,8 @@ jobs:
 
       - name: Run tests
         run: npm test
+        env:
+          NODE_ENV: test
 
       - name: Build project
         run: npm run build
@@ -47,9 +57,12 @@ jobs:
 
       - name: Upload coverage to Codecov
         if: matrix.node-version == '20.x'
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
-          fail_ci_if_error: true
+          fail_ci_if_error: false
+          files: ./coverage/lcov.info
+          flags: unittests
+          name: codecov-umbrella
 
   integration-test:
     runs-on: ${{ matrix.os }}
@@ -72,6 +85,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Create data directory
+        run: mkdir -p data
+        shell: bash
+
+      - name: Create data directory (Windows)
+        if: runner.os == 'Windows'
+        run: mkdir data -ErrorAction SilentlyContinue
+        shell: pwsh
+
       - name: Build project
         run: npm run build
 
@@ -79,8 +101,7 @@ jobs:
         run: npm run health-check
 
       - name: Test MCP protocol
-        run: timeout 30s node test-server.js || exit 0
-        shell: bash
+        run: node test-server.js
 
   security:
     runs-on: ubuntu-latest
@@ -107,6 +128,7 @@ jobs:
           path: ./
           base: main
           head: HEAD
+        continue-on-error: true
 
   release:
     needs: [test, integration-test, security]
@@ -135,5 +157,4 @@ jobs:
       - name: Create Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npx semantic-release

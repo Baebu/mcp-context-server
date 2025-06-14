@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+title: 'Context-Savy-Server'
+message: 'If you use this software, please cite it as below.'
+type: software
+authors:
+  - name: 'Your Name' # Replace with actual name
+    orcid: 'https://orcid.org/0000-0000-0000-0000' # Replace with actual ORCID if applicable
+repository-code: 'https://github.com/YOUR-USERNAME/context-savy-server' # Replace with actual repository URL
+url: 'https://github.com/YOUR-USERNAME/context-savy-server' # Replace with actual URL
+abstract: 'A server for managing and processing context data.'
+keywords:
+  - context
+  - server
+  - typescript
+  - nodejs
+license: MIT # Update this if you're using a different license
+version: '1.0.0' # Update with actual version
+date-released: '2025-06-14' # Update with actual release date

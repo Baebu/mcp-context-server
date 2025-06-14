@@ -1,0 +1,31 @@
+# Git
+.git
+.gitignore
+.github
+
+# Project files
+node_modules
+npm-debug.log
+coverage
+logs
+*.log
+
+# Development environment
+.vscode
+.idea
+*.swp
+*.swo
+
+# Test files
+test-fs-workspace
+tests
+
+# Documentation
+docs
+
+# Data (will be mounted as volume)
+data
+
+# Misc
+.DS_Store
+Thumbs.db

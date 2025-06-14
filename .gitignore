@@ -1,16 +1,32 @@
-﻿# Dependencies
+﻿# Context-Savy-Server .gitignore
+# ------------------------------------------------
+# This file specifies intentionally untracked files to be ignored by Git
+# See https://git-scm.com/docs/gitignore for documentation
+
+# Dependencies
 node_modules/
+/.pnp
+.pnp.js
+package-lock.json
+# Keep yarn.lock if you're using Yarn
+# yarn.lock
+
+# Debug logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
 
 # Build output
 dist/
 build/
+out/
 *.tsbuildinfo
 
 # Data files
-data/
+/data/
+!/data/.gitkeep
 *.db
 *.db-*
 *.sqlite
@@ -20,15 +36,33 @@ data/
 logs/
 *.log
 pino-*
+log-*
 
-# Environment files
+# Environment and secret files
 .env
 .env.*
 !.env.example
+!.env.test
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.pem
+.npmrc
+.yarnrc
 
 # IDE files
-.vscode/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json.example
+!.vscode/launch.json.example
+!.vscode/tasks.json.example
 .idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
 *.swp
 *.swo
 *~
@@ -42,46 +76,56 @@ pino-*
 ehthumbs.db
 Thumbs.db
 
-# Coverage
+# Test coverage
 coverage/
+coverage-ts/
 .nyc_output/
+*.lcov
 
 # Runtime data
-pids
+pids/
 *.pid
 *.seed
 *.pid.lock
+.eslintcache
+.prettiercache
+tsconfig.tsbuildinfo
 
-# Coverage directory used by tools like istanbul
-coverage/
-.nyc_output/
+# Temporary files
+tmp/
+temp/
 
-# Grunt intermediate storage
-.grunt
+# Package manager directories
+.npm/
+.yarn/
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+.pnpm/
 
-# Bower dependency directory
-bower_components
-
-# node-waf configuration
-.lock-wscript
+# Cache directories
+.cache/
+.parcel-cache/
+.rollup-cache/
+.webpack/
 
 # Compiled binary addons
 build/Release
 
-# Dependency directories
-jspm_packages/
-
-# Optional npm cache directory
-.npm
-
-# Optional REPL history
+# REPL history
 .node_repl_history
+.history
+.ionide
 
-# Output of 'npm pack'
+# Output of npm/yarn pack
 *.tgz
+.vercel
+.now
 
-# Yarn Integrity file
-.yarn-integrity
+# Local netlify folder
+.netlify
 
 # Config files (keep examples)
 config/server.yaml
@@ -92,12 +136,41 @@ mcp-config.*
 
 # Husky
 .husky/_
+.husky/.gitignore
+
+# Project specific
 /.repomix
-/.vscode
 /scripts/build-with-fix.js
 /scripts/clean-build.js
 /scripts/debug-build-script.js
-# IDE specific files
+
+# Docker volumes
+docker-volumes/
+.docker/
+
+# Serverless
+.serverless/
+.dynamodb/
+
+# Generated files
+*.generated.*
+generated/
+swagger-ui-dist/
+
+# Backup files
+*.backup
+*.bak
+*~
+*.old
+*.orig
+
+# Misc
+.notes/
+TODO
+TODO.md
+NOTES.md
+ROADMAP.private.md
+scratch/
 .vscode/settings.json
 .vscode/launch.json
 
@@ -117,7 +190,6 @@ config/development.yaml
 data/
 *.log
 /backup-20250531-121852
-/docs
 /src/infrastructure/di/Git.log
 /test-fs-workspace
 updates.html
@@ -203,3 +275,15 @@ content-edit.meta.json
 # Temporary script files
 remove-tracked-files.sh
 *-tracked-files.sh
+
+# Security and sensitive information
+.well-known/
+credentials/
+secrets/
+*_rsa
+*_dsa
+*_ed25519
+*_ecdsa
+*private*
+*SECRET*
+*PRIVATE*

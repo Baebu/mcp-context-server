@@ -1,0 +1,77 @@
+name: 🔒 Security Issue
+description: Report a security vulnerability or concern
+title: '[Security]: '
+labels: ['security', 'triage']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ⚠️ **Security Alert** ⚠️
+
+        If you believe you've found a critical security vulnerability, please do NOT report it here.
+        Instead, please email security@example.com or use the security advisory feature.
+
+        For general security concerns or questions about our security practices, please continue below.
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity Level
+      description: How severe do you consider this security issue?
+      options:
+        - Low (Information disclosure, minor security concern)
+        - Medium (Potential data exposure, authentication bypass)
+        - High (Significant security flaw, potential for serious damage)
+        - Critical (Immediate security risk, potential for widespread damage)
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Security Issue Description
+      description: Describe the security issue or vulnerability
+      placeholder: Please provide a detailed description of the security concern
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Potential Impact
+      description: What could an attacker potentially do with this vulnerability?
+      placeholder: Describe the potential impact if this vulnerability were exploited
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: How can this security issue be reproduced?
+      placeholder: |
+        1. Step one
+        2. Step two
+        3. Step three
+    validations:
+      required: false
+
+  - type: textarea
+    id: mitigation
+    attributes:
+      label: Suggested Mitigation
+      description: Do you have any suggestions for how to fix this issue?
+      placeholder: Any ideas for how this could be resolved
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Confirmation
+      description: Please confirm the following
+      options:
+        - label: I have searched for existing security issues before submitting this report
+          required: true
+        - label: I understand that this report may be made public after the issue is resolved
+          required: true

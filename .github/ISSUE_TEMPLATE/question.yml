@@ -1,0 +1,71 @@
+name: ❓ Question
+description: Ask a question about the MCP Context Server
+title: '[Question]: '
+labels: ['question', 'help-wanted']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for your interest in the MCP Context Server! Please fill out the form below to ask your question.
+
+        Before submitting, please check:
+        - [Documentation](https://github.com/Baebu/mcp-context-server/blob/main/README.md)
+        - [Existing issues](https://github.com/Baebu/mcp-context-server/issues)
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Question Category
+      description: What type of question is this?
+      options:
+        - Installation & Setup
+        - Configuration
+        - Usage & Features
+        - Troubleshooting
+        - Development
+        - Integration
+        - Performance
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: What version are you using?
+      placeholder: e.g., 2.0.0
+    validations:
+      required: false
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Your Question
+      description: What would you like to know?
+      placeholder: Please be as specific as possible
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Any additional context that might help us answer your question
+      placeholder: |
+        - What are you trying to achieve?
+        - What have you already tried?
+        - Any relevant configuration or code snippets
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Confirmation
+      description: Please confirm
+      options:
+        - label: I have searched the documentation and existing issues
+          required: true
+        - label: I have provided enough context for others to understand my question
+          required: true

@@ -472,3 +472,365 @@ export class FindFilesTool implements IMCPTool {
 
 // Re-export existing tools for completeness
 export { ReadFileTool, WriteFileTool, ListDirectoryTool } from './file-operations.tool.js';
+
+// New File Operations - Move and Recycle System
+
+// Schema for MoveFileTool
+const moveFileSchema = z.object({
+  sourcePath: z.string().describe('Source file path to move'),
+  destinationPath: z.string().describe('Destination path for the file'),
+  overwrite: z.boolean().optional().default(false).describe('Overwrite destination if it exists'),
+  createDirectories: z.boolean().optional().default(true).describe('Create destination directories if needed')
+});
+
+@injectable()
+export class MoveFileTool implements IMCPTool {
+  name = 'move_file';
+  description = 'Move a file from one location to another with safety checks';
+  schema = moveFileSchema;
+
+  async execute(params: z.infer<typeof moveFileSchema>, context: ToolContext): Promise<ToolResult> {
+    // const filesystem = context.container.get<IFilesystemHandler>('FilesystemHandler'); // Removed unused variable
+
+    try {
+      // Check if source exists
+      const sourceStats = await fs.stat(params.sourcePath);
+      if (!sourceStats.isFile()) {
+        return {
+          content: [{ type: 'text', text: `Source path ${params.sourcePath} is not a file` }]
+        };
+      }
+
+      // Check destination
+      const destDir = path.dirname(params.destinationPath);
+      if (params.createDirectories) {
+        await fs.mkdir(destDir, { recursive: true });
+      }
+
+      try {
+        await fs.access(params.destinationPath);
+        if (!params.overwrite) {
+          return {
+            content: [{ type: 'text', text: `Destination ${params.destinationPath} already exists. Use overwrite=true to replace.` }]
+          };
+        }
+      } catch {
+        // Destination doesn't exist, which is fine
+      }
+
+      // Perform the move
+      await fs.rename(params.sourcePath, params.destinationPath);
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `File moved successfully from ${params.sourcePath} to ${params.destinationPath}`
+          }
+        ]
+      };
+    } catch (error) {
+      context.logger.error({ error, params }, 'Failed to move file');
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Failed to move file: ${error instanceof Error ? error.message : 'Unknown error'}`
+          }
+        ]
+      };
+    }
+  }
+}
+
+// Schema for RecycleFileTool
+const recycleFileSchema = z.object({
+  filePath: z.string().describe('Path to the file to recycle'),
+  reason: z.string().optional().describe('Reason for recycling (for tracking)')
+});
+
+@injectable()
+export class RecycleFileTool implements IMCPTool {
+  name = 'recycle_file';
+  description = 'Move a file to recycle bin for safe deletion';
+  schema = recycleFileSchema;
+
+  async execute(params: z.infer<typeof recycleFileSchema>, context: ToolContext): Promise<ToolResult> {
+    try {
+      const recycleDir = path.join(process.cwd(), '.recycle');
+      await fs.mkdir(recycleDir, { recursive: true });
+
+      const fileName = path.basename(params.filePath);
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const recycledName = `${timestamp}_${fileName}`;
+      const recycledPath = path.join(recycleDir, recycledName);
+
+      // Create metadata file
+      const metadata = {
+        originalPath: params.filePath,
+        recycledAt: new Date().toISOString(),
+        reason: params.reason || 'User requested',
+        size: (await fs.stat(params.filePath)).size
+      };
+
+      await fs.writeFile(`${recycledPath}.meta`, JSON.stringify(metadata, null, 2));
+      
+      // Move file to recycle bin
+      await fs.rename(params.filePath, recycledPath);
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `File recycled: ${params.filePath} → ${recycledName}\nReason: ${params.reason || 'User requested'}`
+          }
+        ]
+      };
+    } catch (error) {
+      context.logger.error({ error, params }, 'Failed to recycle file');
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Failed to recycle file: ${error instanceof Error ? error.message : 'Unknown error'}`
+          }
+        ]
+      };
+    }
+  }
+}
+
+// Schema for RestoreFromRecycleTool
+const restoreFromRecycleSchema = z.object({
+  recycledFileName: z.string().describe('Name of the recycled file to restore'),
+  customPath: z.string().optional().describe('Custom restore path (default: original location)')
+});
+
+@injectable()
+export class RestoreFromRecycleTool implements IMCPTool {
+  name = 'restore_from_recycle';
+  description = 'Restore a file from the recycle bin to its original location or a custom path';
+  schema = restoreFromRecycleSchema;
+
+  async execute(params: z.infer<typeof restoreFromRecycleSchema>, context: ToolContext): Promise<ToolResult> {
+    try {
+      const recycleDir = path.join(process.cwd(), '.recycle');
+      const recycledPath = path.join(recycleDir, params.recycledFileName);
+      const metaPath = `${recycledPath}.meta`;
+
+      // Read metadata
+      const metaContent = await fs.readFile(metaPath, 'utf8');
+      const metadata = JSON.parse(metaContent);
+
+      const restorePath = params.customPath || metadata.originalPath;
+      const restoreDir = path.dirname(restorePath);
+
+      // Create directories if needed
+      await fs.mkdir(restoreDir, { recursive: true });
+
+      // Check if restore destination exists
+      try {
+        await fs.access(restorePath);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Cannot restore: ${restorePath} already exists. Please specify a different customPath.`
+            }
+          ]
+        };
+      } catch {
+        // File doesn't exist, proceed with restore
+      }
+
+      // Restore the file
+      await fs.rename(recycledPath, restorePath);
+      await fs.unlink(metaPath); // Remove metadata
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `File restored successfully: ${params.recycledFileName} → ${restorePath}\nOriginal path: ${metadata.originalPath}`
+          }
+        ]
+      };
+    } catch (error) {
+      context.logger.error({ error, params }, 'Failed to restore file from recycle');
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Failed to restore file: ${error instanceof Error ? error.message : 'Unknown error'}`
+          }
+        ]
+      };
+    }
+  }
+}
+
+// Schema for ListRecycleBinTool
+const listRecycleBinSchema = z.object({
+  showDetails: z.boolean().optional().default(false).describe('Show detailed metadata for each file')
+});
+
+@injectable()
+export class ListRecycleBinTool implements IMCPTool {
+  name = 'list_recycle_bin';
+  description = 'List files in the recycle bin with metadata';
+  schema = listRecycleBinSchema;
+
+  async execute(params: z.infer<typeof listRecycleBinSchema>, context: ToolContext): Promise<ToolResult> {
+    try {
+      const recycleDir = path.join(process.cwd(), '.recycle');
+      
+      try {
+        await fs.access(recycleDir);
+      } catch {
+        return {
+          content: [{ type: 'text', text: 'Recycle bin is empty (directory does not exist)' }]
+        };
+      }
+
+      const files = await fs.readdir(recycleDir);
+      const recycledFiles = files.filter(f => !f.endsWith('.meta'));
+
+      if (recycledFiles.length === 0) {
+        return {
+          content: [{ type: 'text', text: 'Recycle bin is empty' }]
+        };
+      }
+
+      const fileInfos = await Promise.all(
+        recycledFiles.map(async fileName => {
+          const metaPath = path.join(recycleDir, `${fileName}.meta`);
+          try {
+            const metaContent = await fs.readFile(metaPath, 'utf8');
+            const metadata = JSON.parse(metaContent);
+            const stats = await fs.stat(path.join(recycleDir, fileName));
+            
+            return {
+              fileName,
+              originalPath: metadata.originalPath,
+              recycledAt: metadata.recycledAt,
+              reason: metadata.reason,
+              size: stats.size,
+              metadata: params.showDetails ? metadata : undefined
+            };
+          } catch {
+            return {
+              fileName,
+              originalPath: 'Unknown',
+              recycledAt: 'Unknown',
+              reason: 'Metadata missing',
+              size: 0
+            };
+          }
+        })
+      );
+
+      const response = {
+        recycledFiles: fileInfos.length,
+        files: fileInfos,
+        recycleBinPath: recycleDir
+      };
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(response, null, 2)
+          }
+        ]
+      };
+    } catch (error) {
+      context.logger.error({ error, params }, 'Failed to list recycle bin');
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Failed to list recycle bin: ${error instanceof Error ? error.message : 'Unknown error'}`
+          }
+        ]
+      };
+    }
+  }
+}
+
+// Schema for EmptyRecycleBinTool
+const emptyRecycleBinSchema = z.object({
+  confirm: z.boolean().describe('Confirmation flag - must be true to proceed'),
+  olderThanDays: z.number().optional().describe('Only delete files older than X days (optional)')
+});
+
+@injectable()
+export class EmptyRecycleBinTool implements IMCPTool {
+  name = 'empty_recycle_bin';
+  description = 'Permanently delete files from recycle bin (DESTRUCTIVE operation)';
+  schema = emptyRecycleBinSchema;
+
+  async execute(params: z.infer<typeof emptyRecycleBinSchema>, context: ToolContext): Promise<ToolResult> {
+    if (!params.confirm) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Operation cancelled. Set confirm=true to proceed with emptying recycle bin.'
+          }
+        ]
+      };
+    }
+
+    try {
+      const recycleDir = path.join(process.cwd(), '.recycle');
+      
+      try {
+        await fs.access(recycleDir);
+      } catch {
+        return {
+          content: [{ type: 'text', text: 'Recycle bin is already empty (directory does not exist)' }]
+        };
+      }
+
+      const files = await fs.readdir(recycleDir);
+      let deletedCount = 0;
+      let skippedCount = 0;
+
+      for (const file of files) {
+        const filePath = path.join(recycleDir, file);
+        
+        if (params.olderThanDays) {
+          const stats = await fs.stat(filePath);
+          const ageInDays = (Date.now() - stats.mtime.getTime()) / (1000 * 60 * 60 * 24);
+          
+          if (ageInDays < params.olderThanDays) {
+            skippedCount++;
+            continue;
+          }
+        }
+
+        await fs.unlink(filePath);
+        deletedCount++;
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Recycle bin emptied. Files deleted: ${deletedCount}, Files skipped: ${skippedCount}`
+          }
+        ]
+      };
+    } catch (error) {
+      context.logger.error({ error, params }, 'Failed to empty recycle bin');
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Failed to empty recycle bin: ${error instanceof Error ? error.message : 'Unknown error'}`
+          }
+        ]
+      };
+    }
+  }
+}

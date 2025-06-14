@@ -1,0 +1,57 @@
+name: 📖 Documentation Issue
+description: Report an issue with documentation
+title: '[Docs]: '
+labels: ['documentation', 'triage']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping us improve our documentation!
+
+  - type: dropdown
+    id: doc-type
+    attributes:
+      label: Documentation Type
+      description: What type of documentation issue is this?
+      options:
+        - README.md
+        - Installation Guide
+        - Configuration Guide
+        - API Documentation
+        - Examples/Tutorials
+        - Code Comments
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: issue-description
+    attributes:
+      label: What's wrong with the documentation?
+      description: Describe the issue with the current documentation
+      placeholder: The documentation is unclear about...
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggested-improvement
+    attributes:
+      label: Suggested improvement
+      description: How would you improve this documentation?
+      placeholder: I think it would be clearer if...
+
+  - type: input
+    id: page-url
+    attributes:
+      label: Page/File URL or Path
+      description: Link to the documentation page or file path that needs improvement
+      placeholder: e.g., docs/INSTALLATION.md or https://github.com/...
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      description: By submitting this issue, you agree to follow our Code of Conduct
+      options:
+        - label: I agree to follow this project's Code of Conduct
+          required: true
