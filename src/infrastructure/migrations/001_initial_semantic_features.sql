@@ -4,11 +4,11 @@
 -- This migration corresponds to the original '001_add_semantic_columns.sql' from the root migrations folder.
 
 -- Add semantic columns to existing context_items table
--- Ensure these columns are added only if they don't already exist to prevent errors on re-run
-ALTER TABLE context_items ADD COLUMN IF NOT EXISTS embedding TEXT; -- JSON array of floats for vector similarity
-ALTER TABLE context_items ADD COLUMN IF NOT EXISTS semantic_tags TEXT; -- JSON array of extracted keywords/tags
-ALTER TABLE context_items ADD COLUMN IF NOT EXISTS context_type TEXT DEFAULT 'generic'; -- Enhanced type classification
-ALTER TABLE context_items ADD COLUMN IF NOT EXISTS relationships TEXT; -- JSON relationships to other context items
+-- Use safe column addition approach since IF NOT EXISTS is not supported in older SQLite versions
+ALTER TABLE context_items ADD COLUMN embedding TEXT; -- JSON array of floats for vector similarity
+ALTER TABLE context_items ADD COLUMN semantic_tags TEXT; -- JSON array of extracted keywords/tags
+ALTER TABLE context_items ADD COLUMN context_type TEXT DEFAULT 'generic'; -- Enhanced type classification
+ALTER TABLE context_items ADD COLUMN relationships TEXT; -- JSON relationships to other context items
 
 -- Create indexes for efficient semantic search
 CREATE INDEX IF NOT EXISTS idx_context_type ON context_items(context_type);

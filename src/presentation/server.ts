@@ -27,7 +27,7 @@ export class MCPContextServer {
     this.mcpServer = new Server(
       {
         name: 'context-efficient-mcp-server',
-        version: '1.0.0'
+        version: '2.0.0' // Updated version for Phase 7 integration
       },
       {
         capabilities: {
