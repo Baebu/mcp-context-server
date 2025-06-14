@@ -127,3 +127,66 @@ updates.html
 /.backups/2025-06-06
 /tests/.backups/2025-06-05
 /tests/.backups/2025-06-06
+/.backups
+
+# Backup files and directories
+*.bak
+*.backup
+*.old
+*.orig
+*.tmp
+*.temp
+*~
+.#*
+#*#
+.DS_Store
+Thumbs.db
+
+# Editor backup files
+*~
+.*.swp
+.*.swo
+*.swn
+*.un~
+Session.vim
+.netrwhist
+
+# IDE backup files
+.vscode/settings.json.bak
+.idea/workspace.xml.bak
+*.sublime-workspace.bak
+
+# Database backup files
+*.sql.bak
+*.db.bak
+*.sqlite.bak
+
+# Log backup files
+*.log.bak
+*.log.old
+logs.old/
+logs.backup/
+
+# Configuration backup files
+*.conf.bak
+*.config.bak
+*.ini.bak
+*.json.bak
+*.yaml.bak
+*.yml.bak
+
+# Archive backup files
+backup/
+backups/
+.backup/
+.backups/
+*.backup/
+
+# Temporary backup directories
+tmp/
+temp/
+.tmp/
+.temp/
+
+# Content edit metadata files
+content-edit.meta.json
