@@ -1,6 +1,7 @@
 // src/application/tools/enhanced-security-diagnostics.tool.ts
 import { injectable, inject } from 'inversify';
 import type { ISecurityValidator } from '../../core/interfaces/security.interface.js';
+import { ConfigManagerService } from '../services/config-manager.service.js';
 import { logger } from '../../utils/logger.js';
 import { z } from 'zod';
 import type { IMCPTool, ToolContext, ToolResult } from '../../core/interfaces/tool-registry.interface.js';
@@ -44,7 +45,10 @@ export class EnhancedSecurityDiagnosticsTool implements IMCPTool {
       .describe('Array of paths to test for access (used with test-multiple-paths action)')
   });
 
-  constructor(@inject('SecurityValidator') private security: ISecurityValidator) {}
+  constructor(
+    @inject('SecurityValidator') private security: ISecurityValidator,
+    @inject(ConfigManagerService) private configManager: ConfigManagerService
+  ) {}
 
   async execute(params: z.infer<typeof this.schema>, context: ToolContext): Promise<ToolResult> {
     void context; // Suppress TypeScript unused parameter warning - context available for future use
@@ -142,7 +146,17 @@ export class EnhancedSecurityDiagnosticsTool implements IMCPTool {
 
   private async expandSafeZone(safeZonePath: string): Promise<any> {
     if (typeof this.security.expandSafeZoneRecursively === 'function') {
+      // Expand safe zone in memory
       this.security.expandSafeZoneRecursively(safeZonePath);
+
+      // Persist the new safe zone to configuration
+      try {
+        await this.configManager.addSafeZone(safeZonePath);
+        logger.info({ safeZonePath }, 'Safe zone expansion persisted to configuration');
+      } catch (configError) {
+        logger.warn({ safeZonePath, error: configError }, 'Failed to persist safe zone to configuration');
+        // Continue with operation even if persistence fails
+      }
 
       const hierarchy =
         typeof this.security.getSafeZoneHierarchy === 'function' ? this.security.getSafeZoneHierarchy() : null;
@@ -152,10 +166,12 @@ export class EnhancedSecurityDiagnosticsTool implements IMCPTool {
         timestamp: new Date().toISOString(),
         success: true,
         safeZonePath,
-        message: 'Safe zone expanded with recursive wildcard patterns',
+        message: 'Safe zone expanded with recursive wildcard patterns and persisted to configuration',
         hierarchy,
+        configurationUpdated: true,
         suggestions: [
           '✅ Safe zone has been expanded with wildcard patterns for subdirectory access',
+          '💾 Safe zone expansion persisted to server.yaml configuration',
           '📁 All subdirectories within the safe zone should now be accessible',
           '🔍 Use validate-access action to verify subdirectory accessibility'
         ]

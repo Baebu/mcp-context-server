@@ -25,6 +25,7 @@ import { SmartPathManager } from '../../application/services/smart-path-manager.
 import { WorkspaceManager } from '../../application/services/workspace-manager.service.js';
 import { EmbeddingService } from '../../application/services/embedding.service.js';
 import { SecurityValidatorService } from '../../application/services/security-validator.service.js';
+import { ConfigManagerService } from '../../application/services/config-manager.service.js';
 
 // Enhanced File Operations Tools
 import {
@@ -60,6 +61,7 @@ import { ProcessManagementTool } from '../../application/tools/process-managemen
 
 // Enhanced Security Diagnostics Tool (NEW)
 import { EnhancedSecurityDiagnosticsTool } from '../../application/tools/enhanced-security-diagnostics.tool.js';
+import { ConfigManagementTool } from '../../application/tools/config-management.tool.js';
 
 // Semantic Tools
 import {
@@ -82,6 +84,7 @@ container.bind<IFilesystemHandler>('FilesystemHandler').to(FilesystemAdapter).in
 container.bind<IDatabaseHandler>('DatabaseHandler').to(DatabaseAdapter).inSingletonScope();
 container.bind<IEnhancedCLIHandler>('CLIHandler').to(EnhancedCLIAdapter).inSingletonScope();
 container.bind<ISecurityValidator>('SecurityValidator').to(SecurityValidatorService).inSingletonScope();
+container.bind<ConfigManagerService>(ConfigManagerService).to(ConfigManagerService).inSingletonScope();
 
 // Enhanced File Operations Tools
 container.bind<EditFileTool>(EditFileTool).to(EditFileTool).inSingletonScope();
@@ -115,6 +118,7 @@ container.bind<ProcessManagementTool>(ProcessManagementTool).to(ProcessManagemen
 
 // Enhanced Security Diagnostics Tool (NEW)
 container.bind<EnhancedSecurityDiagnosticsTool>(EnhancedSecurityDiagnosticsTool).to(EnhancedSecurityDiagnosticsTool).inSingletonScope();
+container.bind<ConfigManagementTool>(ConfigManagementTool).to(ConfigManagementTool).inSingletonScope();
 
 // Bind injectable tools and resources
 container.bind<ParseFileTool>(ParseFileTool).to(ParseFileTool).inSingletonScope();
