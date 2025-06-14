@@ -118,7 +118,10 @@ container.bind<GetSystemHealthTool>(GetSystemHealthTool).to(GetSystemHealthTool)
 container.bind<GetProjectOverviewTool>(GetProjectOverviewTool).to(GetProjectOverviewTool).inSingletonScope();
 
 // Enhanced Security Diagnostics Tool (NEW)
-container.bind<EnhancedSecurityDiagnosticsTool>(EnhancedSecurityDiagnosticsTool).to(EnhancedSecurityDiagnosticsTool).inSingletonScope();
+container
+  .bind<EnhancedSecurityDiagnosticsTool>(EnhancedSecurityDiagnosticsTool)
+  .to(EnhancedSecurityDiagnosticsTool)
+  .inSingletonScope();
 container.bind<ConfigManagementTool>(ConfigManagementTool).to(ConfigManagementTool).inSingletonScope();
 
 // Bind injectable tools and resources
