@@ -193,6 +193,13 @@ content-edit.meta.json
 *content-edit.meta.json
 *content-edit.ts
 
+# Binary files
+*.dll
+*.exe
+*.so
+*.dylib
+*.pdb
+
 # Temporary script files
 remove-tracked-files.sh
 *-tracked-files.sh
