@@ -4,7 +4,7 @@ _The AI assistant's best friend - because even Claude needs a good memory_
 
 ## The Problem That Wouldn't Go Away
 
-You know that feeling when you're deep in a coding session with Claude, everything's flowing perfectly, and then... 💥 Context limit hit. Your conversation gets truncated. The AI forgets what you were working on. All that beautiful, collaborative momentum? Gone.
+You know that feeling when you're deep in a coding session with Claude, everything's flowing perfectly, and then... 💥 **Context limit hit.** Your conversation gets truncated. The AI forgets what you were working on. All that beautiful, collaborative momentum? Gone.
 
 Or maybe you're the type who switches between projects constantly (guilty 🙋‍♂️), and every time you start a new chat, you have to re-explain your entire setup, your file structure, your preferences, your... everything.
 
@@ -33,22 +33,17 @@ You (in Chat #1): "Help me refactor this React component..."
 [Work gets done, chat ends naturally]
 
 You (in Chat #47, two weeks later): "Hey, what was I working on?"
-Claude: "You were refactoring the UserProfile component.
-You'd gotten the props interface done and were working on the state management.
-Should we continue where we left off?"
+Claude: "You were refactoring the UserProfile component. You'd gotten the props interface done and were working on the state management. Should we continue where we left off?"
 ```
 
 **Scenario 2: Context-Aware File Operations**
 
 ```
 You: "Find all the TODO comments in my project"
-Claude: [Searches across your entire codebase] "Found 23 TODOs.
-The urgent ones are in auth.ts and database.service.ts.
-Want me to show you those first?"
+Claude: [Searches across your entire codebase] "Found 23 TODOs. The urgent ones are in auth.ts and database.service.ts. Want me to show you those first?"
 
 You: "Fix the auth one"
-Claude: [Opens file, understands context, makes intelligent suggestions]
-"I see the issue - you're missing error handling in the token validation. Here's a fix..."
+Claude: [Opens file, understands context, makes intelligent suggestions] "I see the issue - you're missing error handling in the token validation. Here's a fix..."
 ```
 
 **Scenario 3: Learning Your Workflow**
@@ -58,8 +53,7 @@ After a few weeks of use...
 
 Claude: "I noticed you always run tests after refactoring. Should I go ahead and run them now?"
 You: "Yes! And check the coverage while you're at it."
-Claude: [Executes tests, analyzes coverage, provides detailed report]
-"All green! Coverage increased by 2.3%. The new code is well-tested."
+Claude: [Executes tests, analyzes coverage, provides detailed report] "All green! Coverage increased by 2.3%. The new code is well-tested."
 ```
 
 ## Why This Exists (The Real Story)
@@ -185,13 +179,14 @@ src/
 
 ## Security (Because I'm Paranoid)
 
-- **Command whitelisting:** Only approved commands can run
-- **Path sandboxing:** File operations restricted to safe zones
-- **Input validation:** Everything gets cleaned and checked
-- **Audit logging:** Track what happens and when
-- **User consent:** Potentially risky operations require confirmation
+This server operates on a "trust but verify" model, configured entirely by you. There are no runtime pop-ups or consent dialogs; security is handled by your `config/server.yaml` file.
 
-The default config is locked down tight. You explicitly allow what you want.
+- **Command Whitelisting:** Only commands explicitly listed in your configuration's `allowedCommands` can be executed. Everything else is blocked by default.
+- **Path Sandboxing (Safe Zones):** File operations are restricted to directories you define in `safezones`. By default, this is "recursive," meaning subdirectories are also accessible.
+- **Restricted Zones:** The server maintains a list of sensitive system paths (`/etc`, `C:\Windows`, etc.) and project paths (`.git`, `.ssh`) that are always blocked, even if they fall within a safe zone.
+- **Input Validation:** All file paths and command arguments are sanitized to prevent common injection and path traversal attacks.
+
+The default config is locked down tight. You explicitly allow what you want, giving you full control over the server's capabilities.
 
 ## Want to Help? 🤝
 
@@ -229,27 +224,28 @@ The system is controlled by `config/server.yaml`. Here's what you can tune:
 ```yaml
 # Security boundaries
 security:
-  allowedCommands: ['ls', 'git', 'npm', 'node']
-  safezones: ['./projects', './workspace']
+  allowedCommands: ['ls', 'git status', 'npm test']
+  safezones: ['~/projects/my-web-app', './workspace']
 
 # Database and storage
 database:
   path: './data/context.db'
-  backupInterval: '0 */6 * * *' # Every 6 hours
+  backupInterval: 360 # In minutes. 0 to disable.
 
-# AI and learning
-embedding:
+# Semantic search features
+semanticSearch:
+  enabled: true
   model: 'universal-sentence-encoder'
-  dimensions: 512
 
 # Autonomous behaviors
 autonomous:
   enabled: true
-  compressionThreshold: 150000 # tokens
-  maintenanceSchedule: '0 2 * * *' # 2 AM daily
+  monitoring:
+    compressionThreshold: 10240 # In bytes. Auto-compress contexts larger than this.
+    panicThreshold: 0.95 # Trigger emergency state save at 95% of context window.
 ```
 
-Run `npm run config` for a web-based configuration UI.
+Run `npm run config` for a web-based configuration UI. For a full breakdown of options, see the [Installation Guide](./INSTALLATION.md).
 
 ## Performance & Scaling
 
@@ -269,19 +265,19 @@ Run `npm run config` for a web-based configuration UI.
 
 ## The Honest FAQ
 
-**Q: Is this production-ready?**  
+**Q: Is this production-ready?**
 A: For personal use? Absolutely. For enterprise? Probably needs more testing and hardening.
 
-**Q: Why not use [existing solution]?**  
+**Q: Why not use [existing solution]?**
 A: I tried. Nothing gave me the exact combination of persistence, security, and workflow integration I wanted.
 
-**Q: Will this slow down Claude?**  
+**Q: Will this slow down Claude?**
 A: In my experience, no. The context loading is fast, and having persistent memory actually makes conversations more efficient.
 
-**Q: What if I find bugs?**  
+**Q: What if I find bugs?**
 A: Please report them! I use this daily, so bugs get fixed quickly.
 
-**Q: Can I use this for commercial projects?**  
+**Q: Can I use this for commercial projects?**
 A: MIT license, so yes. Just don't blame me if something breaks.
 
 ## What's Next
