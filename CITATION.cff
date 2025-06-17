@@ -1,18 +1,26 @@
 cff-version: 1.2.0
-title: 'Context-Savy-Server'
+title: 'Context Savvy MCP'
 message: 'If you use this software, please cite it as below.'
 type: software
 authors:
-  - name: 'Your Name' # Replace with actual name
-    orcid: 'https://orcid.org/0000-0000-0000-0000' # Replace with actual ORCID if applicable
-repository-code: 'https://github.com/YOUR-USERNAME/context-savy-server' # Replace with actual repository URL
-url: 'https://github.com/YOUR-USERNAME/context-savy-server' # Replace with actual URL
-abstract: 'A server for managing and processing context data.'
+  - name: 'Baebu'
+    email: 'bae.bu.8@gmail.com'
+
+repository-code: 'https://github.com/Baebu/context-savvy-mcp'
+url: 'https://github.com/Baebu/context-savvy-mcp'
+abstract: 'A high-performance Model Context Protocol server that transforms Claude Desktop into a memory-enabled AI assistant with persistent context, secure command execution, and intelligent workflow automation.'
 keywords:
   - context
   - server
   - typescript
   - nodejs
+  - mcp
+  - model-context-protocol
+  - claude
+  - claude-desktop
+  - ai-assistant
+  - semantic-search
+  - persistent-memory
 license: MIT # Update this if you're using a different license
-version: '1.0.0' # Update with actual version
-date-released: '2025-06-14' # Update with actual release date
+version: '2.0.1'
+date-released: '2025-06-17'

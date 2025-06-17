@@ -27,6 +27,8 @@
     "claude-config": "node scripts/claude-config.js",
     "create-workspace": "tsx scripts/create-test-fs-workspace.ts",
     "quick-setup": "node scripts/quick-setup.js",
+    "debug-startup": "node debug-startup-simple.js",
+    "dev:fast": "NODE_ENV=development MCP_LOG_LEVEL=info tsx src/index.ts",
     "prepack": "npm run build && npm run test && npm run type-check"
   },
   "keywords": [
