@@ -73,7 +73,6 @@
     "@tensorflow/tfjs-node": "^4.15.0",
     "better-sqlite3": "^11.10.0",
     "convict": "^6.2.4",
-    "crypto": "^1.0.1",
     "fastmcp": "^2.0.0",
     "glob": "^10.3.10",
     "inversify": "^6.0.2",
