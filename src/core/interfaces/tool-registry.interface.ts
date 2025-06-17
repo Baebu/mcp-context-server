@@ -12,6 +12,7 @@ export interface ToolContext {
   container: {
     get: <T>(identifier: string) => T;
   };
+  sessionId?: string;
 }
 
 export interface ToolResult<T = unknown> {

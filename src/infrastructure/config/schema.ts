@@ -134,6 +134,57 @@ const memoryConfigSchema = z
   })
   .default({});
 
+const autonomousConfigSchema = z
+  .object({
+    enabled: z.boolean().default(true),
+    monitoring: z.object({
+      tokenCheckInterval: z.number().default(5000),
+      archiveInterval: z.string().default('0 2 * * *'),
+      deduplicationInterval: z.string().default('0 */6 * * *'),
+      compressionThreshold: z.number().default(10240),
+      panicThreshold: z.number().min(0.5).max(1).default(0.95),
+      handoffThreshold: z.number().min(0.5).max(1).default(0.9),
+      autoCheckpointThreshold: z.number().min(0.3).max(0.9).default(0.7)
+    }).optional(),
+    thresholds: z.object({
+      checkpoint: z.number().default(0.7),
+      handoff: z.number().default(0.9),
+      panic: z.number().default(0.95)
+    }).optional(),
+    compression: z.object({
+      enabled: z.boolean().default(true),
+      minSize: z.number().default(10240),
+      algorithm: z.string().default('hybrid'),
+      level: z.number().min(1).max(9).default(6)
+    }).optional(),
+    maintenance: z.object({
+      archive: z.object({
+        enabled: z.boolean().default(true),
+        schedule: z.string().default('0 2 * * *'),
+        maxAge: z.number().default(90)
+      }).optional(),
+      deduplication: z.object({
+        enabled: z.boolean().default(true),
+        schedule: z.string().default('0 */6 * * *'),
+        threshold: z.number().default(0.85)
+      }).optional(),
+      optimization: z.object({
+        enabled: z.boolean().default(true),
+        schedule: z.string().default('0 * * * *'),
+        targetUtilization: z.number().default(0.8)
+      }).optional()
+    }).optional(),
+    emergency: z.object({
+      panicStorage: z.boolean().default(true),
+      minimalHandoff: z.boolean().default(true),
+      autoRecovery: z.boolean().default(true),
+      alerting: z.boolean().default(true)
+    }).optional()
+  })
+  .default({
+    enabled: true
+  });
+
 const pluginsConfigSchema = z
   .object({
     directory: z.string().default('./plugins'),
@@ -329,6 +380,7 @@ export const serverConfigSchema = z.object({
   logging: loggingConfigSchema,
   performance: performanceConfigSchema,
   features: featuresSchema,
+  autonomous: autonomousConfigSchema.optional(),
   // consent: consentConfigSchema.optional(), // REMOVED
   // ui: uiConfigSchema.optional(), // REMOVED
   semanticSearch: semanticSearchConfigSchema.optional(),

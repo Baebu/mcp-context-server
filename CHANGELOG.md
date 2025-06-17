@@ -9,15 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial public release
-- Core MCP server functionality
-- Context management with SQLite storage
-- Secure command execution with whitelisting
-- File operations with intelligent truncation
-- Comprehensive error handling and logging
-- Performance monitoring and metrics
-- Clean architecture with dependency injection
-
 ### Changed
 
 ### Deprecated
@@ -27,6 +18,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 ### Security
+
+## [2.0.1] - 2025-06-17
+
+### Added
+
+- **Enhanced Task Management System**
+  - New `create_task` tool for standardized task creation with priorities, due dates, and tags
+  - New `list_tasks` tool with advanced filtering, semantic search, and sorting capabilities
+  - New `update_task` tool for updating task properties and tracking progress
+  - New `complete_task` tool with optional follow-up task creation
+  - New `task_templates` tool for managing reusable task workflows
+  - Support for recurring tasks with daily, weekly, and monthly patterns
+  - Task hierarchies with parent/child relationships
+  - Full workspace and session integration for better organization
+  - Automatic semantic tagging for improved discovery
+
+- **Autonomous System Behaviors**
+  - New `AutonomousMonitorService` for background monitoring of system state
+  - Automatic token usage tracking with thresholds (70%, 90%, 95%)
+  - Automatic checkpointing at 70% token usage
+  - Automatic handoff preparation at 90% token usage
+  - Automatic panic mode at 95% token usage
+  - Background compression for contexts > 10KB
+  - Scheduled archiving (daily) and deduplication (every 6 hours)
+  - Token tracking middleware for transparent usage monitoring
+  - Control tools: `enable_autonomous_monitoring`, `disable_autonomous_monitoring`, `get_autonomous_status`, `trigger_maintenance`
+
+### Fixed
+
+- **Task Discovery Issues**
+  - `find_active_tasks` now properly discovers tasks using semantic search
+  - Improved task discovery with multiple search patterns
+  - Better deduplication logic to avoid duplicate results
+  - Tasks now properly tagged for semantic discovery
+
+- **Manual Tool Issues**
+  - Converted manual emergency tools to automatic triggers
+  - Fixed token budget optimization to run continuously
+  - Made compression automatic on storage operations
+  - Automated context deduplication and archiving
+
+### Changed
+
+- Task storage now uses standardized schema with consistent structure
+- Tasks automatically tagged with status, priority, workspace, and creation date
+- Improved task lifecycle management with proper state transitions
+- Enhanced integration with existing context management system
+- Emergency protocols now trigger automatically based on system state
+- Token tracking integrated transparently into all tool executions
 
 ## [2.0.0] - 2025-06-14
 

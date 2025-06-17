@@ -124,8 +124,6 @@ security:
     - chown\s+root(\s|$)
     - (^|[\s;]):.*\{\s*:|.*&\s*\}.*:(\s|$)
 
-# Consent Configuration section REMOVED
-
 # Enhanced Database Configuration with Vector Storage
 database:
   path: ./data/context.db
@@ -141,8 +139,6 @@ database:
     enabled: true
     embeddingDimensions: 384 # TensorFlow.js default
     similarityThreshold: 0.7
-
-# ... (rest of the file remains the same as previously provided) ...
 
 # Memory Management Configuration
 memory:
@@ -164,7 +160,7 @@ memory:
 # Semantic Search Configuration
 semanticSearch:
   enabled: true
-  provider: tensorflow # or 'openai', 'local'
+  provider: tensorflow
   model: universal-sentence-encoder
   batchSize: 32
   maxQueryLength: 500
@@ -278,8 +274,53 @@ features:
   vectorStorage: true
   enhancedSecurity: true
   memoryOptimization: true
-  pluginSystem: false # Disabled in Phase 1
+  pluginSystem: false
   advancedBackup: true
   realTimeMonitoring: true
   sessionManagement: true
   auditLogging: true
+
+# Autonomous System Behaviors (NEW in v2.0.1)
+autonomous:
+  enabled: true # Enable/disable all autonomous behaviors
+
+  # Token monitoring configuration
+  monitoring:
+    tokenCheckInterval: 5000 # How often to check token usage (ms)
+    archiveInterval: '0 2 * * *' # When to archive old contexts (cron)
+    deduplicationInterval: '0 */6 * * *' # When to deduplicate (cron)
+    compressionThreshold: 10240 # Auto-compress contexts larger than this (bytes)
+    panicThreshold: 0.95 # Trigger panic mode at this token usage (0-1)
+    handoffThreshold: 0.9 # Prepare handoff at this token usage (0-1)
+    autoCheckpointThreshold: 0.7 # Auto-checkpoint at this token usage (0-1)
+
+  # Compression settings
+  compression:
+    enabled: true
+    minSize: 10240 # Minimum size to compress (bytes)
+    algorithm: hybrid # lz4, gzip, brotli, semantic, hybrid
+    level: 6 # Compression level (1-9)
+
+  # Maintenance tasks
+  maintenance:
+    archive:
+      enabled: true
+      schedule: '0 2 * * *' # Daily at 2 AM
+      maxAge: 90 # Archive contexts older than this (days)
+
+    deduplication:
+      enabled: true
+      schedule: '0 */6 * * *' # Every 6 hours
+      threshold: 0.85 # Similarity threshold for deduplication
+
+    optimization:
+      enabled: true
+      schedule: '0 * * * *' # Every hour
+      targetUtilization: 0.8 # Target token utilization
+
+  # Emergency protocols
+  emergency:
+    panicStorage: true # Enable panic storage at critical token levels
+    minimalHandoff: true # Enable minimal handoff when normal fails
+    autoRecovery: true # Automatically offer recovery on new sessions
+    alerting: true # Enable alerts for critical conditions

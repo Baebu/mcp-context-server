@@ -1,6 +1,6 @@
 {
   "name": "mcp-context-server",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "A context-efficient MCP server for maximizing productivity in Claude chats with FastMCP and enhanced semantic memory",
   "main": "dist/index.js",
   "type": "module",

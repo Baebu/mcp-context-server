@@ -13,12 +13,16 @@ import type { Container } from 'inversify';
 import type { IToolRegistry } from '../core/interfaces/tool-registry.interface.js';
 import type { IResourceRegistry } from '../core/interfaces/resource-registry.interface.js';
 import type { IPromptRegistry } from '../core/interfaces/prompt-registry.interface.js';
+import { AutonomousMonitorService } from '../application/services/autonomous-monitor.service.js';
+import { TokenTrackingMiddleware } from './middleware/token-tracking.middleware.js';
 import { logger } from '../utils/logger.js';
 import type { ServerConfig } from '../infrastructure/config/schema.js'; // Corrected import
 
 export class MCPContextServer {
   private mcpServer: Server;
   private transport: StdioServerTransport | null = null;
+  private autonomousMonitor?: AutonomousMonitorService;
+  private tokenTrackingMiddleware?: TokenTrackingMiddleware;
 
   constructor(
     private container: Container,
@@ -27,7 +31,7 @@ export class MCPContextServer {
     this.mcpServer = new Server(
       {
         name: 'context-efficient-mcp-server',
-        version: '2.0.0' // Updated version for Phase 7 integration
+        version: '2.0.1' // Updated version for autonomous behaviors
       },
       {
         capabilities: {
@@ -43,6 +47,21 @@ export class MCPContextServer {
     // Log to stderr only
     logger.info('Starting MCP Context Server...');
 
+    // Initialize autonomous monitoring if enabled
+    if (this.config.autonomous?.enabled !== false) {
+      try {
+        this.autonomousMonitor = this.container.get<AutonomousMonitorService>(AutonomousMonitorService);
+        this.tokenTrackingMiddleware = new TokenTrackingMiddleware(this.autonomousMonitor);
+        
+        // Start monitoring with config
+        await this.autonomousMonitor.startMonitoring(this.config.autonomous?.monitoring);
+        
+        logger.info('Autonomous monitoring started successfully');
+      } catch (error) {
+        logger.error({ error }, 'Failed to start autonomous monitoring - continuing without it');
+      }
+    }
+
     // Register all capabilities
     await this.registerTools();
     await this.registerResources();
@@ -57,6 +76,13 @@ export class MCPContextServer {
 
   async shutdown(): Promise<void> {
     logger.info('Shutting down MCP Context Server...');
+    
+    // Stop autonomous monitoring
+    if (this.autonomousMonitor) {
+      await this.autonomousMonitor.stopMonitoring();
+      logger.info('Autonomous monitoring stopped');
+    }
+    
     if (this.transport) {
       await this.transport.close();
     }
@@ -129,7 +155,19 @@ export class MCPContextServer {
         const validatedArgs = tool.schema.parse(request.params?.arguments || {});
         // Pass toolName to createToolContext for more granular logging
         const context = this.createToolContext(toolName);
-        const result = await tool.execute(validatedArgs, context);
+        
+        // Wrap tool execution with token tracking if available
+        let result;
+        if (this.tokenTrackingMiddleware && this.autonomousMonitor) {
+          result = await this.tokenTrackingMiddleware.wrapToolExecution(
+            toolName!,
+            validatedArgs,
+            context,
+            () => tool.execute(validatedArgs, context)
+          );
+        } else {
+          result = await tool.execute(validatedArgs, context);
+        }
 
         // Ensure proper response format
         if (!result.content || !Array.isArray(result.content)) {
@@ -296,10 +334,20 @@ export class MCPContextServer {
 
   // Updated to accept toolName for more granular logging
   private createToolContext(toolName?: string) {
+    // Generate or retrieve session ID
+    const sessionId = this.getCurrentSessionId();
+    
     return {
       config: this.config,
       logger: logger.child({ component: 'tool', tool: toolName }), // Pass toolName to child logger
-      container: this.container
+      container: this.container,
+      sessionId // Add session ID for tracking
     };
+  }
+
+  private getCurrentSessionId(): string {
+    // In a real implementation, this would track sessions per connection
+    // For now, use a single session per server instance
+    return `session_${process.pid}_${Date.now()}`;
   }
 }

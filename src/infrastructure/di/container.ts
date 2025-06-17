@@ -80,6 +80,15 @@ import {
   TaskGenealogyTool,
   UpdateTaskProgressTool
 } from '../../application/tools/task-state-management.tool.js';
+
+// Enhanced Task Management Tools
+import {
+  CreateTaskTool,
+  ListTasksTool,
+  UpdateTaskTool,
+  CompleteTaskTool,
+  TaskTemplatesTool as TaskTemplatesToolV2
+} from '../../application/tools/task-management-v2.tool.js';
 import {
   PanicStorageTool,
   MinimalHandoffTool,
@@ -162,6 +171,7 @@ container.bind<GetContextTool>(GetContextTool).to(GetContextTool).inSingletonSco
 
 container.bind<ISmartPathManager>('SmartPathManager').to(SmartPathManager).inSingletonScope();
 container.bind<IWorkspaceManager>('WorkspaceManager').to(WorkspaceManager).inSingletonScope();
+container.bind<IWorkspaceManager>('WorkspaceManagerService').to(WorkspaceManager).inSingletonScope();
 
 // Semantic services
 container.bind<IEmbeddingService>('EmbeddingService').to(EmbeddingService).inSingletonScope();
@@ -206,6 +216,13 @@ container.bind<TaskCompletionDetectionTool>(TaskCompletionDetectionTool).to(Task
 container.bind<TaskGenealogyTool>(TaskGenealogyTool).to(TaskGenealogyTool).inSingletonScope();
 container.bind<UpdateTaskProgressTool>(UpdateTaskProgressTool).to(UpdateTaskProgressTool).inSingletonScope();
 
+// Enhanced Task Management Tools (NEW)
+container.bind<CreateTaskTool>(CreateTaskTool).to(CreateTaskTool).inSingletonScope();
+container.bind<ListTasksTool>(ListTasksTool).to(ListTasksTool).inSingletonScope();
+container.bind<UpdateTaskTool>(UpdateTaskTool).to(UpdateTaskTool).inSingletonScope();
+container.bind<CompleteTaskTool>(CompleteTaskTool).to(CompleteTaskTool).inSingletonScope();
+container.bind<TaskTemplatesToolV2>(TaskTemplatesToolV2).to(TaskTemplatesToolV2).inSingletonScope();
+
 // Emergency Protocol Tools
 container.bind<PanicStorageTool>(PanicStorageTool).to(PanicStorageTool).inSingletonScope();
 container.bind<MinimalHandoffTool>(MinimalHandoffTool).to(MinimalHandoffTool).inSingletonScope();
@@ -227,6 +244,10 @@ container.bind<WorkflowTemplatesTool>(WorkflowTemplatesTool).to(WorkflowTemplate
 // Phase 7: Advanced Features Service
 container.bind<AdvancedFeaturesService>(AdvancedFeaturesService).to(AdvancedFeaturesService).inSingletonScope();
 
+// Autonomous Monitoring Service
+import { AutonomousMonitorService } from '../../application/services/autonomous-monitor.service.js';
+container.bind<AutonomousMonitorService>(AutonomousMonitorService).to(AutonomousMonitorService).inSingletonScope();
+
 // Phase 7: Advanced Features Tools
 container.bind<CompressionAlgorithmsTool>(CompressionAlgorithmsTool).to(CompressionAlgorithmsTool).inSingletonScope();
 container.bind<TokenBudgetOptimizationTool>(TokenBudgetOptimizationTool).to(TokenBudgetOptimizationTool).inSingletonScope();
@@ -239,3 +260,16 @@ container.bind<AutoSmartPathCreationTool>(AutoSmartPathCreationTool).to(AutoSmar
 // Phase 8: Integration Testing Tool
 import { IntegrationTestTool } from '../../application/tools/integration-test.tool.js';
 container.bind<IntegrationTestTool>(IntegrationTestTool).to(IntegrationTestTool).inSingletonScope();
+
+// Autonomous Control Tools
+import {
+  EnableAutonomousMonitoringTool,
+  DisableAutonomousMonitoringTool,
+  GetAutonomousStatusTool,
+  TriggerMaintenanceTool
+} from '../../application/tools/autonomous-control.tool.js';
+
+container.bind<EnableAutonomousMonitoringTool>(EnableAutonomousMonitoringTool).to(EnableAutonomousMonitoringTool).inSingletonScope();
+container.bind<DisableAutonomousMonitoringTool>(DisableAutonomousMonitoringTool).to(DisableAutonomousMonitoringTool).inSingletonScope();
+container.bind<GetAutonomousStatusTool>(GetAutonomousStatusTool).to(GetAutonomousStatusTool).inSingletonScope();
+container.bind<TriggerMaintenanceTool>(TriggerMaintenanceTool).to(TriggerMaintenanceTool).inSingletonScope();

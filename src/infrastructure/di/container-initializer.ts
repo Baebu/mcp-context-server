@@ -80,6 +80,15 @@ import {
   TaskGenealogyTool,
   UpdateTaskProgressTool
 } from '../../application/tools/task-state-management.tool.js';
+
+// Enhanced Task Management Tools
+import {
+  CreateTaskTool,
+  ListTasksTool,
+  UpdateTaskTool,
+  CompleteTaskTool,
+  TaskTemplatesTool
+} from '../../application/tools/task-management-v2.tool.js';
 import {
   PanicStorageTool,
   MinimalHandoffTool,
@@ -126,6 +135,14 @@ import {
 
 // Phase 8: Integration Testing Tool
 import { IntegrationTestTool } from '../../application/tools/integration-test.tool.js';
+
+// Autonomous Control Tools
+import {
+  EnableAutonomousMonitoringTool,
+  DisableAutonomousMonitoringTool,
+  GetAutonomousStatusTool,
+  TriggerMaintenanceTool
+} from '../../application/tools/autonomous-control.tool.js';
 
 // Removed: EnhancedStoreContextTool and EnhancedQueryContextTool imports
 
@@ -228,6 +245,13 @@ export class ContainerInitializer {
     toolRegistry.register(container.get<TaskGenealogyTool>(TaskGenealogyTool));
     toolRegistry.register(container.get<UpdateTaskProgressTool>(UpdateTaskProgressTool));
 
+    // Enhanced Task Management Tools (NEW)
+    toolRegistry.register(container.get<CreateTaskTool>(CreateTaskTool));
+    toolRegistry.register(container.get<ListTasksTool>(ListTasksTool));
+    toolRegistry.register(container.get<UpdateTaskTool>(UpdateTaskTool));
+    toolRegistry.register(container.get<CompleteTaskTool>(CompleteTaskTool));
+    toolRegistry.register(container.get<TaskTemplatesTool>(TaskTemplatesTool));
+
     // Emergency Protocol Tools
     toolRegistry.register(container.get<PanicStorageTool>(PanicStorageTool));
     toolRegistry.register(container.get<MinimalHandoffTool>(MinimalHandoffTool));
@@ -267,6 +291,12 @@ export class ContainerInitializer {
 
     // Phase 8: Integration Testing Tool
     toolRegistry.register(container.get<IntegrationTestTool>(IntegrationTestTool));
+
+    // Autonomous Control Tools
+    toolRegistry.register(container.get<EnableAutonomousMonitoringTool>(EnableAutonomousMonitoringTool));
+    toolRegistry.register(container.get<DisableAutonomousMonitoringTool>(DisableAutonomousMonitoringTool));
+    toolRegistry.register(container.get<GetAutonomousStatusTool>(GetAutonomousStatusTool));
+    toolRegistry.register(container.get<TriggerMaintenanceTool>(TriggerMaintenanceTool));
 
     toolRegistry.register(new SwitchWorkspaceTool());
     toolRegistry.register(new SyncWorkspaceTool());

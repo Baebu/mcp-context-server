@@ -31,15 +31,43 @@ export class FindActiveTasksTool implements IMCPTool {
     try {
       const cutoffTime = new Date(Date.now() - (params.maxAge! * 60 * 60 * 1000));
 
-      // Query for task-related contexts
+      // Use semantic search to find task-related contexts
+      const searchQueries = [
+        'task active current',
+        'task in progress working',
+        'task state checkpoint handoff',
+        'task todo pending'
+      ];
+
+      const allResults: any[] = [];
+
+      // Search for tasks using semantic search
+      for (const query of searchQueries) {
+        // Use queryEnhancedContext with proper options
+        const searchResults = await this.db.queryEnhancedContext({
+          keyPattern: query,
+          tags: ['task', 'task_state', 'checkpoint', 'handoff'],
+          limit: params.limit! * 2,
+          sortBy: 'updated',
+          sortOrder: 'desc'
+        });
+
+        for (const result of searchResults) {
+          const ctx = await this.db.getEnhancedContext(result.key);
+          if (ctx && ctx.updatedAt >= cutoffTime) {
+            allResults.push(ctx);
+          }
+        }
+      }
+
+      // Also query by specific patterns for better coverage
       const taskContexts = await this.db.queryEnhancedContext({
-        contextType: 'task',
+        tags: ['task', 'active'],
         sortBy: 'updated',
         sortOrder: 'desc',
-        limit: params.limit! * 2 // Get more to filter
+        limit: params.limit!
       });
 
-      // Also get checkpoints and handoff states
       const stateContexts = await this.db.queryEnhancedContext({
         keyPattern: 'checkpoint_',
         sortBy: 'updated',
@@ -54,11 +82,12 @@ export class FindActiveTasksTool implements IMCPTool {
         limit: params.limit!
       });
 
-      // Combine and analyze all contexts
-      const allContexts = [...taskContexts, ...stateContexts, ...handoffContexts];
+      // Combine all results and remove duplicates
+      const allContexts = [...allResults, ...taskContexts, ...stateContexts, ...handoffContexts];
+      const uniqueContexts = this.deduplicateContexts(allContexts);
       const activeTasks: any[] = [];
 
-      for (const ctx of allContexts) {
+      for (const ctx of uniqueContexts) {
         if (ctx.updatedAt < cutoffTime) continue;
 
         const contextValue = ctx.value as any;
@@ -69,7 +98,7 @@ export class FindActiveTasksTool implements IMCPTool {
 
         // Analyze task completion
         const taskAnalysis = TokenTracker.detectTaskCompletion(contextValue);
-        
+
         // Skip completed tasks unless requested
         if (!params.includeCompleted && taskAnalysis.isComplete) continue;
 
@@ -151,7 +180,7 @@ export class FindActiveTasksTool implements IMCPTool {
   private deduplicateAndRankTasks(tasks: any[]): any[] {
     // Group by session ID and key patterns
     const taskGroups = new Map<string, any[]>();
-    
+
     for (const task of tasks) {
       const groupKey = `${task.sessionId}_${task.type}`;
       if (!taskGroups.has(groupKey)) {
@@ -178,6 +207,19 @@ export class FindActiveTasksTool implements IMCPTool {
       }
       return b.lastUpdated.getTime() - a.lastUpdated.getTime(); // More recent first
     });
+  }
+
+  private deduplicateContexts(contexts: any[]): any[] {
+    const seen = new Map<string, any>();
+
+    for (const ctx of contexts) {
+      const key = ctx.key;
+      if (!seen.has(key) || (ctx.similarity && ctx.similarity > (seen.get(key).similarity || 0))) {
+        seen.set(key, ctx);
+      }
+    }
+
+    return Array.from(seen.values());
   }
 }
 
@@ -262,11 +304,11 @@ export class TaskCompletionDetectionTool implements IMCPTool {
 
         await this.db.storeEnhancedContext(updatedEntry);
         result.statusUpdated = true;
-        
-        context.logger.info({ 
-          contextKey: params.contextKey, 
+
+        context.logger.info({
+          contextKey: params.contextKey,
           isComplete: taskAnalysis.isComplete,
-          completionPercentage: taskAnalysis.completionPercentage 
+          completionPercentage: taskAnalysis.completionPercentage
         }, 'Task status updated');
       }
 
@@ -301,7 +343,7 @@ export class TaskCompletionDetectionTool implements IMCPTool {
       recommendations.push('Archive or clean up related contexts');
     } else {
       recommendations.push(`Task is ${Math.round(taskAnalysis.completionPercentage)}% complete`);
-      
+
       if (taskAnalysis.remainingTasks.length > 0) {
         recommendations.push('Focus on remaining tasks:');
         taskAnalysis.remainingTasks.slice(0, 3).forEach((task: string) => {
@@ -322,7 +364,7 @@ export class TaskCompletionDetectionTool implements IMCPTool {
     if (contextValue.lastOperation && contextValue.checkpointedAt) {
       const lastActivity = new Date(contextValue.checkpointedAt);
       const hoursSinceActivity = (Date.now() - lastActivity.getTime()) / (1000 * 60 * 60);
-      
+
       if (hoursSinceActivity > 24) {
         recommendations.push('Task may be stalled - review and re-prioritize');
       }
@@ -352,7 +394,7 @@ export class TaskGenealogyTool implements IMCPTool {
   async execute(params: z.infer<typeof taskGenealogySchema>, context: ToolContext): Promise<ToolResult> {
     try {
       const genealogy = await this.traceGenealogy(params.contextKey, params.depth!, new Set());
-      
+
       // Get relationships if available
       let relationships: any[] = [];
       if (params.includeRelated) {
@@ -417,7 +459,7 @@ export class TaskGenealogyTool implements IMCPTool {
 
       // Look for related contexts based on common patterns
       const relatedKeys = this.findRelatedKeys(context.value as any, contextKey);
-      
+
       for (const relatedKey of relatedKeys) {
         if (!visited.has(relatedKey)) {
           const childGenealogy = await this.traceGenealogy(relatedKey, maxDepth, visited, currentDepth + 1);
@@ -482,7 +524,7 @@ export class TaskGenealogyTool implements IMCPTool {
 
   private createContextSummary(contextValue: any): any {
     const summary: any = {};
-    
+
     const importantFields = ['name', 'title', 'objective', 'status', 'progress', 'phase', 'operation'];
     for (const field of importantFields) {
       if (contextValue[field]) {
@@ -657,10 +699,10 @@ export class UpdateTaskProgressTool implements IMCPTool {
         progressHistory: updatedValue.progressHistory
       };
 
-      context.logger.info({ 
-        contextKey: params.contextKey, 
-        progress: params.progress, 
-        status: params.status 
+      context.logger.info({
+        contextKey: params.contextKey,
+        progress: params.progress,
+        status: params.status
       }, 'Task progress updated');
 
       return {
