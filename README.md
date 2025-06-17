@@ -33,17 +33,22 @@ You (in Chat #1): "Help me refactor this React component..."
 [Work gets done, chat ends naturally]
 
 You (in Chat #47, two weeks later): "Hey, what was I working on?"
-Claude: "You were refactoring the UserProfile component. You'd gotten the props interface done and were working on the state management. Should we continue where we left off?"
+Claude: "You were refactoring the UserProfile component.
+You'd gotten the props interface done and were working on the state management.
+Should we continue where we left off?"
 ```
 
 **Scenario 2: Context-Aware File Operations**
 
 ```
 You: "Find all the TODO comments in my project"
-Claude: [Searches across your entire codebase] "Found 23 TODOs. The urgent ones are in auth.ts and database.service.ts. Want me to show you those first?"
+Claude: [Searches across your entire codebase] "Found 23 TODOs.
+The urgent ones are in auth.ts and database.service.ts.
+Want me to show you those first?"
 
 You: "Fix the auth one"
-Claude: [Opens file, understands context, makes intelligent suggestions] "I see the issue - you're missing error handling in the token validation. Here's a fix..."
+Claude: [Opens file, understands context, makes intelligent suggestions]
+"I see the issue - you're missing error handling in the token validation. Here's a fix..."
 ```
 
 **Scenario 3: Learning Your Workflow**
@@ -53,7 +58,8 @@ After a few weeks of use...
 
 Claude: "I noticed you always run tests after refactoring. Should I go ahead and run them now?"
 You: "Yes! And check the coverage while you're at it."
-Claude: [Executes tests, analyzes coverage, provides detailed report] "All green! Coverage increased by 2.3%. The new code is well-tested."
+Claude: [Executes tests, analyzes coverage, provides detailed report]
+"All green! Coverage increased by 2.3%. The new code is well-tested."
 ```
 
 ## Why This Exists (The Real Story)
