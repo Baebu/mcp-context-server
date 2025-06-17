@@ -1,1 +1,11 @@
-
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Discussions
+    url: https://github.com/Baebu/context-savvy-mcp/discussions
+    about: Ask questions and discuss ideas with the community
+  - name: 📖 Documentation
+    url: https://github.com/Baebu/context-savvy-mcp#readme
+    about: Read the documentation and setup guides
+  - name: 🆘 Support
+    url: https://github.com/Baebu/context-savvy-mcp/blob/main/SUPPORT.md
+    about: Get help with installation and usage
