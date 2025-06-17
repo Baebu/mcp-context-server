@@ -21,7 +21,7 @@
   }>;
   // Added reinitializeZones method to the interface
   reinitializeZones?(): void;
-  
+
   // Enhanced safe zone management methods
   expandSafeZoneRecursively?(safeZonePath: string): void;
   autoDiscoverSubdirectories?(safeZonePath: string): Promise<string[]>;

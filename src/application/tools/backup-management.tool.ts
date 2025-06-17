@@ -23,19 +23,21 @@ export class ListBackupsTool implements IMCPTool {
     try {
       const backupManager = new RollingBackupManager();
       const backups = await backupManager.listBackups(params.path, params.days);
-      
+
       if (backups.length === 0) {
         return {
-          content: [{
-            type: 'text',
-            text: `No backups found for ${params.path} in the last ${params.days} days.`
-          }]
+          content: [
+            {
+              type: 'text',
+              text: `No backups found for ${params.path} in the last ${params.days} days.`
+            }
+          ]
         };
       }
 
       // Format the backup list nicely
       let output = `📁 Found ${backups.length} backup${backups.length === 1 ? '' : 's'} for ${params.path}:\n\n`;
-      
+
       for (const backup of backups) {
         const sizeKB = (backup.size / 1024).toFixed(1);
         output += `🗓️  ${backup.date} ${backup.time} | ${backup.operation} | ${sizeKB}KB\n`;
@@ -43,18 +45,22 @@ export class ListBackupsTool implements IMCPTool {
       }
 
       return {
-        content: [{
-          type: 'text',
-          text: output
-        }]
+        content: [
+          {
+            type: 'text',
+            text: output
+          }
+        ]
       };
     } catch (error) {
       context.logger.error({ error, params }, 'Failed to list backups');
       return {
-        content: [{
-          type: 'text',
-          text: `Failed to list backups: ${error instanceof Error ? error.message : 'Unknown error'}`
-        }]
+        content: [
+          {
+            type: 'text',
+            text: `Failed to list backups: ${error instanceof Error ? error.message : 'Unknown error'}`
+          }
+        ]
       };
     }
   }
@@ -75,47 +81,54 @@ export class BackupStatsTool implements IMCPTool {
     try {
       const backupManager = new RollingBackupManager();
       const stats = await backupManager.getBackupStats(params.directory);
-      
+
       if (stats.totalBackups === 0) {
         return {
-          content: [{
-            type: 'text',
-            text: `📊 No backups found in ${params.directory}\n\nTo create backups, edit files using edit_file or batch_edit_file tools with createBackup: true (default).`
-          }]
+          content: [
+            {
+              type: 'text',
+              text: `📊 No backups found in ${params.directory}\n\nTo create backups, edit files using edit_file or batch_edit_file tools with createBackup: true (default).`
+            }
+          ]
         };
       }
 
       const totalSizeMB = (stats.totalSize / 1024 / 1024).toFixed(2);
-      
+
       let output = `📊 Backup Statistics for ${params.directory}:\n\n`;
       output += `📈 Total Backups: ${stats.totalBackups}\n`;
       output += `💾 Total Size: ${totalSizeMB} MB\n`;
       output += `📅 Date Range: ${stats.oldestBackup} to ${stats.newestBackup}\n\n`;
-      
+
       output += `📋 Daily Breakdown:\n`;
       const sortedDates = Object.keys(stats.dailyBreakdown).sort().reverse();
-      for (const date of sortedDates.slice(0, 10)) { // Show recent 10 days
+      for (const date of sortedDates.slice(0, 10)) {
+        // Show recent 10 days
         const count = stats.dailyBreakdown[date];
         output += `   ${date}: ${count} backup${count === 1 ? '' : 's'}\n`;
       }
-      
+
       if (sortedDates.length > 10) {
         output += `   ... and ${sortedDates.length - 10} more days\n`;
       }
 
       return {
-        content: [{
-          type: 'text',
-          text: output
-        }]
+        content: [
+          {
+            type: 'text',
+            text: output
+          }
+        ]
       };
     } catch (error) {
       context.logger.error({ error, params }, 'Failed to get backup stats');
       return {
-        content: [{
-          type: 'text',
-          text: `Failed to get backup stats: ${error instanceof Error ? error.message : 'Unknown error'}`
-        }]
+        content: [
+          {
+            type: 'text',
+            text: `Failed to get backup stats: ${error instanceof Error ? error.message : 'Unknown error'}`
+          }
+        ]
       };
     }
   }
@@ -137,7 +150,7 @@ export class RestoreBackupTool implements IMCPTool {
   async execute(params: z.infer<typeof restoreBackupSchema>, context: ToolContext): Promise<ToolResult> {
     try {
       const filesystem = context.container.get<any>('FilesystemHandler');
-      
+
       // Validate backup file exists
       try {
         await filesystem.readFileWithTruncation(params.backupPath, 1);
@@ -150,13 +163,13 @@ export class RestoreBackupTool implements IMCPTool {
         try {
           const currentContent = await filesystem.readFileWithTruncation(params.originalPath);
           const backupManager = new RollingBackupManager();
-          
+
           const backupPath = await backupManager.createRollingBackup(
             params.originalPath,
             currentContent.content,
             'pre-restore'
           );
-          
+
           const relativePath = path.relative(process.cwd(), backupPath);
           context.logger.info(`Current file backed up before restore: ${relativePath}`);
         } catch {
@@ -172,18 +185,22 @@ export class RestoreBackupTool implements IMCPTool {
       const relativeBackup = path.relative(process.cwd(), params.backupPath);
 
       return {
-        content: [{
-          type: 'text',
-          text: `✅ Successfully restored ${relativeOriginal} from backup:\n📄 ${relativeBackup}\n\n${params.createBackup ? '💾 Current file was backed up before restore.' : ''}`
-        }]
+        content: [
+          {
+            type: 'text',
+            text: `✅ Successfully restored ${relativeOriginal} from backup:\n📄 ${relativeBackup}\n\n${params.createBackup ? '💾 Current file was backed up before restore.' : ''}`
+          }
+        ]
       };
     } catch (error) {
       context.logger.error({ error, params }, 'Failed to restore backup');
       return {
-        content: [{
-          type: 'text',
-          text: `Failed to restore backup: ${error instanceof Error ? error.message : 'Unknown error'}`
-        }]
+        content: [
+          {
+            type: 'text',
+            text: `Failed to restore backup: ${error instanceof Error ? error.message : 'Unknown error'}`
+          }
+        ]
       };
     }
   }
@@ -204,40 +221,44 @@ export class ViewBackupTool implements IMCPTool {
   async execute(params: z.infer<typeof viewBackupSchema>, context: ToolContext): Promise<ToolResult> {
     try {
       const filesystem = context.container.get<any>('FilesystemHandler');
-      
+
       // Read backup file
       const backupContent = await filesystem.readFileWithTruncation(params.backupPath, 1048576); // 1MB limit
       const lines = backupContent.content.split('\n');
-      
+
       let output = `📄 Backup File: ${path.relative(process.cwd(), params.backupPath)}\n`;
       output += `📊 Size: ${(backupContent.actualSize / 1024).toFixed(1)} KB | Lines: ${lines.length}\n`;
       output += `${backupContent.truncated ? '⚠️  Content truncated\n' : ''}\n`;
       output += `${'='.repeat(60)}\n`;
-      
+
       // Show first N lines
       const displayLines = lines.slice(0, params.maxLines);
       for (let i = 0; i < displayLines.length; i++) {
         output += `${(i + 1).toString().padStart(4, ' ')}: ${displayLines[i]}\n`;
       }
-      
+
       if (lines.length > params.maxLines) {
         output += `\n... and ${lines.length - params.maxLines} more lines\n`;
         output += `Use maxLines parameter to see more content.`;
       }
 
       return {
-        content: [{
-          type: 'text',
-          text: output
-        }]
+        content: [
+          {
+            type: 'text',
+            text: output
+          }
+        ]
       };
     } catch (error) {
       context.logger.error({ error, params }, 'Failed to view backup');
       return {
-        content: [{
-          type: 'text',
-          text: `Failed to view backup: ${error instanceof Error ? error.message : 'Unknown error'}`
-        }]
+        content: [
+          {
+            type: 'text',
+            text: `Failed to view backup: ${error instanceof Error ? error.message : 'Unknown error'}`
+          }
+        ]
       };
     }
   }
@@ -267,13 +288,15 @@ export class CleanupBackupsTool implements IMCPTool {
       if (params.dryRun) {
         // For dry run, we'll just show what the current policy would do
         const stats = await backupManager.getBackupStats(params.directory);
-        
+
         if (stats.totalBackups === 0) {
           return {
-            content: [{
-              type: 'text',
-              text: `🧹 No backups found to clean up in ${params.directory}`
-            }]
+            content: [
+              {
+                type: 'text',
+                text: `🧹 No backups found to clean up in ${params.directory}`
+              }
+            ]
           };
         }
 
@@ -282,39 +305,45 @@ export class CleanupBackupsTool implements IMCPTool {
         output += `   • Total backups: ${stats.totalBackups}\n`;
         output += `   • Total size: ${(stats.totalSize / 1024 / 1024).toFixed(2)} MB\n`;
         output += `   • Date range: ${stats.oldestBackup} to ${stats.newestBackup}\n\n`;
-        
+
         output += `📋 Retention Policy:\n`;
         output += `   • Keep last 14 days\n`;
         output += `   • Max 15 backups per day\n\n`;
-        
+
         output += `⚙️  Automatic cleanup runs after each backup operation.\n`;
         output += `🔄 To force manual cleanup, run with dryRun: false`;
 
         return {
-          content: [{
-            type: 'text',
-            text: output
-          }]
+          content: [
+            {
+              type: 'text',
+              text: output
+            }
+          ]
         };
       }
 
       // Note: The actual cleanup happens automatically in the background
       // This is just to trigger maintenance manually if needed
       const stats = await backupManager.getBackupStats(params.directory);
-      
+
       return {
-        content: [{
-          type: 'text',
-          text: `✅ Backup cleanup completed for ${params.directory}\n\n📊 Current Status:\n• Total backups: ${stats.totalBackups}\n• Total size: ${(stats.totalSize / 1024 / 1024).toFixed(2)} MB\n\n🔄 Automatic cleanup maintains retention policy:\n• Keep last 14 days\n• Max 15 backups per day`
-        }]
+        content: [
+          {
+            type: 'text',
+            text: `✅ Backup cleanup completed for ${params.directory}\n\n📊 Current Status:\n• Total backups: ${stats.totalBackups}\n• Total size: ${(stats.totalSize / 1024 / 1024).toFixed(2)} MB\n\n🔄 Automatic cleanup maintains retention policy:\n• Keep last 14 days\n• Max 15 backups per day`
+          }
+        ]
       };
     } catch (error) {
       context.logger.error({ error, params }, 'Failed to cleanup backups');
       return {
-        content: [{
-          type: 'text',
-          text: `Failed to cleanup backups: ${error instanceof Error ? error.message : 'Unknown error'}`
-        }]
+        content: [
+          {
+            type: 'text',
+            text: `Failed to cleanup backups: ${error instanceof Error ? error.message : 'Unknown error'}`
+          }
+        ]
       };
     }
   }

@@ -14,7 +14,11 @@ const panicStorageSchema = z.object({
   sessionId: z.string().describe('Session ID for emergency storage'),
   currentState: z.record(z.unknown()).describe('Current state to store in emergency'),
   reason: z.string().describe('Reason for panic storage (error, timeout, etc.)'),
-  priority: z.enum(['low', 'medium', 'high', 'critical']).optional().default('high').describe('Priority level of emergency'),
+  priority: z
+    .enum(['low', 'medium', 'high', 'critical'])
+    .optional()
+    .default('high')
+    .describe('Priority level of emergency'),
   includeHistory: z.boolean().optional().default(true).describe('Include recent operation history'),
   compress: z.boolean().optional().default(true).describe('Compress data to save space')
 });
@@ -64,10 +68,10 @@ export class PanicStorageTool implements IMCPTool {
           panic_timestamp: timestamp,
           reason: params.reason,
           priority: params.priority,
-          
+
           // Critical state information
           current_state: finalState,
-          
+
           // Recovery information
           recovery_info: {
             panic_key: panicKey,
@@ -76,7 +80,7 @@ export class PanicStorageTool implements IMCPTool {
             token_estimate: TokenTracker.estimateTokens(finalState),
             emergency_level: params.priority
           },
-          
+
           // Recent activity for context
           recent_operations: recentUsage.map(usage => ({
             operation: usage.operation,
@@ -84,7 +88,7 @@ export class PanicStorageTool implements IMCPTool {
             timestamp: usage.timestamp,
             context_key: usage.contextKey
           })),
-          
+
           // Recovery instructions
           recovery_instructions: [
             'Use recover_from_panic tool to restore state',
@@ -92,7 +96,7 @@ export class PanicStorageTool implements IMCPTool {
             'Review recent_operations for context',
             'Validate current_state before continuing'
           ],
-          
+
           // Metadata
           created_by: 'emergency_protocol',
           requires_manual_review: params.priority === 'critical'
@@ -124,13 +128,16 @@ export class PanicStorageTool implements IMCPTool {
       }
 
       // Log the emergency
-      logger.error({
-        panicKey,
-        sessionId: params.sessionId,
-        reason: params.reason,
-        priority: params.priority,
-        stateSize: JSON.stringify(finalState).length
-      }, 'PANIC STORAGE ACTIVATED - Emergency state saved');
+      logger.error(
+        {
+          panicKey,
+          sessionId: params.sessionId,
+          reason: params.reason,
+          priority: params.priority,
+          stateSize: JSON.stringify(finalState).length
+        },
+        'PANIC STORAGE ACTIVATED - Emergency state saved'
+      );
 
       const result = {
         success: true,
@@ -159,8 +166,11 @@ export class PanicStorageTool implements IMCPTool {
       };
     } catch (error) {
       // Even panic storage failed - this is really bad
-      logger.fatal({ error, sessionId: params.sessionId, reason: params.reason }, 'PANIC STORAGE FAILED - CRITICAL SYSTEM ERROR');
-      
+      logger.fatal(
+        { error, sessionId: params.sessionId, reason: params.reason },
+        'PANIC STORAGE FAILED - CRITICAL SYSTEM ERROR'
+      );
+
       return {
         content: [
           {
@@ -187,9 +197,7 @@ export class MinimalHandoffTool implements IMCPTool {
   description = 'Create minimal handoff when normal checkpointing fails - preserves only critical data';
   schema = minimalHandoffSchema;
 
-  constructor(
-    @inject('DatabaseHandler') private db: IDatabaseHandler
-  ) {}
+  constructor(@inject('DatabaseHandler') private db: IDatabaseHandler) {}
 
   async execute(params: z.infer<typeof minimalHandoffSchema>, _context: ToolContext): Promise<ToolResult> {
     try {
@@ -201,12 +209,12 @@ export class MinimalHandoffTool implements IMCPTool {
         type: 'minimal_handoff',
         session_id: params.sessionId,
         timestamp,
-        
+
         // Only essential data - heavily compressed
         essential_data: TokenTracker.compressContextValue(params.essentialData, 1000),
         next_action: params.nextAction,
         error_context: params.errorContext,
-        
+
         // Minimal recovery info
         recovery: {
           key: handoffKey,
@@ -214,7 +222,7 @@ export class MinimalHandoffTool implements IMCPTool {
           type: 'minimal',
           critical: true
         },
-        
+
         // Simple instructions
         instructions: [
           'This is a minimal handoff - some data may be lost',
@@ -238,12 +246,15 @@ export class MinimalHandoffTool implements IMCPTool {
 
         stmt.run(handoffKey, valueJson, 'emergency', 'minimal_handoff', tokenCount);
 
-        logger.warn({
-          handoffKey,
-          sessionId: params.sessionId,
-          nextAction: params.nextAction,
-          dataSize: valueJson.length
-        }, 'MINIMAL HANDOFF CREATED - Data preservation attempted');
+        logger.warn(
+          {
+            handoffKey,
+            sessionId: params.sessionId,
+            nextAction: params.nextAction,
+            dataSize: valueJson.length
+          },
+          'MINIMAL HANDOFF CREATED - Data preservation attempted'
+        );
 
         const result = {
           success: true,
@@ -270,7 +281,7 @@ export class MinimalHandoffTool implements IMCPTool {
       }
     } catch (error) {
       logger.fatal({ error, sessionId: params.sessionId }, 'MINIMAL HANDOFF FAILED - COMPLETE SYSTEM FAILURE');
-      
+
       // Last resort - return the essential data in response
       return {
         content: [
@@ -304,9 +315,7 @@ export class RecoverFromPanicTool implements IMCPTool {
   description = 'Recover state from panic storage or minimal handoff';
   schema = recoverFromPanicSchema;
 
-  constructor(
-    @inject('DatabaseHandler') private db: IDatabaseHandler
-  ) {}
+  constructor(@inject('DatabaseHandler') private db: IDatabaseHandler) {}
 
   async execute(params: z.infer<typeof recoverFromPanicSchema>, context: ToolContext): Promise<ToolResult> {
     try {
@@ -317,8 +326,8 @@ export class RecoverFromPanicTool implements IMCPTool {
         panicEntry = await this.db.getEnhancedContext(params.panicKey);
       } else if (params.sessionId) {
         // Find latest panic entry for session
-        const maxAge = new Date(Date.now() - (params.maxAge! * 60 * 60 * 1000));
-        
+        const maxAge = new Date(Date.now() - params.maxAge! * 60 * 60 * 1000);
+
         const panicEntries = await this.db.queryEnhancedContext({
           contextType: 'panic_storage',
           keyPattern: params.sessionId,
@@ -383,29 +392,32 @@ export class RecoverFromPanicTool implements IMCPTool {
         panicReason: panicValue.reason || 'unknown',
         panicTimestamp: panicValue.panic_timestamp || panicValue.timestamp,
         recoveredAt: new Date().toISOString(),
-        
+
         // Recovered data
         recoveredState,
-        
+
         // Metadata
         dataIntegrity: validationResults?.integrity || 'not_validated',
         compressed: panicValue.recovery_info?.compressed || false,
         tokenEstimate: TokenTracker.estimateTokens(recoveredState),
-        
+
         // Next steps
         recommendations: this.generateRecoveryRecommendations(panicValue, validationResults),
-        
+
         // Original recovery instructions
         originalInstructions: panicValue.recovery_instructions || panicValue.instructions || []
       };
 
       // Log successful recovery
-      logger.info({
-        panicKey: panicEntry.key,
-        sessionId: recoveryInfo.originalSession,
-        recoveryType: recoveryInfo.recoveryType,
-        ageHours: Math.round((Date.now() - panicEntry.updatedAt.getTime()) / (1000 * 60 * 60))
-      }, 'Emergency state recovered successfully');
+      logger.info(
+        {
+          panicKey: panicEntry.key,
+          sessionId: recoveryInfo.originalSession,
+          recoveryType: recoveryInfo.recoveryType,
+          ageHours: Math.round((Date.now() - panicEntry.updatedAt.getTime()) / (1000 * 60 * 60))
+        },
+        'Emergency state recovered successfully'
+      );
 
       return {
         content: [
@@ -448,7 +460,7 @@ export class RecoverFromPanicTool implements IMCPTool {
     // Analyze data types
     for (const [key, value] of Object.entries(state)) {
       validation.dataTypes[key] = typeof value;
-      
+
       // Check for potential corruption indicators
       if (typeof value === 'string' && value.includes('[TRUNCATED]')) {
         validation.issues.push(`${key} appears to be truncated`);
@@ -461,7 +473,8 @@ export class RecoverFromPanicTool implements IMCPTool {
     }
 
     // Size validation
-    if (validation.size > 100000) { // 100KB
+    if (validation.size > 100000) {
+      // 100KB
       validation.issues.push('Recovered state is very large - may impact performance');
     }
 
@@ -495,7 +508,7 @@ export class RecoverFromPanicTool implements IMCPTool {
     if (panicValue.panic_timestamp || panicValue.timestamp) {
       const panicTime = new Date(panicValue.panic_timestamp || panicValue.timestamp);
       const ageHours = (Date.now() - panicTime.getTime()) / (1000 * 60 * 60);
-      
+
       if (ageHours > 24) {
         recommendations.push('Panic state is over 24 hours old - verify current relevance');
       }
@@ -504,7 +517,7 @@ export class RecoverFromPanicTool implements IMCPTool {
     // General recommendations
     recommendations.push('Create new checkpoint after validating recovered state');
     recommendations.push('Review recent operations to understand what went wrong');
-    
+
     if (panicValue.next_action) {
       recommendations.push(`Execute planned next action: ${panicValue.next_action}`);
     }
@@ -517,7 +530,11 @@ export class RecoverFromPanicTool implements IMCPTool {
 const backupRedundancySchema = z.object({
   sessionId: z.string().describe('Session ID to create redundant backups for'),
   currentState: z.record(z.unknown()).describe('Current state to backup'),
-  redundancyLevel: z.enum(['basic', 'enhanced', 'maximum']).optional().default('enhanced').describe('Level of redundancy'),
+  redundancyLevel: z
+    .enum(['basic', 'enhanced', 'maximum'])
+    .optional()
+    .default('enhanced')
+    .describe('Level of redundancy'),
   includeHistory: z.boolean().optional().default(true).describe('Include operation history in backups')
 });
 
@@ -554,7 +571,7 @@ export class BackupRedundancyTool implements IMCPTool {
       for (const variant of backupVariants) {
         try {
           const backupKey = `${baseKey}_${variant.suffix}`;
-          
+
           // Apply variant-specific compression
           let processedState = params.currentState;
           if (variant.compression) {
@@ -569,11 +586,11 @@ export class BackupRedundancyTool implements IMCPTool {
               session_id: params.sessionId,
               backup_timestamp: timestamp,
               redundancy_level: params.redundancyLevel,
-              
+
               // State data
               current_state: processedState,
               operation_history: variant.includeHistory ? operationHistory : [],
-              
+
               // Backup metadata
               backup_info: {
                 compression_level: variant.compression?.compressionLevel || 'none',
@@ -582,7 +599,7 @@ export class BackupRedundancyTool implements IMCPTool {
                 compressed_size: JSON.stringify(processedState).length,
                 redundancy_group: baseKey
               },
-              
+
               // Recovery instructions
               recovery_instructions: [
                 `This is a ${variant.name} backup variant`,
@@ -620,7 +637,6 @@ export class BackupRedundancyTool implements IMCPTool {
             size: JSON.stringify(processedState).length,
             tokenCount: TokenTracker.estimateTokens(processedState)
           });
-
         } catch (error) {
           logger.error({ error, variant: variant.name }, 'Failed to create backup variant');
         }
@@ -670,12 +686,15 @@ export class BackupRedundancyTool implements IMCPTool {
         ]
       };
 
-      logger.info({
-        sessionId: params.sessionId,
-        backupCount: backups.length,
-        redundancyLevel: params.redundancyLevel,
-        masterIndexKey: indexKey
-      }, 'Redundant backups created successfully');
+      logger.info(
+        {
+          sessionId: params.sessionId,
+          backupCount: backups.length,
+          redundancyLevel: params.redundancyLevel,
+          masterIndexKey: indexKey
+        },
+        'Redundant backups created successfully'
+      );
 
       return {
         content: [

@@ -10,14 +10,18 @@ import type { BatchOperation, CascadeStorageOptions } from '../services/intellig
 
 // Schema for BatchContextOperationsTool
 const batchContextOpsSchema = z.object({
-  operations: z.array(z.object({
-    type: z.enum(['store', 'retrieve', 'update', 'relate', 'query']),
-    key: z.string().optional(),
-    data: z.unknown().optional(),
-    priority: z.number().optional().default(1),
-    dependencies: z.array(z.string()).optional(),
-    metadata: z.record(z.unknown()).optional()
-  })).describe('Array of context operations to execute in batch'),
+  operations: z
+    .array(
+      z.object({
+        type: z.enum(['store', 'retrieve', 'update', 'relate', 'query']),
+        key: z.string().optional(),
+        data: z.unknown().optional(),
+        priority: z.number().optional().default(1),
+        dependencies: z.array(z.string()).optional(),
+        metadata: z.record(z.unknown()).optional()
+      })
+    )
+    .describe('Array of context operations to execute in batch'),
   optimize: z.boolean().optional().default(true).describe('Apply intelligent optimizations to batch execution'),
   rollbackOnError: z.boolean().optional().default(true).describe('Rollback completed operations if any fail')
 });
@@ -28,9 +32,7 @@ export class BatchContextOperationsTool implements IMCPTool {
   description = 'Execute multiple context operations efficiently in a single optimized batch';
   schema = batchContextOpsSchema;
 
-  constructor(
-    @inject(IntelligentBatchingService) private batchingService: IntelligentBatchingService
-  ) {}
+  constructor(@inject(IntelligentBatchingService) private batchingService: IntelligentBatchingService) {}
 
   async execute(params: z.infer<typeof batchContextOpsSchema>, context: ToolContext): Promise<ToolResult> {
     try {
@@ -72,15 +74,21 @@ export class BatchContextOperationsTool implements IMCPTool {
       };
 
       if (result.failed > 0) {
-        context.logger.warn({ 
-          failed: result.failed, 
-          successful: result.successful 
-        }, 'Batch execution completed with some failures');
+        context.logger.warn(
+          {
+            failed: result.failed,
+            successful: result.successful
+          },
+          'Batch execution completed with some failures'
+        );
       } else {
-        context.logger.info({ 
-          operations: result.totalOperations, 
-          executionTime: result.executionTime 
-        }, 'Batch execution completed successfully');
+        context.logger.info(
+          {
+            operations: result.totalOperations,
+            executionTime: result.executionTime
+          },
+          'Batch execution completed successfully'
+        );
       }
 
       return {
@@ -119,9 +127,7 @@ export class WorkflowExecutorTool implements IMCPTool {
   description = 'Execute predefined workflows with parameter substitution and rollback capabilities';
   schema = workflowExecutorSchema;
 
-  constructor(
-    @inject(IntelligentBatchingService) private batchingService: IntelligentBatchingService
-  ) {}
+  constructor(@inject(IntelligentBatchingService) private batchingService: IntelligentBatchingService) {}
 
   async execute(params: z.infer<typeof workflowExecutorSchema>, context: ToolContext): Promise<ToolResult> {
     try {
@@ -129,7 +135,10 @@ export class WorkflowExecutorTool implements IMCPTool {
       if (params.createCheckpoint) {
         const checkpointKey = `workflow_checkpoint_${params.workflowId}_${Date.now()}`;
         // Note: Would need access to current state for full checkpoint
-        context.logger.info({ checkpointKey, workflowId: params.workflowId }, 'Checkpoint created before workflow execution');
+        context.logger.info(
+          { checkpointKey, workflowId: params.workflowId },
+          'Checkpoint created before workflow execution'
+        );
       }
 
       const result = await this.batchingService.executeWorkflow(params.workflowId, params.parameters);
@@ -159,12 +168,15 @@ export class WorkflowExecutorTool implements IMCPTool {
         }
       };
 
-      context.logger.info({ 
-        workflowId: params.workflowId, 
-        successful: result.successful,
-        failed: result.failed,
-        executionTime: result.executionTime
-      }, 'Workflow execution completed');
+      context.logger.info(
+        {
+          workflowId: params.workflowId,
+          successful: result.successful,
+          failed: result.failed,
+          executionTime: result.executionTime
+        },
+        'Workflow execution completed'
+      );
 
       return {
         content: [
@@ -191,14 +203,26 @@ export class WorkflowExecutorTool implements IMCPTool {
 // Schema for CascadeStorageTool
 const cascadeStorageSchema = z.object({
   sourceKey: z.string().describe('Primary context key for cascade storage'),
-  relatedData: z.array(z.object({
-    key: z.string(),
-    data: z.unknown(),
-    relationship: z.string(),
-    strength: z.number().optional().default(1.0)
-  })).describe('Array of related data to store with relationships'),
-  compression: z.enum(['none', 'light', 'medium', 'aggressive']).optional().default('none').describe('Compression level for related data'),
-  createRelationships: z.boolean().optional().default(true).describe('Automatically create relationships between stored contexts'),
+  relatedData: z
+    .array(
+      z.object({
+        key: z.string(),
+        data: z.unknown(),
+        relationship: z.string(),
+        strength: z.number().optional().default(1.0)
+      })
+    )
+    .describe('Array of related data to store with relationships'),
+  compression: z
+    .enum(['none', 'light', 'medium', 'aggressive'])
+    .optional()
+    .default('none')
+    .describe('Compression level for related data'),
+  createRelationships: z
+    .boolean()
+    .optional()
+    .default(true)
+    .describe('Automatically create relationships between stored contexts'),
   validate: z.boolean().optional().default(true).describe('Validate data before storage')
 });
 
@@ -208,9 +232,7 @@ export class CascadeStorageTool implements IMCPTool {
   description = 'Store multiple related contexts in a cascade with automatic relationship creation';
   schema = cascadeStorageSchema;
 
-  constructor(
-    @inject(IntelligentBatchingService) private batchingService: IntelligentBatchingService
-  ) {}
+  constructor(@inject(IntelligentBatchingService) private batchingService: IntelligentBatchingService) {}
 
   async execute(params: z.infer<typeof cascadeStorageSchema>, context: ToolContext): Promise<ToolResult> {
     try {
@@ -255,12 +277,15 @@ export class CascadeStorageTool implements IMCPTool {
         ]
       };
 
-      context.logger.info({ 
-        sourceKey: params.sourceKey, 
-        relatedCount: params.relatedData.length,
-        compression: params.compression,
-        relationshipsCreated: params.createRelationships
-      }, 'Cascade storage completed');
+      context.logger.info(
+        {
+          sourceKey: params.sourceKey,
+          relatedCount: params.relatedData.length,
+          compression: params.compression,
+          relationshipsCreated: params.createRelationships
+        },
+        'Cascade storage completed'
+      );
 
       return {
         content: [
@@ -286,13 +311,17 @@ export class CascadeStorageTool implements IMCPTool {
 
 // Schema for BulkRelationshipsTool
 const bulkRelationshipsSchema = z.object({
-  relationships: z.array(z.object({
-    sourceKey: z.string(),
-    targetKey: z.string(),
-    relationshipType: z.string(),
-    strength: z.number().optional().default(1.0),
-    metadata: z.record(z.unknown()).optional()
-  })).describe('Array of relationships to create'),
+  relationships: z
+    .array(
+      z.object({
+        sourceKey: z.string(),
+        targetKey: z.string(),
+        relationshipType: z.string(),
+        strength: z.number().optional().default(1.0),
+        metadata: z.record(z.unknown()).optional()
+      })
+    )
+    .describe('Array of relationships to create'),
   validateKeys: z.boolean().optional().default(true).describe('Validate that source and target keys exist'),
   skipExisting: z.boolean().optional().default(true).describe('Skip relationships that already exist'),
   createMissing: z.boolean().optional().default(false).describe('Create placeholder contexts for missing keys')
@@ -304,9 +333,7 @@ export class BulkRelationshipsTool implements IMCPTool {
   description = 'Create multiple context relationships efficiently with validation and conflict resolution';
   schema = bulkRelationshipsSchema;
 
-  constructor(
-    @inject(IntelligentBatchingService) private batchingService: IntelligentBatchingService
-  ) {}
+  constructor(@inject(IntelligentBatchingService) private batchingService: IntelligentBatchingService) {}
 
   async execute(params: z.infer<typeof bulkRelationshipsSchema>, context: ToolContext): Promise<ToolResult> {
     try {
@@ -333,16 +360,22 @@ export class BulkRelationshipsTool implements IMCPTool {
       };
 
       if (result.failed > 0) {
-        context.logger.warn({ 
-          created: result.created, 
-          failed: result.failed,
-          errors: result.errors.slice(0, 3) // Log first 3 errors
-        }, 'Bulk relationship creation completed with some failures');
+        context.logger.warn(
+          {
+            created: result.created,
+            failed: result.failed,
+            errors: result.errors.slice(0, 3) // Log first 3 errors
+          },
+          'Bulk relationship creation completed with some failures'
+        );
       } else {
-        context.logger.info({ 
-          created: result.created, 
-          relationshipTypes: response.relationshipTypes.length 
-        }, 'Bulk relationship creation completed successfully');
+        context.logger.info(
+          {
+            created: result.created,
+            relationshipTypes: response.relationshipTypes.length
+          },
+          'Bulk relationship creation completed successfully'
+        );
       }
 
       return {
@@ -354,7 +387,10 @@ export class BulkRelationshipsTool implements IMCPTool {
         ]
       };
     } catch (error) {
-      context.logger.error({ error, relationshipCount: params.relationships.length }, 'Failed to create bulk relationships');
+      context.logger.error(
+        { error, relationshipCount: params.relationships.length },
+        'Failed to create bulk relationships'
+      );
       return {
         content: [
           {
@@ -368,7 +404,7 @@ export class BulkRelationshipsTool implements IMCPTool {
 
   private analyzeRelationshipTypes(relationships: any[]): Array<{ type: string; count: number }> {
     const typeCount = new Map<string, number>();
-    
+
     relationships.forEach(rel => {
       const count = typeCount.get(rel.relationshipType) || 0;
       typeCount.set(rel.relationshipType, count + 1);
@@ -383,7 +419,11 @@ export class BulkRelationshipsTool implements IMCPTool {
 // Schema for BatchingStatsTool
 const batchingStatsSchema = z.object({
   includeHistory: z.boolean().optional().default(false).describe('Include execution history in results'),
-  period: z.enum(['all', 'last_hour', 'last_day', 'last_week']).optional().default('all').describe('Time period for statistics')
+  period: z
+    .enum(['all', 'last_hour', 'last_day', 'last_week'])
+    .optional()
+    .default('all')
+    .describe('Time period for statistics')
 });
 
 @injectable()
@@ -392,9 +432,7 @@ export class BatchingStatsTool implements IMCPTool {
   description = 'Get statistics and performance metrics for intelligent batching operations';
   schema = batchingStatsSchema;
 
-  constructor(
-    @inject(IntelligentBatchingService) private batchingService: IntelligentBatchingService
-  ) {}
+  constructor(@inject(IntelligentBatchingService) private batchingService: IntelligentBatchingService) {}
 
   async execute(params: z.infer<typeof batchingStatsSchema>, context: ToolContext): Promise<ToolResult> {
     try {

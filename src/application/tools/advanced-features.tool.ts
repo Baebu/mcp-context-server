@@ -5,14 +5,23 @@ import { injectable, inject } from 'inversify';
 import { z } from 'zod';
 import type { IMCPTool, ToolContext, ToolResult } from '../../core/interfaces/tool-registry.interface.js';
 import { AdvancedFeaturesService } from '../services/advanced-features.service.js';
-import type { CompressionOptions, TokenBudgetOptions, DeduplicationOptions, ArchivalOptions, AdaptiveWorkflowOptions, SmartPathGenerationOptions } from '../services/advanced-features.service.js';
-
+import type {
+  CompressionOptions,
+  TokenBudgetOptions,
+  DeduplicationOptions,
+  ArchivalOptions,
+  AdaptiveWorkflowOptions,
+  SmartPathGenerationOptions
+} from '../services/advanced-features.service.js';
 
 // ===== COMPRESSION & OPTIMIZATION TOOLS =====
 
 // Schema for CompressionAlgorithmsTool
 const compressionAlgorithmsSchema = z.object({
-  algorithm: z.enum(['lz4', 'gzip', 'brotli', 'semantic', 'hybrid']).default('hybrid').describe('Compression algorithm to use'),
+  algorithm: z
+    .enum(['lz4', 'gzip', 'brotli', 'semantic', 'hybrid'])
+    .default('hybrid')
+    .describe('Compression algorithm to use'),
   compressionLevel: z.number().min(1).max(9).optional().default(6).describe('Compression level (1-9)'),
   minSize: z.number().optional().default(1000).describe('Minimum size in bytes to compress'),
   preserveStructure: z.boolean().optional().default(true).describe('Preserve data structure during compression'),
@@ -25,9 +34,7 @@ export class CompressionAlgorithmsTool implements IMCPTool {
   description = 'Apply advanced compression algorithms to optimize context storage';
   schema = compressionAlgorithmsSchema;
 
-  constructor(
-    @inject(AdvancedFeaturesService) private advancedFeaturesService: AdvancedFeaturesService
-  ) {}
+  constructor(@inject(AdvancedFeaturesService) private advancedFeaturesService: AdvancedFeaturesService) {}
 
   async execute(params: z.infer<typeof compressionAlgorithmsSchema>, context: ToolContext): Promise<ToolResult> {
     try {
@@ -58,8 +65,8 @@ export class CompressionAlgorithmsTool implements IMCPTool {
           compressionEffectiveness: this.analyzeCompressionEffectiveness(result),
           algorithmPerformance: this.analyzeAlgorithmPerformance(result, params.algorithm),
           qualityMetrics: {
-            successRate: result.compressedCount / Math.max(result.processedCount, 1) * 100,
-            errorRate: result.errors.length / Math.max(result.processedCount, 1) * 100,
+            successRate: (result.compressedCount / Math.max(result.processedCount, 1)) * 100,
+            errorRate: (result.errors.length / Math.max(result.processedCount, 1)) * 100,
             averageSavings: result.compressedCount > 0 ? result.totalSavings / result.compressedCount : 0
           }
         },
@@ -68,13 +75,16 @@ export class CompressionAlgorithmsTool implements IMCPTool {
         errors: result.errors.slice(0, 5) // Limit error display
       };
 
-      context.logger.info({
-        algorithm: params.algorithm,
-        processedCount: result.processedCount,
-        compressedCount: result.compressedCount,
-        compressionRatio: result.compressionRatio,
-        totalSavings: result.totalSavings
-      }, 'Compression algorithms completed');
+      context.logger.info(
+        {
+          algorithm: params.algorithm,
+          processedCount: result.processedCount,
+          compressedCount: result.compressedCount,
+          compressionRatio: result.compressionRatio,
+          totalSavings: result.totalSavings
+        },
+        'Compression algorithms completed'
+      );
 
       return {
         content: [
@@ -105,13 +115,16 @@ export class CompressionAlgorithmsTool implements IMCPTool {
     return 'limited';
   }
 
-  private analyzeAlgorithmPerformance(result: any, algorithm: string): {
+  private analyzeAlgorithmPerformance(
+    result: any,
+    algorithm: string
+  ): {
     speed: string;
     ratio: string;
     suitability: string;
   } {
     const timePerItem = result.summary.timeElapsed / Math.max(result.processedCount, 1);
-    
+
     return {
       speed: timePerItem < 10 ? 'fast' : timePerItem < 50 ? 'moderate' : 'slow',
       ratio: result.compressionRatio < 0.5 ? 'excellent' : result.compressionRatio < 0.7 ? 'good' : 'fair',
@@ -134,11 +147,14 @@ export class CompressionAlgorithmsTool implements IMCPTool {
       recommendations.push('Semantic compression underperforming - may be better suited for structured data');
     }
 
-    if (result.totalSavings > 1000000) { // 1MB
+    if (result.totalSavings > 1000000) {
+      // 1MB
       recommendations.push('Significant storage savings achieved - consider regular compression maintenance');
     }
 
-    recommendations.push(`Processed ${result.processedCount} contexts with ${Math.round((1 - result.compressionRatio) * 100)}% storage reduction`);
+    recommendations.push(
+      `Processed ${result.processedCount} contexts with ${Math.round((1 - result.compressionRatio) * 100)}% storage reduction`
+    );
 
     return recommendations;
   }
@@ -169,14 +185,23 @@ export class CompressionAlgorithmsTool implements IMCPTool {
 const tokenBudgetOptimizationSchema = z.object({
   maxTokens: z.number().optional().default(200000).describe('Maximum token budget'),
   targetUtilization: z.number().min(0.1).max(1.0).optional().default(0.8).describe('Target utilization percentage'),
-  priorityWeights: z.object({
-    recency: z.number().optional().default(0.3),
-    frequency: z.number().optional().default(0.2),
-    importance: z.number().optional().default(0.3),
-    relationships: z.number().optional().default(0.2)
-  }).optional().describe('Weights for different priority factors'),
+  priorityWeights: z
+    .object({
+      recency: z.number().optional().default(0.3),
+      frequency: z.number().optional().default(0.2),
+      importance: z.number().optional().default(0.3),
+      relationships: z.number().optional().default(0.2)
+    })
+    .optional()
+    .describe('Weights for different priority factors'),
   preserveTypes: z.array(z.string()).optional().describe('Context types to preserve from optimization'),
-  archiveThreshold: z.number().min(0).max(1).optional().default(0.3).describe('Threshold below which contexts are archived')
+  archiveThreshold: z
+    .number()
+    .min(0)
+    .max(1)
+    .optional()
+    .default(0.3)
+    .describe('Threshold below which contexts are archived')
 });
 
 @injectable()
@@ -185,9 +210,7 @@ export class TokenBudgetOptimizationTool implements IMCPTool {
   description = 'Optimize token usage and manage budget constraints intelligently';
   schema = tokenBudgetOptimizationSchema;
 
-  constructor(
-    @inject(AdvancedFeaturesService) private advancedFeaturesService: AdvancedFeaturesService
-  ) {}
+  constructor(@inject(AdvancedFeaturesService) private advancedFeaturesService: AdvancedFeaturesService) {}
 
   async execute(params: z.infer<typeof tokenBudgetOptimizationSchema>, context: ToolContext): Promise<ToolResult> {
     try {
@@ -232,14 +255,17 @@ export class TokenBudgetOptimizationTool implements IMCPTool {
         futureProjections: this.generateFutureProjections(result, options)
       };
 
-      context.logger.info({
-        currentUsage: result.currentUsage,
-        targetUsage: result.targetUsage,
-        optimizedUsage: result.optimizedUsage,
-        tokensSaved: result.tokensSaved,
-        efficiency: result.efficiency,
-        actionsCount: result.actions.length
-      }, 'Token budget optimization completed');
+      context.logger.info(
+        {
+          currentUsage: result.currentUsage,
+          targetUsage: result.targetUsage,
+          optimizedUsage: result.optimizedUsage,
+          tokensSaved: result.tokensSaved,
+          efficiency: result.efficiency,
+          actionsCount: result.actions.length
+        },
+        'Token budget optimization completed'
+      );
 
       return {
         content: [
@@ -273,14 +299,17 @@ export class TokenBudgetOptimizationTool implements IMCPTool {
     return descriptions[action.action as keyof typeof descriptions] || 'Optimization action';
   }
 
-  private analyzeBudgetHealth(result: any, maxTokens: number): {
+  private analyzeBudgetHealth(
+    result: any,
+    maxTokens: number
+  ): {
     status: string;
     utilization: number;
     capacity: string;
     trend: string;
   } {
     const utilization = result.optimizedUsage / maxTokens;
-    
+
     let status = 'healthy';
     if (utilization > 0.9) status = 'critical';
     else if (utilization > 0.8) status = 'warning';
@@ -328,16 +357,20 @@ export class TokenBudgetOptimizationTool implements IMCPTool {
     return { overallImpact, riskLevel, recoverability };
   }
 
-  private generateFutureProjections(result: any, options: TokenBudgetOptions): {
+  private generateFutureProjections(
+    result: any,
+    options: TokenBudgetOptions
+  ): {
     projectedGrowth: string;
     maintenanceSchedule: string;
     scalabilityAssessment: string;
   } {
     const efficiency = result.efficiency;
-    
+
     return {
       projectedGrowth: efficiency > 0.9 ? 'sustainable' : efficiency > 0.7 ? 'manageable' : 'concerning',
-      maintenanceSchedule: result.tokensSaved > 50000 ? 'monthly' : result.tokensSaved > 20000 ? 'quarterly' : 'as-needed',
+      maintenanceSchedule:
+        result.tokensSaved > 50000 ? 'monthly' : result.tokensSaved > 20000 ? 'quarterly' : 'as-needed',
       scalabilityAssessment: options.maxTokens && result.optimizedUsage < options.maxTokens * 0.6 ? 'good' : 'limited'
     };
   }
@@ -345,16 +378,29 @@ export class TokenBudgetOptimizationTool implements IMCPTool {
 
 // Schema for ContextDeduplicationTool
 const contextDeduplicationSchema = z.object({
-  similarityThreshold: z.number().min(0.1).max(1.0).optional().default(0.85).describe('Minimum similarity threshold for deduplication'),
+  similarityThreshold: z
+    .number()
+    .min(0.1)
+    .max(1.0)
+    .optional()
+    .default(0.85)
+    .describe('Minimum similarity threshold for deduplication'),
   preserveRecent: z.boolean().optional().default(true).describe('Preserve more recent contexts when deduplicating'),
   batchSize: z.number().optional().default(50).describe('Number of contexts to process in each batch'),
-  fieldWeights: z.object({
-    content: z.number().optional().default(0.6),
-    metadata: z.number().optional().default(0.2),
-    tags: z.number().optional().default(0.2),
-    relationships: z.number().optional().default(0.0)
-  }).optional().describe('Weights for different fields in similarity calculation'),
-  mergeStrategy: z.enum(['keep_newest', 'keep_oldest', 'merge_all', 'manual_review']).optional().default('keep_newest').describe('Strategy for handling duplicates')
+  fieldWeights: z
+    .object({
+      content: z.number().optional().default(0.6),
+      metadata: z.number().optional().default(0.2),
+      tags: z.number().optional().default(0.2),
+      relationships: z.number().optional().default(0.0)
+    })
+    .optional()
+    .describe('Weights for different fields in similarity calculation'),
+  mergeStrategy: z
+    .enum(['keep_newest', 'keep_oldest', 'merge_all', 'manual_review'])
+    .optional()
+    .default('keep_newest')
+    .describe('Strategy for handling duplicates')
 });
 
 @injectable()
@@ -363,9 +409,7 @@ export class ContextDeduplicationTool implements IMCPTool {
   description = 'Intelligently remove duplicate contexts while preserving important information';
   schema = contextDeduplicationSchema;
 
-  constructor(
-    @inject(AdvancedFeaturesService) private advancedFeaturesService: AdvancedFeaturesService
-  ) {}
+  constructor(@inject(AdvancedFeaturesService) private advancedFeaturesService: AdvancedFeaturesService) {}
 
   async execute(params: z.infer<typeof contextDeduplicationSchema>, context: ToolContext): Promise<ToolResult> {
     try {
@@ -410,14 +454,17 @@ export class ContextDeduplicationTool implements IMCPTool {
         riskAssessment: this.assessDeduplicationRisks(result, params.mergeStrategy)
       };
 
-      context.logger.info({
-        totalAnalyzed: result.totalAnalyzed,
-        duplicatesFound: result.duplicatesFound,
-        duplicatesRemoved: result.duplicatesRemoved,
-        spaceFreed: result.spaceFreed,
-        efficiencyGain: result.summary.efficiencyGain,
-        qualityScore: result.summary.qualityScore
-      }, 'Context deduplication completed');
+      context.logger.info(
+        {
+          totalAnalyzed: result.totalAnalyzed,
+          duplicatesFound: result.duplicatesFound,
+          duplicatesRemoved: result.duplicatesRemoved,
+          spaceFreed: result.spaceFreed,
+          efficiencyGain: result.summary.efficiencyGain,
+          qualityScore: result.summary.qualityScore
+        },
+        'Context deduplication completed'
+      );
 
       return {
         content: [
@@ -454,7 +501,7 @@ export class ContextDeduplicationTool implements IMCPTool {
     confidence: string;
   } {
     const qualityScore = result.summary.qualityScore;
-    
+
     return {
       precision: qualityScore > 0.8 ? 'high' : qualityScore > 0.6 ? 'medium' : 'low',
       recall: result.summary.efficiencyGain > 20 ? 'high' : result.summary.efficiencyGain > 10 ? 'medium' : 'low',
@@ -468,11 +515,12 @@ export class ContextDeduplicationTool implements IMCPTool {
     maintenanceImpact: string;
   } {
     const spaceReduction = (result.spaceFreed / Math.max(result.totalAnalyzed * 1000, 1)) * 100; // Estimate
-    
+
     return {
       spaceReduction: Math.round(spaceReduction),
       storageEfficiency: spaceReduction > 20 ? 'excellent' : spaceReduction > 10 ? 'good' : 'limited',
-      maintenanceImpact: result.duplicatesRemoved > 100 ? 'significant' : result.duplicatesRemoved > 20 ? 'moderate' : 'minimal'
+      maintenanceImpact:
+        result.duplicatesRemoved > 100 ? 'significant' : result.duplicatesRemoved > 20 ? 'moderate' : 'minimal'
     };
   }
 
@@ -491,10 +539,13 @@ export class ContextDeduplicationTool implements IMCPTool {
       insights.push(`${result.mergedContexts} contexts merged to preserve comprehensive information`);
     }
 
-    const avgGroupSize = result.duplicateGroups.reduce((sum: number, group: any) => sum + group.members.length, 0) / Math.max(result.duplicateGroups.length, 1);
+    const avgGroupSize =
+      result.duplicateGroups.reduce((sum: number, group: any) => sum + group.members.length, 0) /
+      Math.max(result.duplicateGroups.length, 1);
     insights.push(`Average duplicate group size: ${Math.round(avgGroupSize)} contexts`);
 
-    if (result.spaceFreed > 1000000) { // 1MB
+    if (result.spaceFreed > 1000000) {
+      // 1MB
       insights.push(`Significant storage savings: ${Math.round(result.spaceFreed / 1000000)}MB freed`);
     }
 
@@ -520,12 +571,17 @@ export class ContextDeduplicationTool implements IMCPTool {
       recommendations.push('Excellent deduplication results - consider regular maintenance schedule');
     }
 
-    recommendations.push(`Successfully processed ${result.totalAnalyzed} contexts with ${result.summary.efficiencyGain}% efficiency gain`);
+    recommendations.push(
+      `Successfully processed ${result.totalAnalyzed} contexts with ${result.summary.efficiencyGain}% efficiency gain`
+    );
 
     return recommendations;
   }
 
-  private assessDeduplicationRisks(result: any, mergeStrategy: string): {
+  private assessDeduplicationRisks(
+    result: any,
+    mergeStrategy: string
+  ): {
     dataLossRisk: string;
     recoveryComplexity: string;
     operationalImpact: string;
@@ -538,8 +594,10 @@ export class ContextDeduplicationTool implements IMCPTool {
       dataLossRisk = 'high';
     }
 
-    const recoveryComplexity = result.mergedContexts > 0 ? 'complex' : result.duplicatesRemoved > 50 ? 'moderate' : 'simple';
-    const operationalImpact = result.duplicatesRemoved > 100 ? 'significant' : result.duplicatesRemoved > 20 ? 'moderate' : 'minimal';
+    const recoveryComplexity =
+      result.mergedContexts > 0 ? 'complex' : result.duplicatesRemoved > 50 ? 'moderate' : 'simple';
+    const operationalImpact =
+      result.duplicatesRemoved > 100 ? 'significant' : result.duplicatesRemoved > 20 ? 'moderate' : 'minimal';
 
     return { dataLossRisk, recoveryComplexity, operationalImpact };
   }
@@ -547,16 +605,27 @@ export class ContextDeduplicationTool implements IMCPTool {
 
 // Schema for ArchiveOldContextsTool
 const archiveOldContextsSchema = z.object({
-  maxAge: z.number().optional().default(2160).describe('Maximum age in hours for contexts to be archived (default: 90 days)'),
+  maxAge: z
+    .number()
+    .optional()
+    .default(2160)
+    .describe('Maximum age in hours for contexts to be archived (default: 90 days)'),
   minAccessCount: z.number().optional().default(0).describe('Minimum access count to preserve contexts'),
   preserveRelationships: z.boolean().optional().default(true).describe('Preserve relationships when archiving'),
   compressionLevel: z.number().min(1).max(9).optional().default(7).describe('Compression level for archived content'),
-  storageLocation: z.enum(['database', 'file', 'external']).optional().default('database').describe('Location to store archived content'),
-  retentionPolicy: z.object({
-    keepVersions: z.number().optional().default(3),
-    keepMetadata: z.boolean().optional().default(true),
-    keepRelationships: z.boolean().optional().default(true)
-  }).optional().describe('Retention policy for archived content')
+  storageLocation: z
+    .enum(['database', 'file', 'external'])
+    .optional()
+    .default('database')
+    .describe('Location to store archived content'),
+  retentionPolicy: z
+    .object({
+      keepVersions: z.number().optional().default(3),
+      keepMetadata: z.boolean().optional().default(true),
+      keepRelationships: z.boolean().optional().default(true)
+    })
+    .optional()
+    .describe('Retention policy for archived content')
 });
 
 @injectable()
@@ -565,9 +634,7 @@ export class ArchiveOldContextsTool implements IMCPTool {
   description = 'Archive old contexts for storage optimization while preserving recoverability';
   schema = archiveOldContextsSchema;
 
-  constructor(
-    @inject(AdvancedFeaturesService) private advancedFeaturesService: AdvancedFeaturesService
-  ) {}
+  constructor(@inject(AdvancedFeaturesService) private advancedFeaturesService: AdvancedFeaturesService) {}
 
   async execute(params: z.infer<typeof archiveOldContextsSchema>, context: ToolContext): Promise<ToolResult> {
     try {
@@ -607,14 +674,17 @@ export class ArchiveOldContextsTool implements IMCPTool {
         recoverabilityPlan: this.generateRecoverabilityPlan(result, options)
       };
 
-      context.logger.info({
-        candidatesEvaluated: result.candidatesEvaluated,
-        contextsArchived: result.contextsArchived,
-        spaceFreed: result.spaceFreed,
-        relationshipsPreserved: result.relationshipsPreserved,
-        storageReduction: result.summary.storageReduction,
-        performanceImpact: result.summary.performanceImpact
-      }, 'Archive old contexts completed');
+      context.logger.info(
+        {
+          candidatesEvaluated: result.candidatesEvaluated,
+          contextsArchived: result.contextsArchived,
+          spaceFreed: result.spaceFreed,
+          relationshipsPreserved: result.relationshipsPreserved,
+          storageReduction: result.summary.storageReduction,
+          performanceImpact: result.summary.performanceImpact
+        },
+        'Archive old contexts completed'
+      );
 
       return {
         content: [
@@ -651,7 +721,7 @@ export class ArchiveOldContextsTool implements IMCPTool {
   } {
     const candidateUtilization = (result.contextsArchived / Math.max(result.candidatesEvaluated, 1)) * 100;
     const archivalRate = result.contextsArchived;
-    
+
     let efficiency = 'low';
     if (candidateUtilization > 80) efficiency = 'excellent';
     else if (candidateUtilization > 60) efficiency = 'good';
@@ -670,7 +740,7 @@ export class ArchiveOldContextsTool implements IMCPTool {
     storageImpact: string;
   } {
     const spaceReductionMB = Math.round(result.spaceFreed / (1024 * 1024));
-    
+
     let compressionEffectiveness = 'standard';
     if (result.summary.storageReduction > result.spaceFreed * 1.5) compressionEffectiveness = 'excellent';
     else if (result.summary.storageReduction > result.spaceFreed * 1.2) compressionEffectiveness = 'good';
@@ -686,14 +756,18 @@ export class ArchiveOldContextsTool implements IMCPTool {
     };
   }
 
-  private analyzeDataPreservation(result: any, options: ArchivalOptions): {
+  private analyzeDataPreservation(
+    result: any,
+    options: ArchivalOptions
+  ): {
     relationshipPreservation: string;
     metadataRetention: string;
     recoverabilityScore: string;
   } {
-    const relationshipPreservation = options.preserveRelationships && result.relationshipsPreserved > 0 ? 'full' : 'none';
+    const relationshipPreservation =
+      options.preserveRelationships && result.relationshipsPreserved > 0 ? 'full' : 'none';
     const metadataRetention = options.retentionPolicy?.keepMetadata ? 'full' : 'partial';
-    
+
     let recoverabilityScore = 'good';
     if (result.summary.recoverability > 0.9) recoverabilityScore = 'excellent';
     else if (result.summary.recoverability < 0.7) recoverabilityScore = 'limited';
@@ -714,7 +788,9 @@ export class ArchiveOldContextsTool implements IMCPTool {
     }
 
     const archivalRate = (result.contextsArchived / result.candidatesEvaluated) * 100;
-    insights.push(`${Math.round(archivalRate)}% of eligible contexts were archived (${result.contextsArchived} of ${result.candidatesEvaluated})`);
+    insights.push(
+      `${Math.round(archivalRate)}% of eligible contexts were archived (${result.contextsArchived} of ${result.candidatesEvaluated})`
+    );
 
     if (result.spaceFreed > 0) {
       const spaceMB = Math.round(result.spaceFreed / (1024 * 1024));
@@ -727,7 +803,9 @@ export class ArchiveOldContextsTool implements IMCPTool {
 
     const performanceGain = result.summary.performanceImpact * 100;
     if (performanceGain > 10) {
-      insights.push(`Expected performance improvement: ${Math.round(performanceGain)}% due to reduced active dataset size`);
+      insights.push(
+        `Expected performance improvement: ${Math.round(performanceGain)}% due to reduced active dataset size`
+      );
     }
 
     return insights;
@@ -744,7 +822,8 @@ export class ArchiveOldContextsTool implements IMCPTool {
       recommendations.push('Lower recoverability score - ensure backup procedures are in place');
     }
 
-    if (options.storageLocation === 'database' && result.spaceFreed > 50000000) { // 50MB
+    if (options.storageLocation === 'database' && result.spaceFreed > 50000000) {
+      // 50MB
       recommendations.push('Large archive in database - consider external storage for better performance');
     }
 
@@ -752,18 +831,23 @@ export class ArchiveOldContextsTool implements IMCPTool {
       recommendations.push('No relationships preserved - verify relationship preservation configuration');
     }
 
-    recommendations.push(`Successfully archived ${result.contextsArchived} contexts with ${Math.round(result.summary.recoverability * 100)}% recoverability`);
+    recommendations.push(
+      `Successfully archived ${result.contextsArchived} contexts with ${Math.round(result.summary.recoverability * 100)}% recoverability`
+    );
 
     return recommendations;
   }
 
-  private generateRecoverabilityPlan(result: any, options: ArchivalOptions): {
+  private generateRecoverabilityPlan(
+    result: any,
+    options: ArchivalOptions
+  ): {
     recoveryMethods: string[];
     estimatedRecoveryTime: string;
     dataIntegrityLevel: string;
   } {
     const recoveryMethods = [];
-    
+
     if (options.storageLocation === 'database') {
       recoveryMethods.push('Direct database query and decompression');
     }
@@ -774,11 +858,11 @@ export class ArchiveOldContextsTool implements IMCPTool {
       recoveryMethods.push('Relationship-guided recovery');
     }
 
-    const estimatedRecoveryTime = result.contextsArchived < 100 ? 'minutes' : 
-                                 result.contextsArchived < 1000 ? 'hours' : 'days';
+    const estimatedRecoveryTime =
+      result.contextsArchived < 100 ? 'minutes' : result.contextsArchived < 1000 ? 'hours' : 'days';
 
-    const dataIntegrityLevel = result.summary.recoverability > 0.9 ? 'high' :
-                              result.summary.recoverability > 0.7 ? 'medium' : 'limited';
+    const dataIntegrityLevel =
+      result.summary.recoverability > 0.9 ? 'high' : result.summary.recoverability > 0.7 ? 'medium' : 'limited';
 
     return {
       recoveryMethods,
@@ -794,7 +878,10 @@ export class ArchiveOldContextsTool implements IMCPTool {
 const contextTemplatesLibrarySchema = z.object({
   includeUsageStats: z.boolean().optional().default(true).describe('Include usage statistics in results'),
   filterByCategory: z.string().optional().describe('Filter templates by category'),
-  filterByDifficulty: z.enum(['beginner', 'intermediate', 'advanced']).optional().describe('Filter templates by difficulty level'),
+  filterByDifficulty: z
+    .enum(['beginner', 'intermediate', 'advanced'])
+    .optional()
+    .describe('Filter templates by difficulty level'),
   generateNew: z.boolean().optional().default(true).describe('Generate new templates from usage patterns')
 });
 
@@ -804,9 +891,7 @@ export class ContextTemplatesLibraryTool implements IMCPTool {
   description = 'Manage and organize a comprehensive library of reusable context templates';
   schema = contextTemplatesLibrarySchema;
 
-  constructor(
-    @inject(AdvancedFeaturesService) private advancedFeaturesService: AdvancedFeaturesService
-  ) {}
+  constructor(@inject(AdvancedFeaturesService) private advancedFeaturesService: AdvancedFeaturesService) {}
 
   async execute(params: z.infer<typeof contextTemplatesLibrarySchema>, context: ToolContext): Promise<ToolResult> {
     try {
@@ -814,11 +899,11 @@ export class ContextTemplatesLibraryTool implements IMCPTool {
 
       // Apply filters
       let filteredTemplates = result.templates;
-      
+
       if (params.filterByCategory) {
         filteredTemplates = filteredTemplates.filter(t => t.category === params.filterByCategory);
       }
-      
+
       if (params.filterByDifficulty) {
         filteredTemplates = filteredTemplates.filter(t => t.metadata.difficulty === params.filterByDifficulty);
       }
@@ -840,12 +925,14 @@ export class ContextTemplatesLibraryTool implements IMCPTool {
           category: template.category,
           version: template.version,
           difficulty: template.metadata.difficulty,
-          usage: params.includeUsageStats ? {
-            usageCount: template.usage.usageCount,
-            lastUsed: template.usage.lastUsed,
-            successRate: Math.round(template.usage.successRate * 100),
-            averageRating: Math.round(template.usage.averageRating * 10) / 10
-          } : undefined,
+          usage: params.includeUsageStats
+            ? {
+                usageCount: template.usage.usageCount,
+                lastUsed: template.usage.lastUsed,
+                successRate: Math.round(template.usage.successRate * 100),
+                averageRating: Math.round(template.usage.averageRating * 10) / 10
+              }
+            : undefined,
           schema: {
             fieldCount: template.schema.fields.length,
             relationshipCount: template.schema.relationships?.length || 0,
@@ -863,12 +950,15 @@ export class ContextTemplatesLibraryTool implements IMCPTool {
         topTemplates: result.statistics.topUsed
       };
 
-      context.logger.info({
-        totalTemplates: result.statistics.totalTemplates,
-        filteredCount: filteredTemplates.length,
-        categories: Object.keys(result.statistics.byCategory).length,
-        topUsedCount: result.statistics.topUsed.length
-      }, 'Context templates library management completed');
+      context.logger.info(
+        {
+          totalTemplates: result.statistics.totalTemplates,
+          filteredCount: filteredTemplates.length,
+          categories: Object.keys(result.statistics.byCategory).length,
+          topUsedCount: result.statistics.topUsed.length
+        },
+        'Context templates library management completed'
+      );
 
       return {
         content: [
@@ -897,8 +987,10 @@ export class ContextTemplatesLibraryTool implements IMCPTool {
     utilization: string;
   } {
     const categoryCount = Object.keys(statistics.byCategory).length;
-    const avgUsage = statistics.topUsed.length > 0 ? 
-      statistics.topUsed.reduce((sum: number, t: any) => sum + t.usageCount, 0) / statistics.topUsed.length : 0;
+    const avgUsage =
+      statistics.topUsed.length > 0
+        ? statistics.topUsed.reduce((sum: number, t: any) => sum + t.usageCount, 0) / statistics.topUsed.length
+        : 0;
 
     let status = 'healthy';
     if (statistics.totalTemplates < 5) status = 'limited';
@@ -939,13 +1031,13 @@ export class ContextTemplatesLibraryTool implements IMCPTool {
       return { dominant: null, balanced: false, gaps: ['No categories found'] };
     }
 
-    const sortedCategories = entries.sort(([,a], [,b]) => b - a);
+    const sortedCategories = entries.sort(([, a], [, b]) => b - a);
     const dominant = sortedCategories[0]?.[0] || null;
-    const total = sortedCategories.reduce((sum, [,count]) => sum + count, 0);
+    const total = sortedCategories.reduce((sum, [, count]) => sum + count, 0);
     const dominantPercentage = sortedCategories[0] ? (sortedCategories[0][1] / total) * 100 : 0;
-    
+
     const balanced = dominantPercentage < 50;
-    
+
     const expectedCategories = ['task', 'knowledge', 'reference', 'workflow', 'decision'];
     const gaps = expectedCategories.filter(cat => !byCategory[cat]);
 
@@ -960,7 +1052,9 @@ export class ContextTemplatesLibraryTool implements IMCPTool {
       return insights;
     }
 
-    insights.push(`Library contains ${statistics.totalTemplates} templates across ${Object.keys(statistics.byCategory).length} categories`);
+    insights.push(
+      `Library contains ${statistics.totalTemplates} templates across ${Object.keys(statistics.byCategory).length} categories`
+    );
 
     const highUsageTemplates = templates.filter(t => t.usage && t.usage.usageCount > 10).length;
     if (highUsageTemplates > 0) {
@@ -971,7 +1065,7 @@ export class ContextTemplatesLibraryTool implements IMCPTool {
       const createdRecently = new Date(t.metadata.createdAt).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000;
       return createdRecently;
     }).length;
-    
+
     if (newTemplates > 0) {
       insights.push(`${newTemplates} templates created in the past week`);
     }
@@ -988,14 +1082,24 @@ export class ContextTemplatesLibraryTool implements IMCPTool {
 // Schema for AdaptiveWorkflowCreationTool
 const adaptiveWorkflowCreationSchema = z.object({
   workflowName: z.string().describe('Name for the adaptive workflow'),
-  initialSteps: z.array(z.object({
-    action: z.string().describe('Action to perform'),
-    parameters: z.record(z.unknown()).describe('Parameters for the action')
-  })).describe('Initial workflow steps'),
+  initialSteps: z
+    .array(
+      z.object({
+        action: z.string().describe('Action to perform'),
+        parameters: z.record(z.unknown()).describe('Parameters for the action')
+      })
+    )
+    .describe('Initial workflow steps'),
   analysisDepth: z.number().optional().default(5).describe('Depth of pattern analysis'),
   patternThreshold: z.number().optional().default(3).describe('Minimum pattern occurrences to consider'),
   adaptationRate: z.number().min(0.01).max(1.0).optional().default(0.1).describe('Learning rate for adaptations'),
-  userBehaviorWeight: z.number().min(0).max(1).optional().default(0.3).describe('Weight given to user behavior patterns'),
+  userBehaviorWeight: z
+    .number()
+    .min(0)
+    .max(1)
+    .optional()
+    .default(0.3)
+    .describe('Weight given to user behavior patterns'),
   contextualRelevance: z.number().min(0).max(1).optional().default(0.4).describe('Weight given to contextual relevance')
 });
 
@@ -1005,9 +1109,7 @@ export class AdaptiveWorkflowCreationTool implements IMCPTool {
   description = 'Create workflows that learn and adapt from usage patterns and user behavior';
   schema = adaptiveWorkflowCreationSchema;
 
-  constructor(
-    @inject(AdvancedFeaturesService) private advancedFeaturesService: AdvancedFeaturesService
-  ) {}
+  constructor(@inject(AdvancedFeaturesService) private advancedFeaturesService: AdvancedFeaturesService) {}
 
   async execute(params: z.infer<typeof adaptiveWorkflowCreationSchema>, context: ToolContext): Promise<ToolResult> {
     try {
@@ -1061,13 +1163,16 @@ export class AdaptiveWorkflowCreationTool implements IMCPTool {
         futureEvolution: this.predictWorkflowEvolution(workflow)
       };
 
-      context.logger.info({
-        workflowId: workflow.workflowId,
-        name: params.workflowName,
-        stepCount: workflow.steps.length,
-        adaptationCount: workflow.steps.reduce((sum, step) => sum + step.adaptations.length, 0),
-        patternCount: workflow.adaptations.patterns.length
-      }, 'Adaptive workflow creation completed');
+      context.logger.info(
+        {
+          workflowId: workflow.workflowId,
+          name: params.workflowName,
+          stepCount: workflow.steps.length,
+          adaptationCount: workflow.steps.reduce((sum, step) => sum + step.adaptations.length, 0),
+          patternCount: workflow.adaptations.patterns.length
+        },
+        'Adaptive workflow creation completed'
+      );
 
       return {
         content: [
@@ -1096,10 +1201,13 @@ export class AdaptiveWorkflowCreationTool implements IMCPTool {
     complexityLevel: string;
   } {
     const totalAdaptations = workflow.steps.reduce((sum: number, step: any) => sum + step.adaptations.length, 0);
-    const avgConfidence = workflow.steps.reduce((sum: number, step: any) => {
-      const stepConfidence = step.adaptations.reduce((stepSum: number, adaptation: any) => stepSum + adaptation.confidence, 0) / Math.max(step.adaptations.length, 1);
-      return sum + stepConfidence;
-    }, 0) / workflow.steps.length;
+    const avgConfidence =
+      workflow.steps.reduce((sum: number, step: any) => {
+        const stepConfidence =
+          step.adaptations.reduce((stepSum: number, adaptation: any) => stepSum + adaptation.confidence, 0) /
+          Math.max(step.adaptations.length, 1);
+        return sum + stepConfidence;
+      }, 0) / workflow.steps.length;
 
     const adaptabilityScore = Math.round((totalAdaptations * 10 + avgConfidence * 100) / 2);
 
@@ -1134,7 +1242,7 @@ export class AdaptiveWorkflowCreationTool implements IMCPTool {
     const avgSuccess = patterns.reduce((sum, p) => sum + p.success, 0) / Math.max(patterns.length, 1);
 
     const topPatterns = patterns
-      .sort((a, b) => (b.frequency * b.success) - (a.frequency * a.success))
+      .sort((a, b) => b.frequency * b.success - a.frequency * a.success)
       .slice(0, 5)
       .map(p => ({
         pattern: p.pattern,
@@ -1186,14 +1294,18 @@ export class AdaptiveWorkflowCreationTool implements IMCPTool {
 
     const stepsWithoutAdaptations = workflow.steps.filter((step: any) => step.adaptations.length === 0).length;
     if (stepsWithoutAdaptations > 0) {
-      recommendations.push(`${stepsWithoutAdaptations} steps have no adaptations - monitor usage to identify optimization opportunities`);
+      recommendations.push(
+        `${stepsWithoutAdaptations} steps have no adaptations - monitor usage to identify optimization opportunities`
+      );
     }
 
     if (workflow.adaptations.learningRate < 0.05) {
       recommendations.push('Low learning rate may slow adaptation - consider increasing for faster optimization');
     }
 
-    const avgPatternSuccess = workflow.adaptations.patterns.reduce((sum: number, p: any) => sum + p.success, 0) / Math.max(workflow.adaptations.patterns.length, 1);
+    const avgPatternSuccess =
+      workflow.adaptations.patterns.reduce((sum: number, p: any) => sum + p.success, 0) /
+      Math.max(workflow.adaptations.patterns.length, 1);
     if (avgPatternSuccess < 0.7) {
       recommendations.push('Lower pattern success rates - review and refine adaptation triggers');
     }
@@ -1239,7 +1351,13 @@ export class AdaptiveWorkflowCreationTool implements IMCPTool {
 // Schema for AutoSmartPathCreationTool
 const autoSmartPathCreationSchema = z.object({
   patternMinOccurrence: z.number().optional().default(5).describe('Minimum pattern occurrences to generate smart path'),
-  confidenceThreshold: z.number().min(0.1).max(1.0).optional().default(0.7).describe('Minimum confidence threshold for path generation'),
+  confidenceThreshold: z
+    .number()
+    .min(0.1)
+    .max(1.0)
+    .optional()
+    .default(0.7)
+    .describe('Minimum confidence threshold for path generation'),
   maxPathLength: z.number().optional().default(10).describe('Maximum number of steps in generated paths'),
   includeVariations: z.boolean().optional().default(true).describe('Generate path variations and alternatives'),
   optimizeForFrequency: z.boolean().optional().default(true).describe('Prioritize frequently used patterns'),
@@ -1252,9 +1370,7 @@ export class AutoSmartPathCreationTool implements IMCPTool {
   description = 'Automatically generate smart paths from discovered usage patterns and behaviors';
   schema = autoSmartPathCreationSchema;
 
-  constructor(
-    @inject(AdvancedFeaturesService) private advancedFeaturesService: AdvancedFeaturesService
-  ) {}
+  constructor(@inject(AdvancedFeaturesService) private advancedFeaturesService: AdvancedFeaturesService) {}
 
   async execute(params: z.infer<typeof autoSmartPathCreationSchema>, context: ToolContext): Promise<ToolResult> {
     try {
@@ -1301,12 +1417,15 @@ export class AutoSmartPathCreationTool implements IMCPTool {
         implementationPlan: this.createImplementationPlan(generatedPaths)
       };
 
-      context.logger.info({
-        pathsGenerated: generatedPaths.length,
-        avgConfidence: generatedPaths.reduce((sum, p) => sum + p.confidence, 0) / Math.max(generatedPaths.length, 1),
-        avgFrequency: generatedPaths.reduce((sum, p) => sum + p.frequency, 0) / Math.max(generatedPaths.length, 1),
-        totalVariations: generatedPaths.reduce((sum, p) => sum + p.variations.length, 0)
-      }, 'Auto smart path creation completed');
+      context.logger.info(
+        {
+          pathsGenerated: generatedPaths.length,
+          avgConfidence: generatedPaths.reduce((sum, p) => sum + p.confidence, 0) / Math.max(generatedPaths.length, 1),
+          avgFrequency: generatedPaths.reduce((sum, p) => sum + p.frequency, 0) / Math.max(generatedPaths.length, 1),
+          totalVariations: generatedPaths.reduce((sum, p) => sum + p.variations.length, 0)
+        },
+        'Auto smart path creation completed'
+      );
 
       return {
         content: [
@@ -1336,7 +1455,7 @@ export class AutoSmartPathCreationTool implements IMCPTool {
   } {
     const avgConfidence = paths.reduce((sum, p) => sum + p.confidence, 0) / Math.max(paths.length, 1);
     const highQualityPaths = paths.filter(p => p.confidence > 0.8 && p.frequency > 10).length;
-    
+
     const qualityDistribution = {
       excellent: paths.filter(p => p.confidence > 0.9).length,
       good: paths.filter(p => p.confidence > 0.7 && p.confidence <= 0.9).length,
@@ -1358,7 +1477,7 @@ export class AutoSmartPathCreationTool implements IMCPTool {
   } {
     const allActions = new Set();
     const pathLengths = [];
-    
+
     for (const path of paths) {
       pathLengths.push(path.pattern.length);
       for (const step of path.pattern) {
@@ -1367,9 +1486,8 @@ export class AutoSmartPathCreationTool implements IMCPTool {
     }
 
     const uniqueActions = allActions.size;
-    const pathLengthVariation = pathLengths.length > 1 ? 
-      Math.max(...pathLengths) - Math.min(...pathLengths) : 0;
-    
+    const pathLengthVariation = pathLengths.length > 1 ? Math.max(...pathLengths) - Math.min(...pathLengths) : 0;
+
     // Estimate category spread based on action diversity
     const categorySpread = Math.min(Math.floor(uniqueActions / 3), 10);
 
@@ -1389,16 +1507,19 @@ export class AutoSmartPathCreationTool implements IMCPTool {
     let highUtilization = 0;
     let mediumUtilization = 0;
     let lowUtilization = 0;
-    
+
     for (const path of paths) {
-      const utilizationScore = (path.confidence * 0.4) + (path.frequency / 100 * 0.3) + (path.statistics.userAdoption * 0.3);
-      
+      const utilizationScore =
+        path.confidence * 0.4 + (path.frequency / 100) * 0.3 + path.statistics.userAdoption * 0.3;
+
       if (utilizationScore > 0.7) highUtilization++;
       else if (utilizationScore > 0.4) mediumUtilization++;
       else lowUtilization++;
     }
 
-    const adoptionScore = Math.round(((highUtilization * 1.0 + mediumUtilization * 0.6) / Math.max(paths.length, 1)) * 100);
+    const adoptionScore = Math.round(
+      ((highUtilization * 1.0 + mediumUtilization * 0.6) / Math.max(paths.length, 1)) * 100
+    );
 
     return {
       highUtilization,
@@ -1418,7 +1539,7 @@ export class AutoSmartPathCreationTool implements IMCPTool {
       .map(path => ({
         pathId: path.pathId,
         name: path.name,
-        score: (path.confidence * 0.4) + (path.frequency / 100 * 0.3) + (path.statistics.userAdoption * 0.3),
+        score: path.confidence * 0.4 + (path.frequency / 100) * 0.3 + path.statistics.userAdoption * 0.3,
         reason: this.determineTopPathReason(path)
       }))
       .sort((a, b) => b.score - a.score)
@@ -1497,9 +1618,12 @@ export class AutoSmartPathCreationTool implements IMCPTool {
     phase3: string[];
     timeline: string;
   } {
-    const sortedPaths = paths.sort((a, b) => 
-      (b.confidence * 0.5 + b.frequency / 100 * 0.3 + b.statistics.userAdoption * 0.2) - 
-      (a.confidence * 0.5 + a.frequency / 100 * 0.3 + a.statistics.userAdoption * 0.2)
+    const sortedPaths = paths.sort(
+      (a, b) =>
+        b.confidence * 0.5 +
+        (b.frequency / 100) * 0.3 +
+        b.statistics.userAdoption * 0.2 -
+        (a.confidence * 0.5 + (a.frequency / 100) * 0.3 + a.statistics.userAdoption * 0.2)
     );
 
     const totalPaths = sortedPaths.length;
@@ -1508,8 +1632,12 @@ export class AutoSmartPathCreationTool implements IMCPTool {
 
     return {
       phase1: sortedPaths.slice(0, phase1Count).map(p => `${p.name} (confidence: ${Math.round(p.confidence * 100)}%)`),
-      phase2: sortedPaths.slice(phase1Count, phase1Count + phase2Count).map(p => `${p.name} (confidence: ${Math.round(p.confidence * 100)}%)`),
-      phase3: sortedPaths.slice(phase1Count + phase2Count).map(p => `${p.name} (confidence: ${Math.round(p.confidence * 100)}%)`),
+      phase2: sortedPaths
+        .slice(phase1Count, phase1Count + phase2Count)
+        .map(p => `${p.name} (confidence: ${Math.round(p.confidence * 100)}%)`),
+      phase3: sortedPaths
+        .slice(phase1Count + phase2Count)
+        .map(p => `${p.name} (confidence: ${Math.round(p.confidence * 100)}%)`),
       timeline: totalPaths > 15 ? '3-4 months' : totalPaths > 8 ? '2-3 months' : '1-2 months'
     };
   }

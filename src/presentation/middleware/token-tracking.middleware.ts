@@ -7,9 +7,7 @@ import { AutonomousMonitorService } from '../../application/services/autonomous-
 import { logger } from '../../utils/logger.js';
 
 export class TokenTrackingMiddleware {
-  constructor(
-    private autonomousMonitor: AutonomousMonitorService
-  ) {}
+  constructor(private autonomousMonitor: AutonomousMonitorService) {}
 
   /**
    * Wrap tool execution to track token usage
@@ -38,21 +36,20 @@ export class TokenTrackingMiddleware {
       const totalTokens = inputTokens + outputTokens;
 
       // Update session state in autonomous monitor
-      await this.autonomousMonitor.updateSessionState(
-        sessionId,
-        `tool:${toolName}`,
-        totalTokens
-      );
+      await this.autonomousMonitor.updateSessionState(sessionId, `tool:${toolName}`, totalTokens);
 
       // Log token usage
-      logger.debug({
-        sessionId,
-        tool: toolName,
-        inputTokens,
-        outputTokens,
-        totalTokens,
-        duration: Date.now() - startTime
-      }, 'Tool execution token tracking');
+      logger.debug(
+        {
+          sessionId,
+          tool: toolName,
+          inputTokens,
+          outputTokens,
+          totalTokens,
+          duration: Date.now() - startTime
+        },
+        'Tool execution token tracking'
+      );
 
       // Add token info to result metadata if possible
       if (typeof result === 'object' && result !== null) {
@@ -66,11 +63,7 @@ export class TokenTrackingMiddleware {
       return result;
     } catch (error) {
       // Still track tokens even on error
-      await this.autonomousMonitor.updateSessionState(
-        sessionId,
-        `tool:${toolName}:error`,
-        inputTokens
-      );
+      await this.autonomousMonitor.updateSessionState(sessionId, `tool:${toolName}:error`, inputTokens);
 
       throw error;
     }
@@ -89,7 +82,7 @@ export class TokenTrackingMiddleware {
 
         // Return wrapped execution function
         return {
-          execute: (originalExecute: () => Promise<ToolResult>) => 
+          execute: (originalExecute: () => Promise<ToolResult>) =>
             this.wrapToolExecution(toolName, params, context, originalExecute)
         };
       }
@@ -107,12 +100,7 @@ export function withTokenTracking<T extends (...args: any[]) => Promise<ToolResu
   return (async (...args: Parameters<T>) => {
     const [params, context] = args;
     const middleware = new TokenTrackingMiddleware(autonomousMonitor);
-    
-    return middleware.wrapToolExecution(
-      'wrapped_tool',
-      params,
-      context as ToolContext,
-      () => executeFunction(...args)
-    );
+
+    return middleware.wrapToolExecution('wrapped_tool', params, context as ToolContext, () => executeFunction(...args));
   }) as T;
 }

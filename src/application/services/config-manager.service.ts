@@ -33,7 +33,7 @@ export class ConfigManagerService {
     try {
       const configContent = await fs.readFile(this.configPath, 'utf8');
       const config = yaml.parse(configContent) as ServerConfig;
-      
+
       logger.debug({ configPath: this.configPath }, 'Configuration loaded');
       return config || {};
     } catch (error) {
@@ -49,16 +49,16 @@ export class ConfigManagerService {
     try {
       // Create backup first
       await this.createBackup();
-      
+
       // Convert config to YAML
       const yamlContent = yaml.stringify(config, {
         indent: 2,
         lineWidth: 120
       });
-      
+
       // Write to file
       await fs.writeFile(this.configPath, yamlContent, 'utf8');
-      
+
       logger.info({ configPath: this.configPath }, 'Configuration updated successfully');
     } catch (error) {
       logger.error({ error, configPath: this.configPath }, 'Failed to write configuration');
@@ -72,23 +72,25 @@ export class ConfigManagerService {
   async updateSafeZones(newSafeZones: string[]): Promise<void> {
     try {
       const config = await this.readConfig();
-      
+
       // Ensure security section exists
       if (!config.security) {
         config.security = {};
       }
-      
+
       // Update safezones
       config.security.safezones = [...new Set(newSafeZones)]; // Remove duplicates
-      
+
       // Write updated config
       await this.writeConfig(config);
-      
-      logger.info({ 
-        newSafeZones, 
-        totalCount: newSafeZones.length 
-      }, 'Safe zones updated in configuration');
-      
+
+      logger.info(
+        {
+          newSafeZones,
+          totalCount: newSafeZones.length
+        },
+        'Safe zones updated in configuration'
+      );
     } catch (error) {
       logger.error({ error, newSafeZones }, 'Failed to update safe zones in configuration');
       throw error;
@@ -101,29 +103,28 @@ export class ConfigManagerService {
   async addSafeZone(safeZonePath: string): Promise<void> {
     try {
       const config = await this.readConfig();
-      
+
       // Ensure security section exists
       if (!config.security) {
         config.security = {};
       }
-      
+
       // Initialize safezones if not exists
       if (!Array.isArray(config.security.safezones)) {
         config.security.safezones = [];
       }
-      
+
       // Add new safe zone if not already present
       if (!config.security.safezones.includes(safeZonePath)) {
         config.security.safezones.push(safeZonePath);
-        
+
         // Write updated config
         await this.writeConfig(config);
-        
+
         logger.info({ safeZonePath }, 'Safe zone added to configuration');
       } else {
         logger.debug({ safeZonePath }, 'Safe zone already exists in configuration');
       }
-      
     } catch (error) {
       logger.error({ error, safeZonePath }, 'Failed to add safe zone to configuration');
       throw error;
@@ -150,20 +151,19 @@ export class ConfigManagerService {
     try {
       // Ensure backup directory exists
       await fs.mkdir(this.backupDir, { recursive: true });
-      
+
       // Create timestamped backup filename
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const backupFilename = `server-config-backup-${timestamp}.yaml`;
       const backupPath = path.join(this.backupDir, backupFilename);
-      
+
       // Copy current config to backup
       await fs.copyFile(this.configPath, backupPath);
-      
+
       logger.debug({ backupPath }, 'Configuration backup created');
-      
+
       // Clean up old backups (keep last 10)
       await this.cleanupOldBackups();
-      
     } catch (error) {
       logger.warn({ error }, 'Failed to create configuration backup');
       // Don't throw - backup failure shouldn't prevent config updates
@@ -183,7 +183,7 @@ export class ConfigManagerService {
           path: path.join(this.backupDir, file)
         }))
         .sort((a, b) => b.name.localeCompare(a.name)); // Sort by name descending (newest first)
-      
+
       // Keep only the 10 most recent backups
       if (backupFiles.length > 10) {
         const filesToDelete = backupFiles.slice(10);
@@ -202,14 +202,14 @@ export class ConfigManagerService {
    */
   async validateConfig(config: ServerConfig): Promise<{ valid: boolean; errors: string[] }> {
     const errors: string[] = [];
-    
+
     try {
       // Basic structure validation
       if (typeof config !== 'object' || config === null) {
         errors.push('Configuration must be an object');
         return { valid: false, errors };
       }
-      
+
       // Validate security section if present
       if (config.security) {
         if (typeof config.security !== 'object') {
@@ -219,19 +219,18 @@ export class ConfigManagerService {
           if (config.security.safezones && !Array.isArray(config.security.safezones)) {
             errors.push('security.safezones must be an array');
           }
-          
+
           // Validate restrictedZones
           if (config.security.restrictedZones && !Array.isArray(config.security.restrictedZones)) {
             errors.push('security.restrictedZones must be an array');
           }
         }
       }
-      
+
       return {
         valid: errors.length === 0,
         errors
       };
-      
     } catch (error) {
       errors.push(`Validation error: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return { valid: false, errors };

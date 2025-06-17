@@ -64,4 +64,4 @@ This is a rough roadmap of where this project might be heading. Nothing is set i
 
 ---
 
-*This roadmap is a living document and will be updated based on community feedback and real-world usage.*
+_This roadmap is a living document and will be updated based on community feedback and real-world usage._

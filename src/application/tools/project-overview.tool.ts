@@ -20,7 +20,10 @@ const getProjectOverviewSchema = z.object({
   includeTechnologies: z.boolean().default(true).describe('Analyze and detect technologies used'),
   maxDepth: z.number().int().min(1).default(3).describe('Maximum depth for file tree display'),
   maxFiles: z.number().int().min(1).default(50).describe('Maximum files to include in tree'),
-  excludePatterns: z.array(z.string()).default(['node_modules', '.git', 'dist', 'build', '*.log']).describe('Patterns to exclude from analysis')
+  excludePatterns: z
+    .array(z.string())
+    .default(['node_modules', '.git', 'dist', 'build', '*.log'])
+    .describe('Patterns to exclude from analysis')
 });
 
 interface ProjectOverview {
@@ -92,8 +95,6 @@ interface ProjectOverview {
   generatedAt: Date;
 }
 
-
-
 @injectable()
 export class GetProjectOverviewTool implements IMCPTool<z.infer<typeof getProjectOverviewSchema>> {
   name = 'get_project_overview';
@@ -104,10 +105,7 @@ export class GetProjectOverviewTool implements IMCPTool<z.infer<typeof getProjec
     // No dependencies needed for this tool
   }
 
-  async execute(
-    params: z.infer<typeof getProjectOverviewSchema>,
-    context: ToolContext
-  ): Promise<ToolResult> {
+  async execute(params: z.infer<typeof getProjectOverviewSchema>, context: ToolContext): Promise<ToolResult> {
     try {
       const projectPath = await this.resolveProjectPath(params.path, context);
       const overview: ProjectOverview = {
@@ -208,7 +206,7 @@ export class GetProjectOverviewTool implements IMCPTool<z.infer<typeof getProjec
 
       // Check for common project indicators
       const fileNames = files.map(f => f.name);
-      
+
       if (fileNames.includes('package.json')) {
         overview.overview.type = 'Node.js/JavaScript';
       } else if (fileNames.includes('Cargo.toml')) {
@@ -229,7 +227,6 @@ export class GetProjectOverviewTool implements IMCPTool<z.infer<typeof getProjec
 
       // Try to read project description from common files
       await this.extractProjectDescription(overview, projectPath);
-
     } catch (error) {
       context.logger.warn({ error, projectPath }, 'Failed to analyze project structure');
     }
@@ -237,16 +234,16 @@ export class GetProjectOverviewTool implements IMCPTool<z.infer<typeof getProjec
 
   private async extractProjectDescription(overview: ProjectOverview, projectPath: string): Promise<void> {
     const readmeFiles = ['README.md', 'README.txt', 'README.rst', 'README'];
-    
+
     for (const readmeFile of readmeFiles) {
       try {
         const readmePath = path.join(projectPath, readmeFile);
         const content = await fs.readFile(readmePath, 'utf8');
-        
+
         // Extract first paragraph or first meaningful line as description
         const lines = content.split('\n').filter(line => line.trim().length > 0);
         const firstMeaningfulLine = lines.find(line => !line.startsWith('#') && line.length > 20);
-        
+
         if (firstMeaningfulLine) {
           overview.overview.description = firstMeaningfulLine.substring(0, 200);
           break;
@@ -257,10 +254,7 @@ export class GetProjectOverviewTool implements IMCPTool<z.infer<typeof getProjec
     }
   }
 
-  private async buildFileTree(
-    projectPath: string, 
-    params: z.infer<typeof getProjectOverviewSchema>
-  ): Promise<any> {
+  private async buildFileTree(projectPath: string, params: z.infer<typeof getProjectOverviewSchema>): Promise<any> {
     const fileTree = {
       structure: {},
       summary: {
@@ -288,7 +282,7 @@ export class GetProjectOverviewTool implements IMCPTool<z.infer<typeof getProjec
           if (fileCount >= (params.maxFiles || 50)) break;
 
           const itemPath = path.join(dirPath, item.name);
-          
+
           if (item.isDirectory()) {
             fileTree.summary.directories++;
             const subTree = await buildTree(itemPath, depth + 1);
@@ -299,7 +293,7 @@ export class GetProjectOverviewTool implements IMCPTool<z.infer<typeof getProjec
             fileTree.summary.files++;
             const ext = path.extname(item.name).toLowerCase();
             fileTree.summary.fileTypes[ext] = (fileTree.summary.fileTypes[ext] || 0) + 1;
-            
+
             try {
               const stats = await fs.stat(itemPath);
               tree[item.name] = {
@@ -324,10 +318,7 @@ export class GetProjectOverviewTool implements IMCPTool<z.infer<typeof getProjec
     return fileTree;
   }
 
-  private async gatherStatistics(
-    projectPath: string,
-    params: z.infer<typeof getProjectOverviewSchema>
-  ): Promise<any> {
+  private async gatherStatistics(projectPath: string, params: z.infer<typeof getProjectOverviewSchema>): Promise<any> {
     const stats = {
       fileCount: 0,
       directoryCount: 0,
@@ -340,7 +331,7 @@ export class GetProjectOverviewTool implements IMCPTool<z.infer<typeof getProjec
     try {
       const excludePatterns = params.excludePatterns || [];
       const pattern = path.join(projectPath, '**/*');
-      
+
       const files = await glob(pattern, {
         nodir: false,
         ignore: excludePatterns.map(p => path.join(projectPath, p))
@@ -359,7 +350,7 @@ export class GetProjectOverviewTool implements IMCPTool<z.infer<typeof getProjec
           } else {
             stats.fileCount++;
             stats.totalSize += fileStat.size;
-            
+
             fileInfos.push({
               path: relativePath,
               size: fileStat.size,
@@ -398,13 +389,11 @@ export class GetProjectOverviewTool implements IMCPTool<z.infer<typeof getProjec
         }));
 
       const totalSizeFormatted = this.formatBytes(stats.totalSize);
-      stats.averageFileSize = stats.fileCount > 0 
-        ? this.formatBytes(fileInfos.reduce((sum, f) => sum + f.size, 0) / stats.fileCount)
-        : '0 B';
-      
+      stats.averageFileSize =
+        stats.fileCount > 0 ? this.formatBytes(fileInfos.reduce((sum, f) => sum + f.size, 0) / stats.fileCount) : '0 B';
+
       // Convert totalSize to formatted string after calculations
       (stats as any).totalSize = totalSizeFormatted;
-
     } catch (error) {
       // Return empty stats on error
     }
@@ -419,8 +408,23 @@ export class GetProjectOverviewTool implements IMCPTool<z.infer<typeof getProjec
   ): Promise<void> {
     if (!overview.statistics) return;
 
-    const codeExtensions = new Set(['.js', '.ts', '.jsx', '.tsx', '.py', '.java', '.cpp', '.c', '.cs', '.php', '.rb', '.go', '.rs', '.swift']);
-    
+    const codeExtensions = new Set([
+      '.js',
+      '.ts',
+      '.jsx',
+      '.tsx',
+      '.py',
+      '.java',
+      '.cpp',
+      '.c',
+      '.cs',
+      '.php',
+      '.rb',
+      '.go',
+      '.rs',
+      '.swift'
+    ]);
+
     try {
       const pattern = path.join(projectPath, '**/*');
       const files = await glob(pattern, {
@@ -433,7 +437,8 @@ export class GetProjectOverviewTool implements IMCPTool<z.infer<typeof getProjec
       let commentLines = 0;
       let blankLines = 0;
 
-      for (const file of files.slice(0, 100)) { // Limit to first 100 files for performance
+      for (const file of files.slice(0, 100)) {
+        // Limit to first 100 files for performance
         const ext = path.extname(file).toLowerCase();
         if (!codeExtensions.has(ext)) continue;
 
@@ -481,11 +486,11 @@ export class GetProjectOverviewTool implements IMCPTool<z.infer<typeof getProjec
       // Search for context items related to this project
       const searchQuery = `SELECT key FROM context_items WHERE key LIKE ? OR value LIKE ? ORDER BY updated_at DESC LIMIT 10`;
       const dbInstance = db.getDatabase();
-      
+
       if (dbInstance) {
         const stmt = dbInstance.prepare(searchQuery);
         const results = stmt.all(`%${projectName}%`, `%${projectPath}%`);
-        
+
         contextInfo.relatedContextItems = results.length;
         contextInfo.recentContextKeys = results.map((row: any) => row.key);
       }
@@ -495,7 +500,7 @@ export class GetProjectOverviewTool implements IMCPTool<z.infer<typeof getProjec
         const workspaceManager = context.container.get<IWorkspaceManager>('WorkspaceManager');
         const workspaces = await workspaceManager.listWorkspaces();
         const relatedWorkspace = workspaces.find(ws => ws.config.rootPath === projectPath);
-        
+
         if (relatedWorkspace) {
           (contextInfo as any).workspaceInfo = {
             id: relatedWorkspace.id,
@@ -558,7 +563,7 @@ export class GetProjectOverviewTool implements IMCPTool<z.infer<typeof getProjec
 
     try {
       const items = await fs.readdir(projectPath);
-      
+
       // Detect by configuration files
       const techMap: Record<string, string[]> = {
         'package.json': ['Node.js', 'JavaScript'],
@@ -568,11 +573,11 @@ export class GetProjectOverviewTool implements IMCPTool<z.infer<typeof getProjec
         'build.gradle': ['Java', 'Gradle'],
         'requirements.txt': ['Python'],
         'setup.py': ['Python'],
-        'Pipfile': ['Python', 'Pipenv'],
-        'Gemfile': ['Ruby'],
+        Pipfile: ['Python', 'Pipenv'],
+        Gemfile: ['Ruby'],
         'composer.json': ['PHP'],
         'go.mod': ['Go'],
-        'Dockerfile': ['Docker'],
+        Dockerfile: ['Docker'],
         'docker-compose.yml': ['Docker', 'Docker Compose'],
         '.eslintrc.js': ['ESLint'],
         '.prettierrc': ['Prettier'],
@@ -642,7 +647,6 @@ export class GetProjectOverviewTool implements IMCPTool<z.infer<typeof getProjec
       } else {
         overview.overview.primaryLanguage = Array.from(technologies)[0];
       }
-
     } catch {
       // Technology detection failed
     }
@@ -676,7 +680,10 @@ export class GetProjectOverviewTool implements IMCPTool<z.infer<typeof getProjec
       recommendations.push('🔍 Consider adding ESLint for TypeScript code quality');
     }
 
-    if (overview.statistics?.codeMetrics && overview.statistics.codeMetrics.commentLines < overview.statistics.codeMetrics.estimatedCodeLines * 0.1) {
+    if (
+      overview.statistics?.codeMetrics &&
+      overview.statistics.codeMetrics.commentLines < overview.statistics.codeMetrics.estimatedCodeLines * 0.1
+    ) {
       recommendations.push('📄 Consider adding more code comments for maintainability');
     }
 

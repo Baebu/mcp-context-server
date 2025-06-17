@@ -1,198 +1,410 @@
-﻿# MCP Context Server - Complete Installation Guide
+# Getting Context Savvy MCP Up and Running
 
-This guide will walk you through setting up the MCP Context Server for use with Claude Desktop.
+_From zero to superhuman AI assistant in about 10 minutes_
 
-## Prerequisites
+Ready to give Claude the memory and tools it deserves? This guide will get you set up without the usual installation headaches. Promise.
 
-- **Node.js**: Version 18.0.0 or higher
-- **npm**: Version 8.0.0 or higher
-- **Claude Desktop**: Latest version installed
+## 🔧 What You'll Need
 
-## Installation Steps
+Before we dive in, make sure you have:
 
-### 1. Clone and Setup
+- **Node.js 18+** (check with `node --version`)
+- **npm 8+** (comes with Node)
+- **Claude Desktop** (the latest version)
+- **10 minutes** and a coffee ☕
+
+**Don't have Node.js?** Grab it from [nodejs.org](https://nodejs.org) – get the LTS version.
+
+## 🚀 The Fast Track (Recommended)
+
+**Option 1: One-command setup**
+
+```bash
+# Clone, install, build, and configure in one go
+git clone https://github.com/Baebu/context-savvy-mcp.git
+cd context-savvy-mcp
+npm run quick-setup
+```
+
+That's it! The `quick-setup` script handles everything and even tells you exactly what to add to Claude Desktop. Skip to step 4 if this worked.
+
+**Option 2: Step by step** (if you like more control)
+
+## 📝 Step-by-Step Setup
+
+### Step 1: Get the Code
 
 ```bash
 # Clone the repository
-git clone <repository-url> # Replace <repository-url> with the actual URL
-cd mcp-context-server
+git clone https://github.com/Baebu/context-savvy-mcp.git
+cd context-savvy-mcp
 
-# Run the setup script (recommended)
-# This installs dependencies, builds the project, and creates default config files.
-# On Unix-like systems:
-chmod +x scripts/setup.sh
-./scripts/setup.sh
-# On Windows (or if the above fails, run manually):
-# npm install
-# npm run build
-# node scripts/setup.js # (If setup.js is preferred over shell script)
-```
-
-If `scripts/setup.sh` or `scripts/setup.js` are not present or you prefer manual steps:
-
-```bash
 # Install dependencies
 npm install
-
-# Create data directory (if not created by server on first run)
-mkdir -p data
-
-# Copy example configuration files (if they don't exist)
-cp -n config/server.example.yaml config/server.yaml
-cp -n .env.example .env
 
 # Build the project
 npm run build
 ```
 
-### 2. Configure the Server (`config/server.yaml`)
+### Step 2: Configure Your Server
 
-The primary configuration for the MCP Context Server itself is done in `config/server.yaml` (or a similar file if you choose to name it differently and specify its path later). Edit this file to customize settings:
+The server needs to know what it's allowed to do and where it can do it. Edit `config/server.yaml`:
 
 ```yaml
-# Example: config/server.yaml
-server:
-  name: 'mcp-context-server-custom'
-  version: '1.0.1'
-  workingDirectory: '/path/to/your/projects' # Optional: if set, server operates from here
-
+# This is your security boundary - edit carefully!
 security:
   allowedCommands:
-    - 'ls -la' # You can include common arguments
-    - 'cat'
-    - 'grep'
-    - 'find .' # Example: restrict find to current dir
-    - 'git status'
+    - 'ls' # List files
+    - 'cat' # Read files
+    - 'grep' # Search in files
+    - 'git status' # Check git status
+    - 'npm test' # Run tests
+    # Add more commands you trust
+
   safezones:
-    - '.' # Relative to server's workingDirectory
-    - '/path/to/your/main_project_folder'
-    - '~/another_project_area' # Tilde expansion is supported
-  restrictedZones: # These override safezones
-    - '**/.env*' # Block access to any .env files
-    - '**/node_modules/**'
-  autoExpandSafezones: true # true is convenient, false gives more control
-  safeZoneMode: 'recursive' # 'recursive' or 'strict'
-  # ... other security settings
+    - '.' # Current directory
+    - '/path/to/your/projects' # Your main project folder
+    - '~/Documents/development' # Another project area
+    # Add paths where file operations are allowed
 
+# Database location (relative to project root)
 database:
-  path: './data/context_prod.db' # Path relative to workingDirectory or absolute
-  backupInterval: 30 # minutes
+  path: './data/context.db'
 
+# Logging (start with debug, change to info later)
 logging:
-  level: 'debug' # For more verbose logs during setup
+  level: 'debug'
   pretty: true
-# ... other settings
 ```
 
-**Note:** Paths in `safezones` and `database.path` can be absolute or relative. Relative paths are resolved based on the server's `workingDirectory` (if set in `server.yaml`) or the directory from which the server is launched.
+**🔒 Security Notes:**
 
-### 3. Test the Server (Optional but Recommended)
+- Only add commands you trust completely
+- Safe zones should only include directories you're okay with the server accessing
+- When in doubt, start restrictive and add more permissions later
+
+### Step 3: Test Everything Works
 
 ```bash
-# Run tests
+# Run tests to make sure everything's working
 npm test
 
-# Start in development mode to test (uses config/server.yaml by default)
+# Start in development mode
 npm run dev
 ```
 
-You should see output like:
+You should see something like:
 
 ```
-[INFO] Starting MCP Context Server...
-[INFO] Configuration loaded successfully from ./config/server.yaml
-...
-[INFO] MCP Context Server started successfully
+[INFO] Starting Context Savvy MCP Server...
+[INFO] Configuration loaded successfully
+[INFO] Database initialized
+[INFO] MCP Context Server ready! 🚀
 ```
 
-Press Ctrl+C to stop the test run.
+If you see errors, check:
 
-### 4. Configure Claude Desktop (`claude_desktop_config.json`)
+- Node.js version is 18+
+- All dependencies installed (`npm install`)
+- Configuration file is valid YAML
 
-This step tells Claude Desktop how to launch _your_ MCP Context Server.
+Hit `Ctrl+C` to stop the test.
 
-#### Find Your Claude Desktop Configuration File
+### Step 4: Connect to Claude Desktop
 
-- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-- **Linux**: `~/.config/claude/claude_desktop_config.json`
+Now for the magic – tell Claude Desktop about your new server.
 
-#### Add Server Configuration to `claude_desktop_config.json`
+#### Find Your Claude Config File
 
-Create or edit the file with this content. **Crucially, update the paths to be absolute and correct for your system.**
+**macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+**Windows:** `%APPDATA%\Claude\claude_desktop_config.json`  
+**Linux:** `~/.config/claude/claude_desktop_config.json`
+
+#### Add Your Server
+
+Edit (or create) the file with this content:
 
 ```json
 {
   "mcpServers": {
     "context-server": {
       "command": "node",
-      "args": ["/ABSOLUTE/PATH/TO/mcp-context-server/dist/index.js"],
+      "args": ["/ABSOLUTE/PATH/TO/context-savvy-mcp/dist/index.js"],
       "env": {
         "MCP_LOG_LEVEL": "info",
-        "MCP_SERVER_CONFIG_PATH": "/ABSOLUTE/PATH/TO/mcp-context-server/config/server.yaml"
+        "MCP_SERVER_CONFIG_PATH": "/ABSOLUTE/PATH/TO/context-savvy-mcp/config/server.yaml"
       }
     }
-    // You can add other MCP servers here if you have them
   }
 }
 ```
 
-**⚠️ Important Path Details**:
-
-- **`args`**: The array's last element must be the **absolute path** to the `dist/index.js` file within your cloned `mcp-context-server` project directory (after you've run `npm run build`).
-- **`MCP_SERVER_CONFIG_PATH` (in `env`)**: This must be the **absolute path** to the `server.yaml` (or `server.json`, etc.) file that you configured in Step 2. This tells the MCP server which configuration file _it_ should use when it starts.
-
-#### How to Get Your Absolute Paths
-
-In your `mcp-context-server` project directory, run:
+**🚨 Critical:** You MUST use absolute paths. Here's how to get them:
 
 ```bash
-# For the server executable path (args):
-pwd # Copy this output, then append /dist/index.js
-
-# For the server config file path (MCP_SERVER_CONFIG_PATH):
-pwd # Copy this output, then append /config/server.yaml (or your actual config file name)
+# In your context-savvy-mcp directory:
+pwd
+# Copy that path, then:
+# - For "args": add /dist/index.js to the end
+# - For "MCP_SERVER_CONFIG_PATH": add /config/server.yaml to the end
 ```
 
-### 5. Start and Verify
+**Example for macOS/Linux:**
 
-1. **Save `claude_desktop_config.json`**.
-2. **Restart Claude Desktop completely** (quit and reopen the application).
-3. **Start a new conversation** in Claude Desktop.
-4. **Test the connection** by asking Claude to use a tool. For example, if `ls` is in your `allowedCommands` and `.` is a safe zone (or your project dir is):
+```json
+{
+  "mcpServers": {
+    "context-server": {
+      "command": "node",
+      "args": ["/Users/yourname/projects/context-savvy-mcp/dist/index.js"],
+      "env": {
+        "MCP_LOG_LEVEL": "info",
+        "MCP_SERVER_CONFIG_PATH": "/Users/yourname/projects/context-savvy-mcp/config/server.yaml"
+      }
+    }
+  }
+}
+```
 
+#### Pro Tip: Use the Helper Script
+
+```bash
+# This generates the exact config for you
+npm run claude-config
+```
+
+Copy the output directly into your `claude_desktop_config.json`.
+
+### Step 5: The Moment of Truth
+
+1. **Save** your Claude Desktop config file
+2. **Quit Claude Desktop completely** (not just close the window)
+3. **Restart Claude Desktop**
+4. **Start a new conversation**
+
+**Test it works:**
+
+```
+Hey Claude, can you list the files in my current directory?
+```
+
+If Claude responds with actual file listings, congratulations! 🎉 Your AI assistant now has superpowers.
+
+**Try something more advanced:**
+
+```
+Can you help me understand the structure of this project by reading the package.json and README files?
+```
+
+## 🛠️ What You Just Unlocked
+
+Your Claude Desktop can now:
+
+**📁 File Operations**
+
+- Read and write files
+- Search across your entire codebase
+- Navigate directory structures
+- Parse JSON, YAML, CSV files
+
+**⚙️ Command Execution**
+
+- Run safe, whitelisted commands
+- Execute tests and builds
+- Check git status
+- Anything else you explicitly allow
+
+**🧠 Persistent Memory**
+
+- Remember everything across conversations
+- Store project context and decisions
+- Build up knowledge about your codebase
+- Search through conversation history
+
+**🎯 Smart Features**
+
+- Task management and tracking
+- Automatic workspace organization
+- Context-aware suggestions
+- Pattern recognition and learning
+
+## 🔧 Customization
+
+Want to tailor it to your workflow? Here are some common configurations:
+
+**For Web Developers:**
+
+```yaml
+security:
+  allowedCommands:
+    - 'npm run build'
+    - 'npm test'
+    - 'yarn dev'
+    - 'git status'
+    - 'git log --oneline -n 10'
+    - 'docker ps'
+  safezones:
+    - '~/projects'
+    - '~/work'
+```
+
+**For Python Developers:**
+
+```yaml
+security:
+  allowedCommands:
+    - 'python -m pytest'
+    - 'pip list'
+    - 'python --version'
+    - 'black --check .'
+    - 'mypy .'
+  safezones:
+    - '~/development'
+    - '~/notebooks'
+```
+
+**For System Administrators:**
+
+```yaml
+security:
+  allowedCommands:
+    - 'systemctl status'
+    - 'df -h'
+    - 'ps aux'
+    - 'netstat -tlnp'
+    - 'tail -n 50'
+  safezones:
+    - '/var/log'
+    - '~/scripts'
+    - '/etc/nginx' # Be careful with system directories
+```
+
+## 🆘 Troubleshooting
+
+### "Claude doesn't seem to be using the server"
+
+**Check these in order:**
+
+1. **Absolute paths in claude_desktop_config.json**
+
+   ```bash
+   # Make sure these files exist:
+   ls -la /your/absolute/path/to/context-savvy-mcp/dist/index.js
+   ls -la /your/absolute/path/to/context-savvy-mcp/config/server.yaml
    ```
-   Can you list the files in the current directory?
+
+2. **Claude Desktop was fully restarted**
+
+   - Quit the app completely (not just close windows)
+   - Restart it
+   - Try in a new conversation
+
+3. **Server builds successfully**
+   ```bash
+   npm run build
+   # Should complete without errors
    ```
 
-   Or, to test reading a specific file (if `cat` is allowed and the file is in a safe zone):
+### "Permission denied" or "Path not allowed"
 
+This means your security configuration is working! Check:
+
+1. **Is the path in a safe zone?**
+
+   ```yaml
+   security:
+     safezones:
+       - '/path/to/your/project' # Make sure this matches where you're working
    ```
-   Can you read the package.json file from my project?
+
+2. **Is the command allowed?**
+
+   ```yaml
+   security:
+     allowedCommands:
+       - 'ls' # Make sure the command you're trying is listed
    ```
 
-If working correctly, Claude will use your MCP Context Server to execute these requests, respecting the security settings defined in your `server.yaml` (as pointed to by `MCP_SERVER_CONFIG_PATH`).
+3. **Use the diagnostics tool:**
+   Ask Claude: "Can you run a security diagnostic to check what paths and commands are allowed?"
 
-## Available Tools
+### "Database errors" or "SQLite issues"
 
-(Refer to README.md for a list of tools)
+```bash
+# Check if data directory exists
+ls -la data/
 
-## Troubleshooting
+# If not, create it:
+mkdir -p data
 
-(Refer to README.md and `CLAUDE_DESKTOP_CONFIG.md` for troubleshooting)
+# Check permissions
+ls -la data/context.db
 
-Key things to check if it's not working:
+# If corrupted, backup and recreate:
+mv data/context.db data/context.db.backup
+npm run dev  # Will create a fresh database
+```
 
-- **Absolute Paths**: Double-check all paths in `claude_desktop_config.json` are absolute and correct.
-- **`MCP_SERVER_CONFIG_PATH`**: Ensure this environment variable in `claude_desktop_config.json` correctly points to your _actual_ `server.yaml` (or equivalent) and that the MCP server process has permissions to read it.
-- **Server Logs**: Check the MCP Context Server's own logs. When Claude Desktop starts it, these logs might go to Claude Desktop's internal logs or to a place configured by your `server.yaml`'s logging settings. If running `npm run dev`, logs are in your terminal.
-- **Safe Zones & Allowed Commands**: Ensure the operations you're trying are permitted by your `server.yaml` configuration. Use the `security_diagnostics` tool if unsure.
+### Still stuck?
 
-## Development
+1. **Check the logs**
 
-(Refer to README.md)
+   ```bash
+   npm run dev
+   # Watch for error messages when Claude tries to connect
+   ```
 
-## Security Notes
+2. **Run a health check**
 
-(Refer to README.md)
-The `MCP_SERVER_CONFIG_PATH` environment variable now gives you explicit control over which server configuration file is loaded. Manage this file securely.
+   ```bash
+   npm run health-check
+   ```
+
+3. **Start minimal**
+
+   - Use the default config
+   - Add only basic commands like `ls` and `cat`
+   - Add only your project directory to safe zones
+   - Test, then expand gradually
+
+4. **Ask for help**
+   - [GitHub Issues](https://github.com/Baebu/context-savvy-mcp/issues)
+   - [Discussions](https://github.com/Baebu/context-savvy-mcp/discussions)
+
+## 🔒 Security Best Practices
+
+**Start restrictive, expand carefully:**
+
+- Begin with minimal commands and safe zones
+- Add permissions only as you need them
+- Test each addition carefully
+- Never allow commands you don't understand
+
+**Regular maintenance:**
+
+- Review your allowed commands periodically
+- Update safe zones as projects change
+- Keep the server updated
+- Monitor logs for unusual activity
+
+**For shared systems:**
+
+- Use separate user accounts
+- Limit database access
+- Be extra cautious with system directories
+- Consider containerization
+
+## 🎯 Next Steps
+
+Now that you're set up:
+
+1. **Try the advanced features**: Ask Claude about task management, workspace organization, and smart search
+2. **Customize your config**: Add the commands and paths you use daily
+3. **Explore the tools**: Use `get_system_health` and `get_project_overview` for insights
+4. **Join the community**: Share your experience and help others
+
+**Ready to unlock Claude's full potential?** You're all set! 🚀
+
+---
+
+_Having issues? Don't suffer in silence – open an issue or discussion. We're here to help!_

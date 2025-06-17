@@ -12,14 +12,23 @@ import { logger } from '../../utils/logger.js';
 // Schema for SmartPathEvolutionTool
 const smartPathEvolutionSchema = z.object({
   pathId: z.string().describe('Smart path ID to evolve'),
-  usageData: z.array(z.object({
-    executionTime: z.number(),
-    parameters: z.record(z.unknown()),
-    success: z.boolean(),
-    timestamp: z.string(),
-    feedback: z.string().optional()
-  })).optional().describe('Usage data for evolution analysis'),
-  evolutionType: z.enum(['optimize', 'expand', 'simplify', 'adapt']).optional().default('optimize').describe('Type of evolution to apply'),
+  usageData: z
+    .array(
+      z.object({
+        executionTime: z.number(),
+        parameters: z.record(z.unknown()),
+        success: z.boolean(),
+        timestamp: z.string(),
+        feedback: z.string().optional()
+      })
+    )
+    .optional()
+    .describe('Usage data for evolution analysis'),
+  evolutionType: z
+    .enum(['optimize', 'expand', 'simplify', 'adapt'])
+    .optional()
+    .default('optimize')
+    .describe('Type of evolution to apply'),
   learningMode: z.boolean().optional().default(true).describe('Enable machine learning-based improvements')
 });
 
@@ -53,11 +62,7 @@ export class SmartPathEvolutionTool implements IMCPTool {
       const usageAnalysis = await this.analyzeUsagePatterns(params.pathId, params.usageData);
 
       // Generate evolution recommendations
-      const recommendations = this.generateEvolutionRecommendations(
-        currentPath,
-        usageAnalysis,
-        params.evolutionType
-      );
+      const recommendations = this.generateEvolutionRecommendations(currentPath, usageAnalysis, params.evolutionType);
 
       // Apply evolution if learning mode is enabled
       let evolvedPath = currentPath;
@@ -80,12 +85,15 @@ export class SmartPathEvolutionTool implements IMCPTool {
         newPathId: params.learningMode && evolvedPath !== currentPath ? `${params.pathId}_v${Date.now()}` : null
       };
 
-      context.logger.info({
-        pathId: params.pathId,
-        evolutionType: params.evolutionType,
-        improvements: recommendations.improvements.length,
-        evolved: params.learningMode
-      }, 'Smart path evolution completed');
+      context.logger.info(
+        {
+          pathId: params.pathId,
+          evolutionType: params.evolutionType,
+          improvements: recommendations.improvements.length,
+          evolved: params.learningMode
+        },
+        'Smart path evolution completed'
+      );
 
       return {
         content: [
@@ -111,10 +119,7 @@ export class SmartPathEvolutionTool implements IMCPTool {
   private async getSmartPath(pathId: string): Promise<any> {
     try {
       // Get smart path from database
-      const result = await this.db.getSingle(
-        'SELECT * FROM smart_paths WHERE id = ?',
-        [pathId]
-      );
+      const result = await this.db.getSingle('SELECT * FROM smart_paths WHERE id = ?', [pathId]);
 
       if (result) {
         const path = result as any;
@@ -180,9 +185,7 @@ export class SmartPathEvolutionTool implements IMCPTool {
 
     // Calculate basic metrics
     analysis.totalExecutions = executions.length;
-    analysis.successRate = Math.round(
-      (executions.filter(e => e.success).length / executions.length) * 100
-    );
+    analysis.successRate = Math.round((executions.filter(e => e.success).length / executions.length) * 100);
     analysis.averageExecutionTime = Math.round(
       executions.reduce((sum, e) => sum + e.executionTime, 0) / executions.length
     );
@@ -470,7 +473,7 @@ export class SmartPathEvolutionTool implements IMCPTool {
 
     // Reduce efficiency based on failure rate
     if (analysis.successRate < 100) {
-      efficiency -= (100 - analysis.successRate);
+      efficiency -= 100 - analysis.successRate;
     }
 
     // Reduce efficiency based on complexity
@@ -487,7 +490,11 @@ export class SmartPathEvolutionTool implements IMCPTool {
 const adaptiveSmartPathsSchema = z.object({
   basePath: z.string().optional().describe('Base smart path to create adaptive version from'),
   learningPeriod: z.number().optional().default(7).describe('Learning period in days'),
-  adaptationTriggers: z.array(z.enum(['performance_degradation', 'usage_pattern_change', 'error_rate_increase', 'parameter_drift'])).optional().default(['performance_degradation']).describe('Triggers for adaptation'),
+  adaptationTriggers: z
+    .array(z.enum(['performance_degradation', 'usage_pattern_change', 'error_rate_increase', 'parameter_drift']))
+    .optional()
+    .default(['performance_degradation'])
+    .describe('Triggers for adaptation'),
   monitoringEnabled: z.boolean().optional().default(true).describe('Enable continuous monitoring')
 });
 
@@ -509,10 +516,7 @@ export class AdaptiveSmartPathsTool implements IMCPTool {
 
       if (params.basePath) {
         // Get base path definition
-        const baseResult = await this.db.getSingle(
-          'SELECT * FROM smart_paths WHERE id = ?',
-          [params.basePath]
-        );
+        const baseResult = await this.db.getSingle('SELECT * FROM smart_paths WHERE id = ?', [params.basePath]);
 
         if (baseResult) {
           basePath = baseResult as any;
@@ -540,13 +544,7 @@ export class AdaptiveSmartPathsTool implements IMCPTool {
       // Store adaptive smart path
       await this.db.executeCommand(
         'INSERT INTO smart_paths (id, name, type, definition, usage_count, created_at, updated_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)',
-        [
-          adaptivePathId,
-          `Adaptive Smart Path ${adaptivePathId}`,
-          'adaptive',
-          JSON.stringify(adaptiveDefinition),
-          0
-        ]
+        [adaptivePathId, `Adaptive Smart Path ${adaptivePathId}`, 'adaptive', JSON.stringify(adaptiveDefinition), 0]
       );
 
       const response = {
@@ -560,12 +558,15 @@ export class AdaptiveSmartPathsTool implements IMCPTool {
         nextCheck: new Date(Date.now() + adaptiveDefinition.monitoring.checkInterval * 1000).toISOString()
       };
 
-      context.logger.info({
-        adaptivePathId,
-        basePath: params.basePath,
-        triggers: params.adaptationTriggers.length,
-        monitoring: params.monitoringEnabled
-      }, 'Adaptive smart path created');
+      context.logger.info(
+        {
+          adaptivePathId,
+          basePath: params.basePath,
+          triggers: params.adaptationTriggers.length,
+          monitoring: params.monitoringEnabled
+        },
+        'Adaptive smart path created'
+      );
 
       return {
         content: [
@@ -588,7 +589,9 @@ export class AdaptiveSmartPathsTool implements IMCPTool {
     }
   }
 
-  private generateAdaptationRules(triggers: string[]): Array<{ trigger: string; condition: string; action: string; threshold: number }> {
+  private generateAdaptationRules(
+    triggers: string[]
+  ): Array<{ trigger: string; condition: string; action: string; threshold: number }> {
     const rules: Array<{ trigger: string; condition: string; action: string; threshold: number }> = [];
 
     triggers.forEach(trigger => {
@@ -639,23 +642,33 @@ export class AdaptiveSmartPathsTool implements IMCPTool {
 const workflowTemplatesSchema = z.object({
   action: z.enum(['create', 'list', 'get', 'delete', 'execute']).describe('Action to perform'),
   templateId: z.string().optional().describe('Template ID for get/delete/execute actions'),
-  templateDefinition: z.object({
-    name: z.string(),
-    description: z.string(),
-    category: z.string().optional().default('general'),
-    operations: z.array(z.object({
-      type: z.string(),
-      key: z.string().optional(),
-      data: z.unknown().optional(),
-      parameters: z.record(z.string()).optional()
-    })),
-    parameters: z.record(z.object({
-      type: z.string(),
-      required: z.boolean().optional().default(false),
-      default: z.unknown().optional(),
-      description: z.string().optional()
-    })).optional().default({})
-  }).optional().describe('Template definition for create action'),
+  templateDefinition: z
+    .object({
+      name: z.string(),
+      description: z.string(),
+      category: z.string().optional().default('general'),
+      operations: z.array(
+        z.object({
+          type: z.string(),
+          key: z.string().optional(),
+          data: z.unknown().optional(),
+          parameters: z.record(z.string()).optional()
+        })
+      ),
+      parameters: z
+        .record(
+          z.object({
+            type: z.string(),
+            required: z.boolean().optional().default(false),
+            default: z.unknown().optional(),
+            description: z.string().optional()
+          })
+        )
+        .optional()
+        .default({})
+    })
+    .optional()
+    .describe('Template definition for create action'),
   parameters: z.record(z.unknown()).optional().default({}).describe('Parameters for execute action'),
   category: z.string().optional().describe('Category filter for list action')
 });
@@ -666,9 +679,7 @@ export class WorkflowTemplatesTool implements IMCPTool {
   description = 'Manage workflow templates for common operation patterns';
   schema = workflowTemplatesSchema;
 
-  constructor(
-    @inject('DatabaseHandler') private db: IDatabaseHandler
-  ) {}
+  constructor(@inject('DatabaseHandler') private db: IDatabaseHandler) {}
 
   async execute(params: z.infer<typeof workflowTemplatesSchema>, context: ToolContext): Promise<ToolResult> {
     try {
@@ -703,7 +714,8 @@ export class WorkflowTemplatesTool implements IMCPTool {
     const templateId = `template_${Date.now()}`;
 
     // Create workflow templates table if it doesn't exist
-    await this.db.executeCommand(`
+    await this.db.executeCommand(
+      `
       CREATE TABLE IF NOT EXISTS workflow_templates (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
@@ -714,17 +726,13 @@ export class WorkflowTemplatesTool implements IMCPTool {
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
         updated_at TEXT DEFAULT CURRENT_TIMESTAMP
       )
-    `, []);
+    `,
+      []
+    );
 
     await this.db.executeCommand(
       'INSERT INTO workflow_templates (id, name, description, category, definition) VALUES (?, ?, ?, ?, ?)',
-      [
-        templateId,
-        definition.name,
-        definition.description,
-        definition.category,
-        JSON.stringify(definition)
-      ]
+      [templateId, definition.name, definition.description, definition.category, JSON.stringify(definition)]
     );
 
     const response = {
@@ -759,7 +767,7 @@ export class WorkflowTemplatesTool implements IMCPTool {
 
     query += ' ORDER BY usage_count DESC, created_at DESC';
 
-    const templates = await this.db.executeQuery(query, params) as any[];
+    const templates = (await this.db.executeQuery(query, params)) as any[];
 
     const response = {
       templates: templates.map(t => ({
@@ -785,10 +793,7 @@ export class WorkflowTemplatesTool implements IMCPTool {
   }
 
   private async getTemplate(templateId: string, _context: ToolContext): Promise<ToolResult> {
-    const template = await this.db.getSingle(
-      'SELECT * FROM workflow_templates WHERE id = ?',
-      [templateId]
-    ) as any;
+    const template = (await this.db.getSingle('SELECT * FROM workflow_templates WHERE id = ?', [templateId])) as any;
 
     if (!template) {
       return {
@@ -823,10 +828,7 @@ export class WorkflowTemplatesTool implements IMCPTool {
   }
 
   private async deleteTemplate(templateId: string, context: ToolContext): Promise<ToolResult> {
-    const result = await this.db.executeCommand(
-      'DELETE FROM workflow_templates WHERE id = ?',
-      [templateId]
-    );
+    const result = await this.db.executeCommand('DELETE FROM workflow_templates WHERE id = ?', [templateId]);
 
     const response = {
       templateId,
@@ -847,11 +849,12 @@ export class WorkflowTemplatesTool implements IMCPTool {
     };
   }
 
-  private async executeTemplate(templateId: string, parameters: Record<string, unknown>, context: ToolContext): Promise<ToolResult> {
-    const template = await this.db.getSingle(
-      'SELECT * FROM workflow_templates WHERE id = ?',
-      [templateId]
-    ) as any;
+  private async executeTemplate(
+    templateId: string,
+    parameters: Record<string, unknown>,
+    context: ToolContext
+  ): Promise<ToolResult> {
+    const template = (await this.db.getSingle('SELECT * FROM workflow_templates WHERE id = ?', [templateId])) as any;
 
     if (!template) {
       return {

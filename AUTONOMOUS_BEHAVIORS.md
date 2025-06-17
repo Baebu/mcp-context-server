@@ -100,34 +100,34 @@ autonomous:
   enabled: true
 
   monitoring:
-    tokenCheckInterval: 5000  # ms
-    sessionTimeout: 3600000   # 1 hour
+    tokenCheckInterval: 5000 # ms
+    sessionTimeout: 3600000 # 1 hour
 
   thresholds:
-    checkpoint: 0.7      # 70% tokens
-    handoff: 0.9        # 90% tokens
-    panic: 0.95         # 95% tokens
+    checkpoint: 0.7 # 70% tokens
+    handoff: 0.9 # 90% tokens
+    panic: 0.95 # 95% tokens
 
   compression:
     enabled: true
-    minSize: 10240      # 10KB
+    minSize: 10240 # 10KB
     algorithm: hybrid
     level: 6
 
   maintenance:
     archive:
       enabled: true
-      schedule: "0 2 * * *"  # 2 AM daily
-      maxAge: 90            # days
+      schedule: '0 2 * * *' # 2 AM daily
+      maxAge: 90 # days
 
     deduplication:
       enabled: true
-      schedule: "0 */6 * * *"  # Every 6 hours
-      threshold: 0.85        # similarity
+      schedule: '0 */6 * * *' # Every 6 hours
+      threshold: 0.85 # similarity
 
     optimization:
       enabled: true
-      schedule: "0 * * * *"  # Every hour
+      schedule: '0 * * * *' # Every hour
       targetUtilization: 0.8
 
   emergency:

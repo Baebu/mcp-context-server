@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Enhanced Task Management System**
+
   - New `create_task` tool for standardized task creation with priorities, due dates, and tags
   - New `list_tasks` tool with advanced filtering, semantic search, and sorting capabilities
   - New `update_task` tool for updating task properties and tracking progress
@@ -48,6 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Task Discovery Issues**
+
   - `find_active_tasks` now properly discovers tasks using semantic search
   - Improved task discovery with multiple search patterns
   - Better deduplication logic to avoid duplicate results

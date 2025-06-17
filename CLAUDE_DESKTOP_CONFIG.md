@@ -35,7 +35,8 @@ Add the following to your `claude_desktop_config.json` file. **Replace the paths
 
 ## Important Notes
 
-1. **Replace paths**:   - Change `/absolute/path/to/context-savvy-mcp/dist/index.js` to the actual absolute path where you cloned this repository and built the project (specifically, the `dist/index.js` file).
+1. **Replace paths**: - Change `/absolute/path/to/context-savvy-mcp/dist/index.js` to the actual absolute path where you cloned this repository and built the project (specifically, the `dist/index.js` file).
+
    - Change `/absolute/path/to/context-savvy-mcp/config/server.yaml` to the actual absolute path of your server's configuration file (e.g., `server.yaml`). This file tells the MCP server itself how to behave (security settings, database path, etc.).
 
 2. **Build first**: Make sure you've built the project with `npm run build` before adding to Claude Desktop.
