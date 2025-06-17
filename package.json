@@ -1,7 +1,7 @@
 {
   "name": "context-savvy-mcp",
   "version": "2.0.1",
-  "description": "A context-efficient MCP server for maximizing productivity in Claude chats with FastMCP and enhanced semantic memory",
+  "description": "A high-performance Model Context Protocol server that transforms Claude Desktop into a memory-enabled AI assistant with persistent context, secure command execution, and intelligent workflow automation.",
   "main": "dist/index.js",
   "type": "module",
   "engines": {
@@ -17,6 +17,7 @@
     "start": "node -r tsconfig-paths/register dist/index.js",
     "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest",
     "test:watch": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --watch",
+    "test:coverage": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --coverage",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "format": "prettier --write \"src/**/*.{ts,js,json}\" \"config/**/*.{yaml,json}\" \"*.{json,md}\"",
@@ -25,19 +26,27 @@
     "health-check": "node scripts/health-check.js",
     "claude-config": "node scripts/claude-config.js",
     "create-workspace": "tsx scripts/create-test-fs-workspace.ts",
-    "quick-setup": "node scripts/quick-setup.js"
+    "quick-setup": "node scripts/quick-setup.js",
+    "prepack": "npm run build && npm run test && npm run type-check"
   },
   "keywords": [
     "mcp",
     "model-context-protocol",
     "claude",
+    "claude-desktop",
+    "ai-assistant",
     "typescript",
     "productivity",
     "context-management",
     "semantic-search",
     "vector-embeddings",
-    "fastmcp",
-    "session-management"
+    "persistent-memory",
+    "task-management",
+    "workflow-automation",
+    "secure-commands",
+    "file-operations",
+    "sqlite",
+    "anthropic"
   ],
   "author": "Baebu <bae.bu.8@gmail.com>",
   "repository": {
@@ -48,10 +57,21 @@
   "bugs": {
     "url": "https://github.com/Baebu/context-savvy-mcp/issues"
   },
+  "license": "MIT",
+  "files": [
+    "dist/",
+    "config/server.example.yaml",
+    "scripts/claude-config.js",
+    "scripts/quick-setup.js",
+    "scripts/health-check.js",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.10.2",
+    "@modelcontextprotocol/sdk": "^1.12.3",
     "@tensorflow/tfjs-node": "^4.15.0",
-    "better-sqlite3": "^11.6.0",
+    "better-sqlite3": "^11.10.0",
     "convict": "^6.2.4",
     "crypto": "^1.0.1",
     "fastmcp": "^2.0.0",
@@ -73,7 +93,7 @@
   },
   "devDependencies": {
     "@jest/globals": "29.7.0",
-    "@types/better-sqlite3": "^7.6.8",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/convict": "^6.1.6",
     "@types/express": "^4.17.21",
     "@types/jest": "^29.5.14",
@@ -97,7 +117,7 @@
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "tsx": "^4.7.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.8.3"
   },
   "lint-staged": {
     "*.{ts,js}": [

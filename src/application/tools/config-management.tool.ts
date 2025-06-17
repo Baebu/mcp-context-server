@@ -104,7 +104,7 @@ export class ConfigManagementTool implements IMCPTool {
 
   private async readConfiguration(): Promise<any> {
     const config = await this.configManager.readConfig();
-    
+
     return {
       action: 'read',
       timestamp: new Date().toISOString(),
@@ -169,9 +169,9 @@ export class ConfigManagementTool implements IMCPTool {
 
   private async updateSafeZones(safeZones: string[]): Promise<any> {
     const currentSafeZones = await this.configManager.getCurrentSafeZones();
-    
+
     await this.configManager.updateSafeZones(safeZones);
-    
+
     return {
       action: 'update-safe-zones',
       timestamp: new Date().toISOString(),
@@ -195,7 +195,7 @@ export class ConfigManagementTool implements IMCPTool {
 
   private async getSafeZones(): Promise<any> {
     const safeZones = await this.configManager.getCurrentSafeZones();
-    
+
     return {
       action: 'get-safe-zones',
       timestamp: new Date().toISOString(),
@@ -219,7 +219,7 @@ export class ConfigManagementTool implements IMCPTool {
   private async validateConfiguration(): Promise<any> {
     const config = await this.configManager.readConfig();
     const validation = await this.configManager.validateConfig(config);
-    
+
     return {
       action: 'validate',
       timestamp: new Date().toISOString(),

@@ -26,9 +26,7 @@ export class CreateTaskTool implements IMCPTool {
   description = 'Create a new task with proper structure and tracking';
   schema = createTaskSchema;
 
-  constructor(
-    @inject('DatabaseHandler') private db: IDatabaseHandler
-  ) {}
+  constructor(@inject('DatabaseHandler') private db: IDatabaseHandler) {}
 
   async execute(params: z.infer<typeof createTaskSchema>, context: ToolContext): Promise<ToolResult> {
     try {
@@ -157,7 +155,8 @@ export class CreateTaskTool implements IMCPTool {
   }
 
   private generateTaskKey(name: string, sessionId?: string): string {
-    const sanitizedName = name.toLowerCase()
+    const sanitizedName = name
+      .toLowerCase()
       .replace(/[^a-z0-9]+/g, '_')
       .replace(/^_+|_+$/g, '')
       .substring(0, 30);
@@ -172,7 +171,11 @@ export class CreateTaskTool implements IMCPTool {
 // Schema for MigrateTaskContextsTool
 const migrateTaskContextsSchema = z.object({
   dryRun: z.boolean().optional().default(true).describe('Preview changes without applying them'),
-  patterns: z.array(z.string()).optional().default(['task_', 'todo_', 'project_']).describe('Key patterns to identify task contexts'),
+  patterns: z
+    .array(z.string())
+    .optional()
+    .default(['task_', 'todo_', 'project_'])
+    .describe('Key patterns to identify task contexts'),
   limit: z.number().optional().default(100).describe('Maximum contexts to migrate in one run')
 });
 
@@ -182,9 +185,7 @@ export class MigrateTaskContextsTool implements IMCPTool {
   description = 'Migrate existing contexts to proper task type for task system compatibility';
   schema = migrateTaskContextsSchema;
 
-  constructor(
-    @inject('DatabaseHandler') private db: IDatabaseHandler
-  ) {}
+  constructor(@inject('DatabaseHandler') private db: IDatabaseHandler) {}
 
   async execute(params: z.infer<typeof migrateTaskContextsSchema>, context: ToolContext): Promise<ToolResult> {
     try {
@@ -222,17 +223,21 @@ export class MigrateTaskContextsTool implements IMCPTool {
           content: [
             {
               type: 'text',
-              text: JSON.stringify({
-                dryRun: true,
-                candidatesFound: migrationCandidates.length,
-                candidates: migrationCandidates.map(c => ({
-                  key: c.key,
-                  currentType: c.currentType,
-                  confidence: c.confidence,
-                  reason: c.reason
-                })),
-                message: 'Run with dryRun: false to apply migrations'
-              }, null, 2)
+              text: JSON.stringify(
+                {
+                  dryRun: true,
+                  candidatesFound: migrationCandidates.length,
+                  candidates: migrationCandidates.map(c => ({
+                    key: c.key,
+                    currentType: c.currentType,
+                    confidence: c.confidence,
+                    reason: c.reason
+                  })),
+                  message: 'Run with dryRun: false to apply migrations'
+                },
+                null,
+                2
+              )
             }
           ]
         };
@@ -319,7 +324,16 @@ export class MigrateTaskContextsTool implements IMCPTool {
     }
 
     // Check for task-like fields
-    const taskFields = ['status', 'progress', 'objective', 'goal', 'description', 'priority', 'next_steps', 'nextSteps'];
+    const taskFields = [
+      'status',
+      'progress',
+      'objective',
+      'goal',
+      'description',
+      'priority',
+      'next_steps',
+      'nextSteps'
+    ];
     const foundFields = taskFields.filter(field => field in value);
     if (foundFields.length > 0) {
       confidence += foundFields.length * 15;
@@ -371,9 +385,7 @@ export class FixTaskSystemTool implements IMCPTool {
   description = 'Comprehensive fix for the task management system';
   schema = fixTaskSystemSchema;
 
-  constructor(
-    @inject('DatabaseHandler') private db: IDatabaseHandler
-  ) {}
+  constructor(@inject('DatabaseHandler') private db: IDatabaseHandler) {}
 
   async execute(params: z.infer<typeof fixTaskSystemSchema>, context: ToolContext): Promise<ToolResult> {
     try {
@@ -388,7 +400,10 @@ export class FixTaskSystemTool implements IMCPTool {
         const migrationTool = new MigrateTaskContextsTool(this.db);
 
         // First do a dry run
-        const dryRunResult = await migrationTool.execute({ dryRun: true, patterns: ['task_', 'todo_', 'project_'], limit: 50 }, context);
+        const dryRunResult = await migrationTool.execute(
+          { dryRun: true, patterns: ['task_', 'todo_', 'project_'], limit: 50 },
+          context
+        );
         const dryRunText = dryRunResult.content?.[0]?.text;
         const dryRunData = dryRunText ? JSON.parse(dryRunText) : { candidatesFound: 0 };
         results.steps.push({
@@ -399,9 +414,14 @@ export class FixTaskSystemTool implements IMCPTool {
 
         // If candidates found, do actual migration
         if (dryRunData.candidatesFound > 0) {
-          const migrationResult = await migrationTool.execute({ dryRun: false, patterns: ['task_', 'todo_', 'project_'], limit: 50 }, context);
+          const migrationResult = await migrationTool.execute(
+            { dryRun: false, patterns: ['task_', 'todo_', 'project_'], limit: 50 },
+            context
+          );
           const migrationText = migrationResult.content?.[0]?.text;
-          const migrationData = migrationText ? JSON.parse(migrationText) : { migrated: [], errors: [], success: false };
+          const migrationData = migrationText
+            ? JSON.parse(migrationText)
+            : { migrated: [], errors: [], success: false };
           results.steps.push({
             step: 'Migration Execution',
             migrated: migrationData.migrated,
@@ -415,12 +435,15 @@ export class FixTaskSystemTool implements IMCPTool {
       if (params.testSystem) {
         // Create a test task
         const createTaskTool = new CreateTaskTool(this.db);
-        const testTaskResult = await createTaskTool.execute({
-          name: 'Test Task for System Validation',
-          description: 'Automated test task to validate task system functionality',
-          priority: 'low',
-          tags: ['test', 'system-validation']
-        }, context);
+        const testTaskResult = await createTaskTool.execute(
+          {
+            name: 'Test Task for System Validation',
+            description: 'Automated test task to validate task system functionality',
+            priority: 'low',
+            tags: ['test', 'system-validation']
+          },
+          context
+        );
 
         const testTaskText = testTaskResult.content?.[0]?.text;
         const testTaskData = testTaskText ? JSON.parse(testTaskText) : { success: false, taskKey: '' };

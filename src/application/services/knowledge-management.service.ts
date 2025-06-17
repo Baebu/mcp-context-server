@@ -111,10 +111,7 @@ export class KnowledgeManagementService {
   private versionCache = new Map<string, KnowledgeVersion[]>();
   private dependencyGraph = new Map<string, Set<string>>();
 
-
-  constructor(
-    @inject('DatabaseHandler') private db: IDatabaseHandler
-  ) {}
+  constructor(@inject('DatabaseHandler') private db: IDatabaseHandler) {}
 
   // ===== VERSION MANAGEMENT METHODS =====
 
@@ -150,17 +147,17 @@ export class KnowledgeManagementService {
         ORDER BY updated_at DESC
       `;
 
-      const contexts = await this.db.executeQuery(contextsQuery, [cutoffTime.toISOString()]) as any[];
+      const contexts = (await this.db.executeQuery(contextsQuery, [cutoffTime.toISOString()])) as any[];
 
       // Process each context for versioning
       for (const context of contexts) {
         try {
           // Generate version
           const version = await this.createVersion(context);
-          
+
           // Get existing versions for this context
           let existingVersions = this.versionCache.get(context.key) || [];
-          
+
           // Add new version
           existingVersions.unshift(version);
           cached++;
@@ -182,7 +179,6 @@ export class KnowledgeManagementService {
 
           // Store in database
           await this.storeVersionInDatabase(version);
-
         } catch (error) {
           logger.warn({ error, contextKey: context.key }, 'Failed to process context version');
         }
@@ -197,12 +193,15 @@ export class KnowledgeManagementService {
       // Generate summary
       const summary = this.generateVersionCacheSummary();
 
-      logger.info({
-        cached,
-        cleaned,
-        compressed,
-        totalVersions: summary.totalVersions
-      }, 'Version cache management completed');
+      logger.info(
+        {
+          cached,
+          cleaned,
+          compressed,
+          totalVersions: summary.totalVersions
+        },
+        'Version cache management completed'
+      );
 
       return {
         cached,
@@ -210,7 +209,6 @@ export class KnowledgeManagementService {
         compressed,
         summary
       };
-
     } catch (error) {
       logger.error({ error, options }, 'Failed to manage version cache');
       throw error;
@@ -247,7 +245,7 @@ export class KnowledgeManagementService {
 
       query += ` ORDER BY updated_at DESC LIMIT 100`;
 
-      const contexts = await this.db.executeQuery(query, params) as any[];
+      const contexts = (await this.db.executeQuery(query, params)) as any[];
 
       // Check freshness for each context
       for (const context of contexts) {
@@ -265,14 +263,16 @@ export class KnowledgeManagementService {
         return stalenessPriority[b.staleness] - stalenessPriority[a.staleness];
       });
 
-      logger.info({
-        totalChecked: results.length,
-        staleCount: results.filter(r => r.staleness !== 'fresh').length,
-        outdatedCount: results.filter(r => r.staleness === 'outdated').length
-      }, 'Knowledge freshness check completed');
+      logger.info(
+        {
+          totalChecked: results.length,
+          staleCount: results.filter(r => r.staleness !== 'fresh').length,
+          outdatedCount: results.filter(r => r.staleness === 'outdated').length
+        },
+        'Knowledge freshness check completed'
+      );
 
       return results;
-
     } catch (error) {
       logger.error({ error, options }, 'Failed to check knowledge freshness');
       throw error;
@@ -300,7 +300,7 @@ export class KnowledgeManagementService {
 
       // Find direct dependencies
       const dependencies = await this.findDirectDependencies(context);
-      
+
       // Find dependent contexts (what depends on this context)
       const dependents = await this.findDependentContexts(contextKey);
 
@@ -311,14 +311,20 @@ export class KnowledgeManagementService {
       const graph = await this.buildDependencyGraph(contextKey, dependencies, dependents);
 
       // Update internal dependency tracking
-      this.updateDependencyGraph(contextKey, dependencies.map(d => d.dependencyKey));
-
-      logger.info({
+      this.updateDependencyGraph(
         contextKey,
-        dependencyCount: dependencies.length,
-        dependentCount: dependents.length,
-        circularCount: circularDependencies.length
-      }, 'Dependency tracking completed');
+        dependencies.map(d => d.dependencyKey)
+      );
+
+      logger.info(
+        {
+          contextKey,
+          dependencyCount: dependencies.length,
+          dependentCount: dependents.length,
+          circularCount: circularDependencies.length
+        },
+        'Dependency tracking completed'
+      );
 
       return {
         dependencies,
@@ -326,7 +332,6 @@ export class KnowledgeManagementService {
         circularDependencies,
         graph
       };
-
     } catch (error) {
       logger.error({ error, contextKey }, 'Failed to track dependencies');
       throw error;
@@ -372,25 +377,33 @@ export class KnowledgeManagementService {
       // Generate summary
       const summary = {
         total: notifications.length,
-        byType: notifications.reduce((acc, n) => {
-          acc[n.notificationType] = (acc[n.notificationType] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>),
-        bySeverity: notifications.reduce((acc, n) => {
-          acc[n.severity] = (acc[n.severity] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>),
+        byType: notifications.reduce(
+          (acc, n) => {
+            acc[n.notificationType] = (acc[n.notificationType] || 0) + 1;
+            return acc;
+          },
+          {} as Record<string, number>
+        ),
+        bySeverity: notifications.reduce(
+          (acc, n) => {
+            acc[n.severity] = (acc[n.severity] || 0) + 1;
+            return acc;
+          },
+          {} as Record<string, number>
+        ),
         unacknowledged: notifications.filter(n => !n.acknowledged).length
       };
 
-      logger.info({
-        total: summary.total,
-        unacknowledged: summary.unacknowledged,
-        highPriority: notifications.filter(n => n.severity === 'error').length
-      }, 'Update notifications generated');
+      logger.info(
+        {
+          total: summary.total,
+          unacknowledged: summary.unacknowledged,
+          highPriority: notifications.filter(n => n.severity === 'error').length
+        },
+        'Update notifications generated'
+      );
 
       return { notifications, summary };
-
     } catch (error) {
       logger.error({ error }, 'Failed to generate update notifications');
       throw error;
@@ -402,20 +415,23 @@ export class KnowledgeManagementService {
   /**
    * Generate context from file changes
    */
-  async generateFileChangeContext(filePath: string, changeType: FileChangeContext['changeType']): Promise<FileChangeContext> {
+  async generateFileChangeContext(
+    filePath: string,
+    changeType: FileChangeContext['changeType']
+  ): Promise<FileChangeContext> {
     try {
       const fileId = this.generateFileId(filePath);
       const timestamp = new Date();
 
       // Get file stats
       const fileStats = await this.getFileStats(filePath);
-      
+
       // Generate context content
       const contextContent = await this.generateContextFromFileChange(filePath, changeType, fileStats);
-      
+
       // Find related contexts
       const relatedContexts = await this.findRelatedFileContexts(filePath);
-      
+
       // Assess impact
       const impact = this.assessFileChangeImpact(filePath, changeType, relatedContexts);
 
@@ -434,15 +450,17 @@ export class KnowledgeManagementService {
       // Store the file change context
       await this.storeFileChangeContext(fileChangeContext);
 
-      logger.info({
-        filePath,
-        changeType,
-        impact,
-        relatedContexts: relatedContexts.length
-      }, 'File change context generated');
+      logger.info(
+        {
+          filePath,
+          changeType,
+          impact,
+          relatedContexts: relatedContexts.length
+        },
+        'File change context generated'
+      );
 
       return fileChangeContext;
-
     } catch (error) {
       logger.error({ error, filePath, changeType }, 'Failed to generate file change context');
       throw error;
@@ -492,16 +510,18 @@ export class KnowledgeManagementService {
       // Store the file operation context
       await this.storeFileOperationContext(fileOpContext);
 
-      logger.info({
-        operationId,
-        operation,
-        filePath,
-        autoContext: fileOpContext.autoContext,
-        generatedContexts: fileOpContext.generatedContexts.length
-      }, 'Auto-context generation completed');
+      logger.info(
+        {
+          operationId,
+          operation,
+          filePath,
+          autoContext: fileOpContext.autoContext,
+          generatedContexts: fileOpContext.generatedContexts.length
+        },
+        'Auto-context generation completed'
+      );
 
       return fileOpContext;
-
     } catch (error) {
       logger.error({ error, operation, filePath }, 'Failed to auto-generate context for file operation');
       throw error;
@@ -511,18 +531,21 @@ export class KnowledgeManagementService {
   /**
    * Generate context from file history
    */
-  async generateFileHistoryContext(filePath: string, options: {
-    maxVersions?: number;
-    consolidate?: boolean;
-    includeDeleted?: boolean;
-  } = {}): Promise<FileHistoryContext> {
+  async generateFileHistoryContext(
+    filePath: string,
+    options: {
+      maxVersions?: number;
+      consolidate?: boolean;
+      includeDeleted?: boolean;
+    } = {}
+  ): Promise<FileHistoryContext> {
     try {
       const historyId = this.generateHistoryId(filePath);
       const maxVersions = options.maxVersions || 20;
 
       // Get file change history
       const changeHistory = await this.getFileChangeHistory(filePath, maxVersions);
-      
+
       // Get versions with contexts
       const versions = [];
       for (const change of changeHistory) {
@@ -549,23 +572,27 @@ export class KnowledgeManagementService {
         filePath,
         versions,
         totalVersions: versions.length,
-        oldestVersion: versions.length > 0 ? new Date(Math.min(...versions.map(v => v.timestamp.getTime()))) : new Date(),
-        newestVersion: versions.length > 0 ? new Date(Math.max(...versions.map(v => v.timestamp.getTime()))) : new Date(),
+        oldestVersion:
+          versions.length > 0 ? new Date(Math.min(...versions.map(v => v.timestamp.getTime()))) : new Date(),
+        newestVersion:
+          versions.length > 0 ? new Date(Math.max(...versions.map(v => v.timestamp.getTime()))) : new Date(),
         consolidatedContext
       };
 
       // Store the file history context
       await this.storeFileHistoryContext(fileHistoryContext);
 
-      logger.info({
-        historyId,
-        filePath,
-        totalVersions: versions.length,
-        consolidatedLength: consolidatedContext.length
-      }, 'File history context generated');
+      logger.info(
+        {
+          historyId,
+          filePath,
+          totalVersions: versions.length,
+          consolidatedLength: consolidatedContext.length
+        },
+        'File history context generated'
+      );
 
       return fileHistoryContext;
-
     } catch (error) {
       logger.error({ error, filePath }, 'Failed to generate file history context');
       throw error;
@@ -578,7 +605,7 @@ export class KnowledgeManagementService {
     const versionId = `v_${context.key}_${Date.now()}`;
     const content = this.parseJsonSafely(context.value);
     const checksum = this.generateChecksum(JSON.stringify(content));
-    
+
     return {
       versionId,
       contextKey: context.key,
@@ -594,10 +621,10 @@ export class KnowledgeManagementService {
 
   private compressOldVersions(versions: KnowledgeVersion[]): number {
     let compressed = 0;
-    
+
     // Compress versions older than 30 days
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    
+
     for (const version of versions) {
       if (version.createdAt < thirtyDaysAgo && typeof version.content === 'object') {
         // Simple compression - summarize large objects
@@ -607,30 +634,30 @@ export class KnowledgeManagementService {
         }
       }
     }
-    
+
     return compressed;
   }
 
   private async cleanupOldVersions(cutoffTime: Date): Promise<{ cleaned: number }> {
     let cleaned = 0;
-    
+
     for (const [contextKey, versions] of this.versionCache.entries()) {
       const filteredVersions = versions.filter(v => v.createdAt > cutoffTime);
       cleaned += versions.length - filteredVersions.length;
-      
+
       if (filteredVersions.length === 0) {
         this.versionCache.delete(contextKey);
       } else {
         this.versionCache.set(contextKey, filteredVersions);
       }
     }
-    
+
     return { cleaned };
   }
 
   private generateVersionCacheSummary() {
     const allVersions = Array.from(this.versionCache.values()).flat();
-    
+
     return {
       totalVersions: allVersions.length,
       uniqueContexts: this.versionCache.size,
@@ -640,9 +667,13 @@ export class KnowledgeManagementService {
     };
   }
 
-  private async analyzeFreshness(context: any, maxAge: number, _options: FreshnessCheckOptions): Promise<FreshnessResult> {
+  private async analyzeFreshness(
+    context: any,
+    maxAge: number,
+    _options: FreshnessCheckOptions
+  ): Promise<FreshnessResult> {
     const ageHours = (Date.now() - new Date(context.updated_at).getTime()) / (1000 * 60 * 60);
-    
+
     let staleness: FreshnessResult['staleness'] = 'fresh';
     if (ageHours > maxAge * 2) {
       staleness = 'outdated';
@@ -671,7 +702,7 @@ export class KnowledgeManagementService {
     // Analyze context content for dependencies
     const content = this.parseJsonSafely(context.value);
     const dependencies: DependencyInfo[] = [];
-    
+
     // Look for file references
     const fileRefs = this.extractFileReferences(content);
     for (const fileRef of fileRefs) {
@@ -683,7 +714,7 @@ export class KnowledgeManagementService {
         location: fileRef
       });
     }
-    
+
     // Look for context references
     const contextRefs = this.extractContextReferences(content);
     for (const contextRef of contextRefs) {
@@ -694,7 +725,7 @@ export class KnowledgeManagementService {
         isUpToDate: await this.isContextUpToDate(contextRef)
       });
     }
-    
+
     return dependencies;
   }
 
@@ -706,13 +737,9 @@ export class KnowledgeManagementService {
       AND key != ?
       LIMIT 50
     `;
-    
-    const results = await this.db.executeQuery(query, [
-      `%${contextKey}%`,
-      `%${contextKey}%`,
-      contextKey
-    ]) as any[];
-    
+
+    const results = (await this.db.executeQuery(query, [`%${contextKey}%`, `%${contextKey}%`, contextKey])) as any[];
+
     return results.map(r => r.key);
   }
 
@@ -720,7 +747,7 @@ export class KnowledgeManagementService {
     const visited = new Set<string>();
     const recursionStack = new Set<string>();
     const cycles: string[][] = [];
-    
+
     const dfs = async (current: string, path: string[]) => {
       if (recursionStack.has(current)) {
         // Found a cycle
@@ -728,22 +755,22 @@ export class KnowledgeManagementService {
         cycles.push(path.slice(cycleStart));
         return;
       }
-      
+
       if (visited.has(current)) {
         return;
       }
-      
+
       visited.add(current);
       recursionStack.add(current);
-      
+
       const dependencies = this.dependencyGraph.get(current) || new Set();
       for (const dep of dependencies) {
         await dfs(dep, [...path, current]);
       }
-      
+
       recursionStack.delete(current);
     };
-    
+
     await dfs(contextKey, []);
     return cycles;
   }
@@ -751,9 +778,9 @@ export class KnowledgeManagementService {
   private async buildDependencyGraph(contextKey: string, dependencies: DependencyInfo[], dependents: string[]) {
     const nodes = [{ id: contextKey, type: 'root', level: 0 }];
     const edges: Array<{ source: string; target: string; type: string; strength: number }> = [];
-    
+
     // Add dependency nodes and edges
-    dependencies.forEach((dep) => {
+    dependencies.forEach(dep => {
       nodes.push({ id: dep.dependencyKey, type: dep.dependencyType, level: 1 });
       edges.push({
         source: contextKey,
@@ -762,9 +789,9 @@ export class KnowledgeManagementService {
         strength: dep.isUpToDate ? 1.0 : 0.5
       });
     });
-    
+
     // Add dependent nodes and edges
-    dependents.forEach((dependent) => {
+    dependents.forEach(dependent => {
       nodes.push({ id: dependent, type: 'dependent', level: -1 });
       edges.push({
         source: dependent,
@@ -773,7 +800,7 @@ export class KnowledgeManagementService {
         strength: 1.0
       });
     });
-    
+
     return { nodes, edges };
   }
 
@@ -781,9 +808,13 @@ export class KnowledgeManagementService {
     this.dependencyGraph.set(contextKey, new Set(dependencies));
   }
 
-  private generateFreshnessRecommendations(staleness: string, ageHours: number, dependencies: DependencyInfo[]): string[] {
+  private generateFreshnessRecommendations(
+    staleness: string,
+    ageHours: number,
+    dependencies: DependencyInfo[]
+  ): string[] {
     const recommendations = [];
-    
+
     if (staleness === 'outdated') {
       recommendations.push('Content is significantly outdated - immediate review recommended');
     } else if (staleness === 'stale') {
@@ -791,29 +822,30 @@ export class KnowledgeManagementService {
     } else if (staleness === 'aging') {
       recommendations.push('Content is aging - monitor for further staleness');
     }
-    
+
     const outdatedDeps = dependencies.filter(d => !d.isUpToDate);
     if (outdatedDeps.length > 0) {
       recommendations.push(`${outdatedDeps.length} dependencies are outdated`);
     }
-    
-    if (ageHours > 168) { // 1 week
+
+    if (ageHours > 168) {
+      // 1 week
       recommendations.push('Consider archiving if no longer relevant');
     }
-    
+
     return recommendations;
   }
 
   // Notification helper methods
   private async checkForVersionUpdates(): Promise<UpdateNotification[]> {
     const notifications: UpdateNotification[] = [];
-    
+
     // Check for contexts with available updates
     for (const [contextKey, versions] of this.versionCache.entries()) {
       if (versions.length > 1) {
         const latest = versions[0];
         const previous = versions[1];
-        
+
         if (latest && previous && latest.createdAt.getTime() - previous.createdAt.getTime() < 24 * 60 * 60 * 1000) {
           notifications.push({
             notificationId: `update_${contextKey}_${Date.now()}`,
@@ -828,13 +860,13 @@ export class KnowledgeManagementService {
         }
       }
     }
-    
+
     return notifications;
   }
 
   private async checkForDependencyChanges(): Promise<UpdateNotification[]> {
     const notifications: UpdateNotification[] = [];
-    
+
     for (const [contextKey, dependencies] of this.dependencyGraph.entries()) {
       for (const dependency of dependencies) {
         const isUpToDate = await this.isContextUpToDate(dependency);
@@ -852,13 +884,13 @@ export class KnowledgeManagementService {
         }
       }
     }
-    
+
     return notifications;
   }
 
   private async checkForStalenessWarnings(): Promise<UpdateNotification[]> {
     const freshnessResults = await this.checkKnowledgeFreshness({ maxAge: 72 });
-    
+
     return freshnessResults
       .filter(result => result.staleness === 'stale' || result.staleness === 'outdated')
       .map(result => ({
@@ -866,7 +898,7 @@ export class KnowledgeManagementService {
         contextKey: result.contextKey,
         notificationType: 'staleness_warning' as const,
         message: `Context ${result.contextKey} is ${result.staleness} (${result.ageHours} hours old)`,
-        severity: result.staleness === 'outdated' ? 'error' as const : 'warning' as const,
+        severity: result.staleness === 'outdated' ? ('error' as const) : ('warning' as const),
         createdAt: new Date(),
         acknowledged: false,
         metadata: { staleness: result.staleness, ageHours: result.ageHours }
@@ -876,7 +908,7 @@ export class KnowledgeManagementService {
   private async checkForCacheExpiration(): Promise<UpdateNotification[]> {
     const notifications: UpdateNotification[] = [];
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    
+
     for (const [contextKey, versions] of this.versionCache.entries()) {
       const oldVersions = versions.filter(v => v.createdAt < oneDayAgo);
       if (oldVersions.length > 5) {
@@ -892,7 +924,7 @@ export class KnowledgeManagementService {
         });
       }
     }
-    
+
     return notifications;
   }
 
@@ -927,12 +959,16 @@ export class KnowledgeManagementService {
       WHERE value LIKE ?
       LIMIT 10
     `;
-    
-    const results = await this.db.executeQuery(query, [`%${filePath}%`]) as any[];
+
+    const results = (await this.db.executeQuery(query, [`%${filePath}%`])) as any[];
     return results.map(r => r.key);
   }
 
-  private assessFileChangeImpact(_filePath: string, changeType: string, relatedContexts: string[]): 'low' | 'medium' | 'high' {
+  private assessFileChangeImpact(
+    _filePath: string,
+    changeType: string,
+    relatedContexts: string[]
+  ): 'low' | 'medium' | 'high' {
     if (relatedContexts.length > 5) return 'high';
     if (relatedContexts.length > 2 || changeType === 'deleted') return 'medium';
     return 'low';
@@ -993,7 +1029,7 @@ export class KnowledgeManagementService {
     let hash = 0;
     for (let i = 0; i < content.length; i++) {
       const char = content.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash; // Convert to 32-bit integer
     }
     return Math.abs(hash).toString(16);
@@ -1042,7 +1078,7 @@ export class KnowledgeManagementService {
   private extractFileReferences(content: unknown): string[] {
     const refs = [];
     const contentStr = JSON.stringify(content);
-    
+
     // Look for file path patterns
     const filePatterns = [
       /[A-Za-z]:\\[^"\s]+\.[a-zA-Z0-9]+/g, // Windows paths
@@ -1063,13 +1099,9 @@ export class KnowledgeManagementService {
   private extractContextReferences(content: unknown): string[] {
     const refs = [];
     const contentStr = JSON.stringify(content);
-    
+
     // Look for context key patterns
-    const contextPatterns = [
-      /context_[a-zA-Z0-9_-]+/g,
-      /task_[a-zA-Z0-9_-]+/g,
-      /session_[a-zA-Z0-9_-]+/g
-    ];
+    const contextPatterns = [/context_[a-zA-Z0-9_-]+/g, /task_[a-zA-Z0-9_-]+/g, /session_[a-zA-Z0-9_-]+/g];
 
     for (const pattern of contextPatterns) {
       const matches = contentStr.match(pattern);
@@ -1089,34 +1121,42 @@ export class KnowledgeManagementService {
   private async isContextUpToDate(contextKey: string): Promise<boolean> {
     const context = await this.db.getEnhancedContext(contextKey);
     if (!context) return false;
-    
+
     const ageHours = (Date.now() - context.updatedAt.getTime()) / (1000 * 60 * 60);
     return ageHours < 72; // Consider up to date if less than 3 days old
   }
 
   private async generateContextsForOperation(operation: string, filePath: string, options: any): Promise<string[]> {
     const contexts = [];
-    
+
     // Generate operation-specific contexts
     const operationContext = `${operation}_context_${Date.now()}`;
-    await this.db.storeContext(operationContext, {
-      operation,
-      filePath,
-      timestamp: new Date().toISOString(),
-      ...options
-    }, 'file_operation_context');
-    
+    await this.db.storeContext(
+      operationContext,
+      {
+        operation,
+        filePath,
+        timestamp: new Date().toISOString(),
+        ...options
+      },
+      'file_operation_context'
+    );
+
     contexts.push(operationContext);
     return contexts;
   }
 
   private async linkFileOperationToContext(operationId: string, contextKey: string): Promise<void> {
     // Create relationship between file operation and generated context
-    await this.db.storeContext(`link_${operationId}_${contextKey}`, {
-      operationId,
-      contextKey,
-      linkedAt: new Date().toISOString()
-    }, 'operation_context_link');
+    await this.db.storeContext(
+      `link_${operationId}_${contextKey}`,
+      {
+        operationId,
+        contextKey,
+        linkedAt: new Date().toISOString()
+      },
+      'operation_context_link'
+    );
   }
 
   private async getFileChangeHistory(filePath: string, maxVersions: number): Promise<any[]> {
@@ -1140,16 +1180,16 @@ export class KnowledgeManagementService {
       WHERE value LIKE ? AND context_type = 'file_change'
       LIMIT 1
     `;
-    
-    const results = await this.db.executeQuery(query, [`%${change.checksum}%`]) as any[];
+
+    const results = (await this.db.executeQuery(query, [`%${change.checksum}%`])) as any[];
     return results.length > 0 ? results[0].key : null;
   }
 
   private async consolidateFileContexts(versions: any[]): Promise<string> {
-    const consolidated = versions.map(v => 
-      `Version ${v.version} (${v.timestamp.toISOString()}): ${v.changes.join(', ')}`
-    ).join('\n');
-    
+    const consolidated = versions
+      .map(v => `Version ${v.version} (${v.timestamp.toISOString()}): ${v.changes.join(', ')}`)
+      .join('\n');
+
     return `File history consolidated from ${versions.length} versions:\n${consolidated}`;
   }
 }

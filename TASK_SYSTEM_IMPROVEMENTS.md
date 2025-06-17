@@ -25,16 +25,16 @@ The task management system has been significantly improved to provide standardiz
 ```typescript
 // Example usage
 create_task({
-  title: "Implement user authentication",
-  description: "Add OAuth2 authentication",
-  priority: "high",
-  dueDate: "2025-06-20T00:00:00Z",
-  tags: ["feature", "auth"],
+  title: 'Implement user authentication',
+  description: 'Add OAuth2 authentication',
+  priority: 'high',
+  dueDate: '2025-06-20T00:00:00Z',
+  tags: ['feature', 'auth'],
   recurring: {
-    pattern: "weekly",
+    pattern: 'weekly',
     interval: 1
   }
-})
+});
 ```
 
 #### list_tasks
@@ -47,12 +47,12 @@ create_task({
 ```typescript
 // Example usage
 list_tasks({
-  status: "in_progress",
-  priority: "high",
-  searchQuery: "authentication",
-  sortBy: "due",
+  status: 'in_progress',
+  priority: 'high',
+  searchQuery: 'authentication',
+  sortBy: 'due',
   limit: 20
-})
+});
 ```
 
 #### update_task
@@ -86,10 +86,10 @@ The tool now uses:
 ```typescript
 // Now finds tasks more effectively
 find_active_tasks({
-  maxAge: 48,        // hours
+  maxAge: 48, // hours
   includeCompleted: false,
   limit: 20
-})
+});
 ```
 
 ## Task Schema

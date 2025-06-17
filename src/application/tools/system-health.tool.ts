@@ -9,7 +9,10 @@ import type { IWorkspaceManager } from '@core/interfaces/workspace.interface.js'
 import { SemanticDatabaseExtension } from '../../infrastructure/adapters/semantic-database.extension.js';
 
 const getSystemHealthSchema = z.object({
-  category: z.enum(['server', 'database', 'filesystem', 'security', 'workspace', 'semantic', 'all']).default('all').describe('Specific health category to check'),
+  category: z
+    .enum(['server', 'database', 'filesystem', 'security', 'workspace', 'semantic', 'all'])
+    .default('all')
+    .describe('Specific health category to check'),
   includeRecommendations: z.boolean().default(true).describe('Include health recommendations'),
   detailed: z.boolean().default(false).describe('Include detailed statistics and diagnostics')
 });
@@ -34,8 +37,6 @@ interface ExtendedDatabaseHandler extends IDatabaseHandler {
   >;
 }
 
-
-
 @injectable()
 export class GetSystemHealthTool implements IMCPTool<z.infer<typeof getSystemHealthSchema>> {
   name = 'get_system_health';
@@ -50,10 +51,7 @@ export class GetSystemHealthTool implements IMCPTool<z.infer<typeof getSystemHea
     // Initialize counters
   }
 
-  async execute(
-    params: z.infer<typeof getSystemHealthSchema>,
-    context: ToolContext
-  ): Promise<ToolResult> {
+  async execute(params: z.infer<typeof getSystemHealthSchema>, context: ToolContext): Promise<ToolResult> {
     this.requestCount++;
     const lastRequestTime = Date.now();
 
@@ -204,7 +202,6 @@ export class GetSystemHealthTool implements IMCPTool<z.infer<typeof getSystemHea
           health.backups = 'unavailable';
         }
       }
-
     } catch (error) {
       health.connectionStatus = 'error';
       health.error = error instanceof Error ? error.message : 'Unknown error';
@@ -243,11 +240,13 @@ export class GetSystemHealthTool implements IMCPTool<z.infer<typeof getSystemHea
 
       const health: any = {
         totalWorkspaces: workspaces.length,
-        activeWorkspace: activeWorkspace ? {
-          id: activeWorkspace.id,
-          name: activeWorkspace.name,
-          type: activeWorkspace.config.type
-        } : null
+        activeWorkspace: activeWorkspace
+          ? {
+              id: activeWorkspace.id,
+              name: activeWorkspace.name,
+              type: activeWorkspace.config.type
+            }
+          : null
       };
 
       if (detailed && activeWorkspace) {
@@ -285,8 +284,8 @@ export class GetSystemHealthTool implements IMCPTool<z.infer<typeof getSystemHea
         totalContextItems: stats.totalItems,
         itemsWithEmbeddings: stats.itemsWithEmbeddings,
         embeddingCoverage: stats.embeddingCoverage,
-        embeddingCoverageStatus: stats.embeddingCoverage > 80 ? 'excellent' : 
-                                stats.embeddingCoverage > 50 ? 'good' : 'needs_improvement',
+        embeddingCoverageStatus:
+          stats.embeddingCoverage > 80 ? 'excellent' : stats.embeddingCoverage > 50 ? 'good' : 'needs_improvement',
         totalRelationships: stats.totalRelationships,
         status: 'operational'
       };
@@ -306,7 +305,7 @@ export class GetSystemHealthTool implements IMCPTool<z.infer<typeof getSystemHea
       if (healthData.server.errorCount > 0) {
         recommendations.push(`🚨 ${healthData.server.errorCount} server errors detected - check logs`);
       }
-      
+
       if (healthData.server.memoryUsage.rss_mb > 1000) {
         recommendations.push('💾 High memory usage detected - consider restarting server');
       }

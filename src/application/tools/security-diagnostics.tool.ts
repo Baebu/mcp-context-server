@@ -12,16 +12,30 @@ import type { ISecurityValidator } from '@core/interfaces/security.interface.js'
 const securityDiagnosticsSchema = z.object({
   action: z
     .enum([
-      'info', 'test-path', 'test-command', 'list-safe-zones', 'list-restricted-zones', 'suggest-config',
-      'expand-safe-zone', 'auto-discover', 'add-with-wildcards', 'refresh-zones', 'get-hierarchy', 
-      'validate-access', 'reinitialize-enhanced', 'test-multiple-paths'
+      'info',
+      'test-path',
+      'test-command',
+      'list-safe-zones',
+      'list-restricted-zones',
+      'suggest-config',
+      'expand-safe-zone',
+      'auto-discover',
+      'add-with-wildcards',
+      'refresh-zones',
+      'get-hierarchy',
+      'validate-access',
+      'reinitialize-enhanced',
+      'test-multiple-paths'
     ])
     .describe('Diagnostic action to perform'),
   path: z.string().optional().describe('Path to test (for test-path action)'),
   command: z.string().optional().describe('Command to test (for test-command action)'),
   args: z.array(z.string()).optional().default([]).describe('Command arguments (for test-command action)'),
   safeZonePath: z.string().optional().describe('Safe zone path for expansion, discovery, or validation actions'),
-  testPaths: z.array(z.string()).optional().describe('Array of paths to test for access (used with test-multiple-paths action)')
+  testPaths: z
+    .array(z.string())
+    .optional()
+    .describe('Array of paths to test for access (used with test-multiple-paths action)')
 });
 
 // No longer need ExtendedSecurityValidator cast due to interface update
@@ -603,9 +617,10 @@ export class SecurityDiagnosticsTool implements IMCPTool {
     if (typeof (securityValidator as any).expandSafeZoneRecursively === 'function') {
       (securityValidator as any).expandSafeZoneRecursively(safeZonePath);
 
-      const hierarchy = typeof (securityValidator as any).getSafeZoneHierarchy === 'function' 
-        ? (securityValidator as any).getSafeZoneHierarchy() 
-        : null;
+      const hierarchy =
+        typeof (securityValidator as any).getSafeZoneHierarchy === 'function'
+          ? (securityValidator as any).getSafeZoneHierarchy()
+          : null;
 
       Object.assign(result, {
         success: true,
@@ -685,9 +700,10 @@ export class SecurityDiagnosticsTool implements IMCPTool {
     if (typeof (securityValidator as any).refreshSafeZonesWithAutoExpansion === 'function') {
       await (securityValidator as any).refreshSafeZonesWithAutoExpansion();
 
-      const hierarchy = typeof (securityValidator as any).getSafeZoneHierarchy === 'function' 
-        ? (securityValidator as any).getSafeZoneHierarchy() 
-        : null;
+      const hierarchy =
+        typeof (securityValidator as any).getSafeZoneHierarchy === 'function'
+          ? (securityValidator as any).getSafeZoneHierarchy()
+          : null;
 
       Object.assign(result, {
         success: true,
@@ -752,9 +768,10 @@ export class SecurityDiagnosticsTool implements IMCPTool {
     if (typeof (securityValidator as any).validateSafeZoneAccess === 'function') {
       const validation = await (securityValidator as any).validateSafeZoneAccess(safeZonePath);
 
-      const accessRate = validation.totalChecked > 0
-        ? validation.subdirectories.filter((s: any) => s.accessible).length / validation.totalChecked
-        : 0;
+      const accessRate =
+        validation.totalChecked > 0
+          ? validation.subdirectories.filter((s: any) => s.accessible).length / validation.totalChecked
+          : 0;
 
       Object.assign(result, {
         success: true,
@@ -790,9 +807,10 @@ export class SecurityDiagnosticsTool implements IMCPTool {
     if (typeof (securityValidator as any).reinitializeZonesWithExpansion === 'function') {
       await (securityValidator as any).reinitializeZonesWithExpansion();
 
-      const hierarchy = typeof (securityValidator as any).getSafeZoneHierarchy === 'function' 
-        ? (securityValidator as any).getSafeZoneHierarchy() 
-        : null;
+      const hierarchy =
+        typeof (securityValidator as any).getSafeZoneHierarchy === 'function'
+          ? (securityValidator as any).getSafeZoneHierarchy()
+          : null;
 
       Object.assign(result, {
         success: true,

@@ -4,10 +4,10 @@
 
 We actively support the following versions of the MCP Context Server:
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 2.x.x   | ✅ Yes             |
-| 1.x.x   | ❌ No              |
+| Version | Supported |
+| ------- | --------- |
+| 2.x.x   | ✅ Yes    |
+| 1.x.x   | ❌ No     |
 
 ## Reporting a Vulnerability
 
@@ -43,16 +43,19 @@ We take security vulnerabilities seriously. If you discover a security vulnerabi
 When using the MCP Context Server:
 
 1. **Configuration Security**:
+
    - Never commit sensitive configuration files to version control
    - Use environment variables for sensitive data
    - Regularly rotate access tokens and credentials
 
 2. **File System Access**:
+
    - Limit file system access to necessary directories only
    - Validate all file paths to prevent directory traversal attacks
    - Use appropriate file permissions
 
 3. **Database Security**:
+
    - Use strong database passwords
    - Limit database access to necessary operations
    - Regularly backup your database securely

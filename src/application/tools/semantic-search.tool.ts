@@ -79,7 +79,7 @@ export class SemanticSearchTool implements IMCPTool {
 
       const responseData = {
         query: params.query,
-        searchType: (params.keyPattern || params.type) ? 'traditional' : 'semantic',
+        searchType: params.keyPattern || params.type ? 'traditional' : 'semantic',
         resultsCount: results.length,
         results: results.map(result => ({
           key: result.key,
@@ -87,9 +87,10 @@ export class SemanticSearchTool implements IMCPTool {
           similarity: Math.round((result.similarity || 1.0) * 100) / 100,
           preview: this.generatePreview(result.value),
           metadata: {
-            timestamp: result.metadata.timestamp instanceof Date 
-              ? result.metadata.timestamp.toISOString() 
-              : result.metadata.timestamp,
+            timestamp:
+              result.metadata.timestamp instanceof Date
+                ? result.metadata.timestamp.toISOString()
+                : result.metadata.timestamp,
             source: result.metadata.source,
             tags: result.metadata.tags || []
           }
@@ -101,7 +102,10 @@ export class SemanticSearchTool implements IMCPTool {
           keyPatternFilter: params.keyPattern,
           typeFilter: params.type,
           timestamp: new Date().toISOString(),
-          embeddingDimensions: params.keyPattern || params.type ? null : (await this.embeddingService.generateEmbedding(params.query)).length
+          embeddingDimensions:
+            params.keyPattern || params.type
+              ? null
+              : (await this.embeddingService.generateEmbedding(params.query)).length
         }
       };
 

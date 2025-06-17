@@ -117,7 +117,7 @@ export class AutonomousMonitorService {
     };
 
     this.systemStates.set(sessionId, state);
-    
+
     // Create token budget if not exists
     try {
       await this.db.createTokenBudget(sessionId, maxTokens);
@@ -188,12 +188,15 @@ export class AutonomousMonitorService {
 
     // Log critical states
     if (tokenPercentage >= 0.8) {
-      logger.warn({
-        sessionId: state.sessionId,
-        tokenPercentage: Math.round(tokenPercentage * 100),
-        currentTokens: state.currentTokens,
-        maxTokens: state.maxTokens
-      }, 'High token usage detected');
+      logger.warn(
+        {
+          sessionId: state.sessionId,
+          tokenPercentage: Math.round(tokenPercentage * 100),
+          currentTokens: state.currentTokens,
+          maxTokens: state.maxTokens
+        },
+        'High token usage detected'
+      );
     }
   }
 
@@ -201,10 +204,13 @@ export class AutonomousMonitorService {
    * Trigger panic mode - emergency state preservation
    */
   private async triggerPanicMode(state: SystemState, operation: string): Promise<void> {
-    logger.error({
-      sessionId: state.sessionId,
-      tokenPercentage: Math.round((state.currentTokens / state.maxTokens) * 100)
-    }, 'PANIC MODE TRIGGERED - Emergency state preservation');
+    logger.error(
+      {
+        sessionId: state.sessionId,
+        tokenPercentage: Math.round((state.currentTokens / state.maxTokens) * 100)
+      },
+      'PANIC MODE TRIGGERED - Emergency state preservation'
+    );
 
     try {
       // Get current session state
@@ -250,13 +256,15 @@ export class AutonomousMonitorService {
       });
 
       // Send alert (could integrate with notification system)
-      logger.fatal({
-        panicKey,
-        sessionId: state.sessionId,
-        tokenUsage: state.currentTokens,
-        maxTokens: state.maxTokens
-      }, 'PANIC STORAGE CREATED - Immediate action required');
-
+      logger.fatal(
+        {
+          panicKey,
+          sessionId: state.sessionId,
+          tokenUsage: state.currentTokens,
+          maxTokens: state.maxTokens
+        },
+        'PANIC STORAGE CREATED - Immediate action required'
+      );
     } catch (error) {
       logger.fatal({ error, sessionId: state.sessionId }, 'PANIC MODE FAILED - System critical');
     }
@@ -266,21 +274,24 @@ export class AutonomousMonitorService {
    * Trigger handoff mode - prepare for session transition
    */
   private async triggerHandoffMode(state: SystemState, operation: string): Promise<void> {
-    logger.warn({
-      sessionId: state.sessionId,
-      tokenPercentage: Math.round((state.currentTokens / state.maxTokens) * 100)
-    }, 'HANDOFF MODE TRIGGERED - Preparing session transition');
+    logger.warn(
+      {
+        sessionId: state.sessionId,
+        tokenPercentage: Math.round((state.currentTokens / state.maxTokens) * 100)
+      },
+      'HANDOFF MODE TRIGGERED - Preparing session transition'
+    );
 
     try {
       // Create comprehensive handoff
-      const handoffResult = await this.autoStateManager.detectHandoff(
-        state.sessionId,
-        { operation, tokenState: state }
-      );
+      const handoffResult = await this.autoStateManager.detectHandoff(state.sessionId, {
+        operation,
+        tokenState: state
+      });
 
       if (handoffResult.handoffContext) {
         const handoffKey = `handoff_${state.sessionId}_${Date.now()}`;
-        
+
         await this.db.storeEnhancedContext({
           key: handoffKey,
           value: handoffResult.handoffContext,
@@ -295,11 +306,14 @@ export class AutonomousMonitorService {
           updatedAt: new Date()
         });
 
-        logger.info({
-          handoffKey,
-          sessionId: state.sessionId,
-          remainingTokens: handoffResult.remainingTokens
-        }, 'Autonomous handoff created');
+        logger.info(
+          {
+            handoffKey,
+            sessionId: state.sessionId,
+            remainingTokens: handoffResult.remainingTokens
+          },
+          'Autonomous handoff created'
+        );
       }
     } catch (error) {
       logger.error({ error, sessionId: state.sessionId }, 'Handoff mode failed');
@@ -312,8 +326,7 @@ export class AutonomousMonitorService {
   private async triggerAutoCheckpoint(state: SystemState, operation: string): Promise<void> {
     try {
       // Only checkpoint if significant time has passed or no recent checkpoint
-      const shouldCheckpoint = !state.lastCheckpoint || 
-        (Date.now() - new Date(state.lastCheckpoint).getTime()) > 300000; // 5 minutes
+      const shouldCheckpoint = !state.lastCheckpoint || Date.now() - new Date(state.lastCheckpoint).getTime() > 300000; // 5 minutes
 
       if (shouldCheckpoint) {
         const result = await this.autoStateManager.autoCheckpoint({
@@ -325,10 +338,13 @@ export class AutonomousMonitorService {
 
         if (result.checkpointed) {
           state.lastCheckpoint = new Date().toISOString();
-          logger.debug({
-            sessionId: state.sessionId,
-            checkpointKey: result.key
-          }, 'Autonomous checkpoint created');
+          logger.debug(
+            {
+              sessionId: state.sessionId,
+              checkpointKey: result.key
+            },
+            'Autonomous checkpoint created'
+          );
         }
       }
     } catch (error) {
@@ -342,17 +358,20 @@ export class AutonomousMonitorService {
   private initializeCompressionMonitoring(): void {
     // Hook into context storage to auto-compress large contexts
     const originalStore = this.db.storeEnhancedContext.bind(this.db);
-    
-    this.db.storeEnhancedContext = async (entry) => {
+
+    this.db.storeEnhancedContext = async entry => {
       // Check if context should be compressed
       const size = JSON.stringify(entry.value).length;
-      
+
       if (size > this.defaultConfig.compressionThreshold && !entry.metadata?.compressed) {
         try {
-          const compressed = this.autoStateManager.compressState({ content: entry.value }, {
-            compressionLevel: 'medium'
-          }).content;
-          
+          const compressed = this.autoStateManager.compressState(
+            { content: entry.value },
+            {
+              compressionLevel: 'medium'
+            }
+          ).content;
+
           entry.value = compressed;
           entry.metadata = {
             ...entry.metadata,
@@ -360,22 +379,24 @@ export class AutonomousMonitorService {
             originalSize: size,
             compressedSize: JSON.stringify(compressed).length
           };
-          
-          logger.debug({
-            key: entry.key,
-            originalSize: size,
-            compressedSize: JSON.stringify(compressed).length
-          }, 'Auto-compressed large context');
+
+          logger.debug(
+            {
+              key: entry.key,
+              originalSize: size,
+              compressedSize: JSON.stringify(compressed).length
+            },
+            'Auto-compressed large context'
+          );
         } catch (error) {
           logger.warn({ error, key: entry.key }, 'Auto-compression failed');
         }
       }
 
       // Update session state if sessionId present
-      const sessionId = entry.metadata?.sessionId || 
-        (entry.value as any)?.sessionId || 
-        (entry.value as any)?.session_id;
-        
+      const sessionId =
+        entry.metadata?.sessionId || (entry.value as any)?.sessionId || (entry.value as any)?.session_id;
+
       if (sessionId && entry.tokenCount) {
         await this.updateSessionState(sessionId, 'store_context', entry.tokenCount);
       }

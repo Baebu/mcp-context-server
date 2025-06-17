@@ -12,7 +12,11 @@ const executeCommandSchema = z.object({
   timeout: z.number().optional().default(30000),
   shell: z.enum(['default', 'powershell', 'bash']).optional().default('default'),
   visibleTerminal: z.boolean().optional().default(false).describe('Open command in a visible terminal window'),
-  terminalType: z.enum(['cmd', 'powershell', 'wt', 'terminal', 'auto']).optional().default('auto').describe('Type of terminal to use for visible execution'),
+  terminalType: z
+    .enum(['cmd', 'powershell', 'wt', 'terminal', 'auto'])
+    .optional()
+    .default('auto')
+    .describe('Type of terminal to use for visible execution'),
   keepOpen: z.boolean().optional().default(true).describe('Keep terminal window open after command completion'),
   title: z.string().optional().describe('Title for the terminal window')
 });

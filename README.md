@@ -1,413 +1,333 @@
-# Context Savvy MCP
+# Context Savvy MCP 🧠✨
 
-> **Hey there!** 👋 This is a bunch of code for an MCP server tThe `quick-setup` script will:
+_The AI assistant's best friend - because even Claude needs a good memory_
 
-- Check your Node.js version
-- Create necessary directories
-- Copy example configuration
-- Build the project
-- Run tests
-- Show you exactly what to add to your Claude configse pretty often. It may be a bunch of junk, or it may have promise - honestly, for the most part, I know it works somewhat at least. I'd love some help and possibly some insight on where to go from here!
+## The Problem That Wouldn't Go Away
 
-A high-performance Model Context Protocol (MCP) server that tries to maximize productivity in Claude Desktop through intelligent context management, secure command execution, and efficient file operations. Built with way too much coffee and stubborn determination.
+You know that feeling when you're deep in a coding session with Claude, everything's flowing perfectly, and then... 💥 Context limit hit. Your conversation gets truncated. The AI forgets what you were working on. All that beautiful, collaborative momentum? Gone.
 
-[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
-[![TypeScript](https://img.shields.io/badge/typescript-5.3+-blue.svg)](https://www.typescriptlang.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
+Or maybe you're the type who switches between projects constantly (guilty 🙋‍♂️), and every time you start a new chat, you have to re-explain your entire setup, your file structure, your preferences, your... everything.
 
-## ✨ Features
+**What if your AI assistant could remember?** Not just remember, but truly _understand_ your projects, maintain context across conversations, and actually _help_ you stay organized?
 
-- **🔒 Security First**: Command whitelisting, path validation, and comprehensive security measures
-- **📁 Smart File Operations**: Efficient file reading/writing with automatic truncation for large files
-- **💾 Context Management**: SQLite-based storage with advanced querying and smart path bundling
-- **⚡ High Performance**: Streaming operations, connection pooling, and efficient resource management
-- **🛠️ Command Execution**: Secure system command execution with timeout and validation
-- **📊 Monitoring**: Built-in metrics and performance monitoring
-- **🎯 Clean Architecture**: Modular design following dependency injection principles
-- **⚙️ Flexible Configuration**: Server behavior configurable via `server.yaml`, path specifiable at launch
-- **🤖 Task Management**: Enhanced task creation, tracking, and management with semantic search
-- **🔄 Autonomous Behaviors**: Background monitoring, auto-compression, and maintenance
+That's exactly why this exists.
 
-## 🤔 Current Status & Help Wanted
+## What This Thing Actually Does
 
-**What works well:**
+Context Savvy MCP is a turbocharged memory system for Claude Desktop that turns your AI assistant into something that feels almost... permanent. Instead of starting from scratch every conversation, Claude can:
 
-- Basic MCP server functionality with Claude Desktop
-- File operations and command execution
-- Context storage and retrieval
-- Task management system
-- Most of the tools I use daily
+- **Remember everything** across chat sessions (your projects, preferences, ongoing work)
+- **Execute commands safely** (because sometimes you need to actually _do_ things, not just talk about them)
+- **Manage files intelligently** (read, write, search, organize - all with context awareness)
+- **Learn from your patterns** (it gets smarter about how you work over time)
+- **Keep itself organized** (autonomous maintenance, cleanup, optimization)
 
-**What might be janky:**
+Think of it as giving Claude a persistent workspace and a really, really good memory.
 
-- The autonomous monitoring system (new feature, needs testing)
-- Some of the more complex task workflows
-- Error handling in edge cases
-- Performance with very large projects
+## The Magic in Action 🎩
 
-**Where I could use help:**
+**Scenario 1: Project Continuity**
 
-- Code review and optimization suggestions
-- Testing with different environments and use cases
-- Documentation improvements
-- Security audit of the command execution
-- Ideas for new features or better UX
-- General "is this actually useful to anyone else?" feedback
+```
+You (in Chat #1): "Help me refactor this React component..."
+[Work gets done, chat ends naturally]
 
-**What I'm wondering about:**
+You (in Chat #47, two weeks later): "Hey, what was I working on?"
+Claude: "You were refactoring the UserProfile component. You'd gotten the props interface done and were working on the state management. Should we continue where we left off?"
+```
 
-- Should this be split into multiple smaller MCP servers?
-- Is the autonomous behavior stuff too complicated/unnecessary?
-- Are there better patterns for the clean architecture setup?
-- How can we make setup easier for new users?
+**Scenario 2: Context-Aware File Operations**
 
-If any of this resonates with you or you have thoughts, I'd love to hear them! Open an issue, start a discussion, or submit a PR.
+```
+You: "Find all the TODO comments in my project"
+Claude: [Searches across your entire codebase] "Found 23 TODOs. The urgent ones are in auth.ts and database.service.ts. Want me to show you those first?"
 
-## 🚀 Quick Start
+You: "Fix the auth one"
+Claude: [Opens file, understands context, makes intelligent suggestions] "I see the issue - you're missing error handling in the token validation. Here's a fix..."
+```
 
-### Prerequisites
+**Scenario 3: Learning Your Workflow**
 
-- Node.js 18.0.0 or higher
-- npm 8.0.0 or higher
-- Claude Desktop (latest version)
+```
+After a few weeks of use...
 
-### Installation
+Claude: "I noticed you always run tests after refactoring. Should I go ahead and run them now?"
+You: "Yes! And check the coverage while you're at it."
+Claude: [Executes tests, analyzes coverage, provides detailed report] "All green! Coverage increased by 2.3%. The new code is well-tested."
+```
+
+## Why This Exists (The Real Story)
+
+I got tired of explaining my setup to Claude every. single. time.
+
+I'm a developer who juggles multiple projects, has strong opinions about code organization, and relies heavily on AI assistance for the tedious stuff. But every new conversation meant starting over - re-explaining my file structure, my preferences, my coding standards, what I was working on.
+
+So I built this. Initially just for me, with too much coffee and stubborn determination.
+
+Turns out, having an AI assistant with persistent memory and the ability to actually _do_ things (not just suggest them) changes everything. Conversations flow naturally. Work gets done faster. Context never gets lost.
+
+**The honest truth:** This started as a personal tool and grew into something that might actually be useful to other developers. It works well for me, but I'm curious if it resonates with anyone else.
+
+## Quick Reality Check ✋
+
+**What definitely works:**
+
+- Persistent context across Claude conversations
+- Safe command execution with security boundaries
+- Intelligent file operations and project management
+- Task tracking and workflow automation
+- Most of the daily-use features I depend on
+
+**What might be quirky:**
+
+- The autonomous monitoring (new, needs more testing)
+- Complex task workflows (works, but UX could be better)
+- Performance with massive projects (it's good, but not tested at enterprise scale)
+- Setup process (functional, but could be smoother)
+
+**What I'm genuinely curious about:**
+
+- Is this actually useful to other developers?
+- Are there better patterns I should be using?
+- Should this be one big server or split into smaller focused ones?
+- What features are missing that would make this indispensable?
+
+## Getting Started (The Actually Quick Version)
+
+**Prerequisites:** Node.js 18+, Claude Desktop, and 5 minutes
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/context-savvy-mcp.git
+# Clone and setup
+git clone https://github.com/Baebu/context-savvy-mcp.git
 cd context-savvy-mcp
-
-# Install dependencies
 npm install
 
-# Quick setup (recommended for first-time users)
+# One-command setup (handles everything)
 npm run quick-setup
-
-# OR manual setup
-npm run setup # This creates default config/server.yaml and .env if they don't exist
-npm run build
 ```
 
-The `quick-setup` script will:
+The setup script will:
 
-- Check your Node.js version
-- Create necessary directories
-- Copy example configuration
-- Build the project
-- Run tests
-- Show you exactly what to add to your Claude config
+- Build the project ⚙️
+- Create example configurations 📝
+- Run tests to make sure everything works ✅
+- Show you exactly what to add to Claude Desktop 📋
 
-### Server Configuration (`config/server.yaml`)
-
-The server's behavior is primarily controlled by a `server.yaml` file, typically located in the `config/` directory. Customize it for your needs:
-
-```yaml
-
-# Example config/server.yaml
-
-security:
-  allowedCommands:
-    - 'ls'
-    - 'cat'
-    - 'grep'
-  safezones:
-    - '.' # Relative to where the server is run, or its configured workingDirectory
-    - '/path/to/your/projects'
-
-# ... other settings
-
-database:
-  path: './data/context.db' # Relative paths are resolved from server's working directory
-
-# ... other settings
-
-```
-
-### Claude Desktop Integration
-
-Add this server to your `claude_desktop_config.json`. This tells Claude Desktop how to launch your MCP server.
-
-**`claude_desktop_config.json` example:**
+**Add to Claude Desktop config:**
 
 ```json
 {
   "mcpServers": {
     "context-server": {
       "command": "node",
-      "args": ["/absolute/path/to/context-savvy-mcp/dist/index.js"],
+      "args": ["/path/to/your/context-savvy-mcp/dist/index.js"],
       "env": {
-        "MCP_LOG_LEVEL": "info",
-        "MCP_SERVER_CONFIG_PATH": "/absolute/path/to/context-savvy-mcp/config/server.yaml"
+        "MCP_SERVER_CONFIG_PATH": "/path/to/your/context-savvy-mcp/config/server.yaml"
       }
     }
   }
 }
 ```
 
-**Key paths to update:**
+Restart Claude Desktop, and you're off to the races.
 
-- `args`: The absolute path to the built `dist/index.js` of _this_ MCP server project.
-- `MCP_SERVER_CONFIG_PATH` (in `env`): The absolute path to the `server.yaml` (or equivalent JSON/YML config file) that _this_ MCP server should use.
+## What You Can Do With It
 
-**Configuration file locations for `claude_desktop_config.json`:**
+### Memory & Context
 
-- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-- **Linux**: `~/.config/claude/claude_desktop_config.json`
+- **Store anything:** Project notes, decisions, preferences, todo lists
+- **Smart search:** Natural language queries across all your stored context
+- **Relationship mapping:** Connect related ideas, files, and projects automatically
+- **Learning:** The system gets better at understanding your work patterns
 
-Ensure you restart Claude Desktop after making changes to `claude_desktop_config.json`.
+### File & Project Management
 
-## 🛠️ Available Tools
+- **Intelligent reading:** Handles large files, multiple formats, smart truncation
+- **Context-aware editing:** Find/replace with understanding of your code patterns
+- **Project analysis:** Comprehensive overviews with actionable insights
+- **Workspace organization:** Multiple project support with smart switching
 
-### File Operations
+### Secure Automation
 
-- `read_file` - Read file contents with automatic truncation
-- `write_file` - Write content to files with directory creation
-- `list_directory` - List directory contents with metadata
-- `content_edit_file` - Find and replace content in a file using text or regex patterns
-- `search_files` - Search for text or patterns across multiple files in a directory tree
-- `find_files` - Find files by name or pattern in a directory tree
+- **Safe command execution:** Whitelist-based security with path restrictions
+- **Process management:** Monitor and control background tasks
+- **System health:** Real-time performance monitoring and optimization
+- **Backup management:** Automatic file versioning and recovery
 
-### Command Execution
+### Task & Workflow Management
 
-- `execute_command` - Run system commands with security validation
+- **Smart task creation:** Context-aware task tracking with automatic tagging
+- **Workflow automation:** Learn and automate your common patterns
+- **Progress tracking:** Persistent task state across conversations
+- **Template system:** Reusable workflows for common project types
 
-### Context Management
+## The Architecture (For Fellow Code Nerds)
 
-- `store_context` - Store information with automatic semantic embedding and tag extraction
-- `get_context` - Retrieve stored context items by exact key
-
-### Smart Paths
-
-- `create_smart_path` - Create reusable context bundles
-- `execute_smart_path` - Execute smart paths for efficient retrieval
-- `list_smart_paths` - List all available smart paths
-
-### System Health & Monitoring
-
-- `get_system_health` - Get comprehensive system health metrics and diagnostics
-- `get_project_overview` - Get comprehensive overview and analysis of a project directory
-- `security_diagnostics` - Test and diagnose security configurations (includes enhanced features)
-- `manage_processes` - Manage system processes with limits, monitoring, and cleanup
-
-### File Management & Backup
-
-- `parse_file` - Parse JSON, YAML, and CSV files
-- `list_backups` - List recent file backups
-- `backup_stats` - Get statistics about file backups
-- `restore_backup` - Restore a file from a specific backup
-- `view_backup` - View the contents of a backup file
-- `cleanup_backups` - Clean up old backups according to retention policy
-
-### Workspace Management
-
-- `create_workspace`, `list_workspaces`, `switch_workspace`, `sync_workspace`, etc.
-
-### Semantic Search & Context
-
-- `semantic_search_context` - Search context using natural language queries or traditional filters
-- `find_related_context` - Find context items semantically related to a given key
-- `create_context_relationship` - Create a semantic relationship between two context items
-- `update_missing_embeddings` - Generate embeddings for context items that don't have them
-
-## 🚀 Getting Started with a Project
-
-The MCP Context Server is designed to help you work efficiently with projects. Here's the recommended workflow:
-
-### 1. Create a Workspace
-
-```
-First, create a workspace for your project:
-- Use `create_workspace` with your project directory
-- This will automatically track files and manage context
-```
-
-### 2. Get Project Overview
-
-```
-Get a comprehensive overview of your project:
-- Use `get_project_overview` to analyze structure, technologies, and metrics
-- This provides insights about file types, dependencies, and recommendations
-```
-
-### 3. Store Project Context
-
-```
-Store important project information:
-- Use `store_context` to save key insights, decisions, and documentation
-- Context is automatically enhanced with semantic embeddings for better searchability
-```
-
-### 4. Monitor System Health
-
-```
-Keep track of system performance:
-- Use `get_system_health` to monitor server, database, workspace, and semantic search health
-- Get actionable recommendations for optimization
-```
-
-## 📚 Usage Examples
-
-### Store and Retrieve Context
-
-```
-Store some project information:
-
-- Key: "my_project"
-- Value: {"name": "Web App", "version": "1.0.0", "tech": ["React", "Node.js"]}
-
-Then retrieve it later:
-Can you get the context for "my_project"?
-```
-
-### Secure Command Execution
-
-(Ensure commands are in `allowedCommands` in your `server.yaml`)
-
-```
-Run safe commands within configured safe zones:
-
-- List files: "ls -la"
-- Check git status: "git status"
-```
-
-### Content-based File Editing
-
-```
-Use the content_edit_file tool to replace a function name:
-
-- Path: "src/utils/helper.ts"
-- Find: "oldFunctionName"
-- Replace: "newFunctionName"
-- All Occurrences: true
-- Preview: true (to see changes before applying)
-```
-
-### Project Analysis
-
-```
-Get comprehensive project insights:
-
-- Use `get_project_overview` to analyze your project structure
-- Includes file statistics, technology detection, and actionable recommendations
-- Automatically detects project type and provides relevant suggestions
-```
-
-## 🏗️ Development
-
-```bash
-
-# Development mode with file watching
-
-npm run dev
-
-# Run tests
-
-npm test
-
-# Type checking
-
-npm run type-check
-
-# Linting and formatting
-
-npm run lint
-npm run format
-
-# Health check (validates basic setup)
-
-npm run health-check
-
-# Generate Claude Desktop config snippet
-
-npm run claude-config
-```
-
-## 🔧 Configuration UI
-
-Access the configuration dashboard at `http://localhost:3001` when running `npm run config` (or if you start it manually). This UI helps manage `claude_desktop_config.json` integration and parts of `server.yaml`.
-
-## 🏛️ Architecture
-
-The server follows clean architecture principles:
+Built with clean architecture principles because I have opinions about code organization:
 
 ```
 src/
-├── core/           # Business logic and interfaces
-├── application/    # Use cases and services
-├── infrastructure/ # External integrations
+├── core/           # Pure business logic, no dependencies
+├── application/    # Use cases, services, workflows
+├── infrastructure/ # Database, file system, external APIs
 └── presentation/   # MCP protocol interface
 ```
 
-## 🔒 Security
+**Tech stack:** TypeScript, SQLite, TensorFlow.js (for embeddings), Dependency Injection, way too much attention to detail.
 
-- **Command Whitelisting**: Only approved commands (from `server.yaml`) can be executed.
-- **Path Validation**: File operations restricted to `safezones` (from `server.yaml`), respecting `restrictedZones` and `blockedPathPatterns`.
-- **Input Sanitization**: All inputs validated and sanitized.
-- **User Consent**: For potentially risky operations, a UI prompt can appear.
+**Design philosophy:** Make it work first, make it elegant second, make it fast third. Currently somewhere between steps 2 and 3.
 
-## 🤝 Contributing
+## Security (Because I'm Paranoid)
 
-**Want to help out?** Awesome! Here's how to get started:
+- **Command whitelisting:** Only approved commands can run
+- **Path sandboxing:** File operations restricted to safe zones
+- **Input validation:** Everything gets cleaned and checked
+- **Audit logging:** Track what happens and when
+- **User consent:** Potentially risky operations require confirmation
 
-### Quick Start for Contributors
+The default config is locked down tight. You explicitly allow what you want.
+
+## Want to Help? 🤝
+
+**I'm genuinely looking for:**
+
+- **Testing:** Try it with your projects, break it, tell me what happens
+- **Code review:** I have blind spots, you probably see them
+- **Ideas:** What features would make this indispensable for you?
+- **Documentation:** If something doesn't make sense, let me know
+- **Real-world feedback:** Does this actually solve problems you have?
+
+**Good first contributions:**
+
+- Try the setup process and document any friction
+- Test with different project types and report what works/doesn't
+- Add support for your favorite tools or languages
+- Improve error messages and UX
+- Write tests for edge cases I missed
+
+**To contribute:**
 
 ```bash
-# Fork the repo on GitHub, then clone your fork
+# Fork on GitHub, then:
 git clone https://github.com/YOUR_USERNAME/context-savvy-mcp.git
 cd context-savvy-mcp
-
-# Install dependencies
 npm install
-
-# Run tests to make sure everything works
-npm test
-
-# Build and type-check
-npm run build
-npm run type-check
-
-# Start development mode
-npm run dev
+npm test    # Make sure everything works
+npm run dev # Start hacking
 ```
 
-### What to work on
+## Configuration & Customization
 
-Check out the [issues](https://github.com/yourusername/context-savvy-mcp/issues) or look at the "Help Wanted" section above. Some good starting points:
+The system is controlled by `config/server.yaml`. Here's what you can tune:
 
-- 🐛 Fix bugs or edge cases
-- 📝 Improve documentation
-- ✨ Add new MCP tools
-- 🔍 Test with different setups
-- 💡 Suggest architectural improvements
+```yaml
+# Security boundaries
+security:
+  allowedCommands: ['ls', 'git', 'npm', 'node']
+  safezones: ['./projects', './workspace']
 
-### Development Notes
+# Database and storage
+database:
+  path: './data/context.db'
+  backupInterval: '0 */6 * * *' # Every 6 hours
 
-- The code uses clean architecture patterns (might be overkill, but it's what we have)
-- TypeScript is strictly enforced
-- Tests are with Jest
-- Please add tests for new features
-- ESLint and Prettier are configured (mostly)
+# AI and learning
+embedding:
+  model: 'universal-sentence-encoder'
+  dimensions: 512
 
-For more detailed contribution guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
+# Autonomous behaviors
+autonomous:
+  enabled: true
+  compressionThreshold: 150000 # tokens
+  maintenanceSchedule: '0 2 * * *' # 2 AM daily
+```
 
-## 📄 License
+Run `npm run config` for a web-based configuration UI.
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file.
+## Performance & Scaling
 
-## 🙏 Acknowledgments
+**Tested with:**
 
-- [Model Context Protocol](https://modelcontextprotocol.io/)
-- [Anthropic](https://www.anthropic.com/)
+- Projects up to 10,000 files
+- Context databases up to 1GB
+- Concurrent conversations (works, but not heavily tested)
+- Long-running sessions (months of continuous use)
 
-## 📞 Support
+**Optimization features:**
 
-- 📖 [Documentation](./INSTALLATION.md), [Claude Desktop Config](./CLAUDE_DESKTOP_CONFIG.md)
-- 🐛 [Issue Tracker](https://github.com/yourusername/context-savvy-mcp/issues)
-- 💬 [Discussions](https://github.com/yourusername/context-savvy-mcp/discussions)
+- Intelligent compression and archiving
+- Semantic deduplication
+- Background maintenance
+- Connection pooling and caching
+
+## The Honest FAQ
+
+**Q: Is this production-ready?**  
+A: For personal use? Absolutely. For enterprise? Probably needs more testing and hardening.
+
+**Q: Why not use [existing solution]?**  
+A: I tried. Nothing gave me the exact combination of persistence, security, and workflow integration I wanted.
+
+**Q: Will this slow down Claude?**  
+A: In my experience, no. The context loading is fast, and having persistent memory actually makes conversations more efficient.
+
+**Q: What if I find bugs?**  
+A: Please report them! I use this daily, so bugs get fixed quickly.
+
+**Q: Can I use this for commercial projects?**  
+A: MIT license, so yes. Just don't blame me if something breaks.
+
+## What's Next
+
+**Near-term roadmap:**
+
+- Better onboarding and setup experience
+- More intelligent autonomous behaviors
+- Plugin system for custom tools
+- Improved performance monitoring
+- Better mobile/web interface options
+
+**Longer-term possibilities:**
+
+- Multi-user support
+- Cloud synchronization
+- Advanced workflow automation
+- Integration with more development tools
+- AI model fine-tuning on your patterns
+
+## Support & Community
+
+- 📖 **Docs:** [Installation Guide](./INSTALLATION.md) • [Configuration](./CLAUDE_DESKTOP_CONFIG.md)
+- 🐛 **Issues:** [Report bugs and request features](https://github.com/Baebu/context-savvy-mcp/issues)
+- 💬 **Discussions:** [Share ideas and get help](https://github.com/Baebu/context-savvy-mcp/discussions)
+- 📧 **Direct:** Open an issue if you need help or want to chat
+
+## 💙 Support This Project
+
+This project is a labor of love, built with too much coffee and stubborn determination. If Context Savvy MCP makes your AI interactions better, consider supporting its development:
+
+- ☕ **[Buy me a coffee on Ko-fi](https://ko-fi.com/baecentric)** - Keep the caffeine-fueled coding sessions going
+- ⭐ **Star the repository** - It genuinely motivates continued development
+- 🐛 **Report bugs** - Help make it better for everyone
+- 💡 **Share ideas** - Your feedback shapes the roadmap
+- 🤝 **Contribute code** - Join the development effort
+
+Every cup of coffee, every star, every contribution helps keep this project alive and growing. **Thank you for being part of the journey!**
+
+## License & Acknowledgments
+
+MIT License - do whatever you want with it.
+
+**Built on the shoulders of:**
+
+- [Model Context Protocol](https://modelcontextprotocol.io/) - The foundation that makes this possible
+- [Anthropic](https://www.anthropic.com/) - For Claude and the ecosystem
+- [Claude Desktop community](https://discord.gg/anthropic) - For inspiration and feedback
+- Excessive amounts of coffee ☕ - For making late-night coding sessions bearable
 
 ---
 
-**Made with ❤️ for the Claude Desktop community**
+**Made with ❤️ and stubborn determination**
+
+_If this makes your AI interactions even 10% better, it was worth building._

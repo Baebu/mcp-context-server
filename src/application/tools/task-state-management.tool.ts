@@ -23,13 +23,11 @@ export class FindActiveTasksTool implements IMCPTool {
   description = 'Find active tasks and their current state across sessions';
   schema = findActiveTasksSchema;
 
-  constructor(
-    @inject('DatabaseHandler') private db: IDatabaseHandler
-  ) {}
+  constructor(@inject('DatabaseHandler') private db: IDatabaseHandler) {}
 
   async execute(params: z.infer<typeof findActiveTasksSchema>, context: ToolContext): Promise<ToolResult> {
     try {
-      const cutoffTime = new Date(Date.now() - (params.maxAge! * 60 * 60 * 1000));
+      const cutoffTime = new Date(Date.now() - params.maxAge! * 60 * 60 * 1000);
 
       // Use semantic search to find task-related contexts
       const searchQueries = [
@@ -236,9 +234,7 @@ export class TaskCompletionDetectionTool implements IMCPTool {
   description = 'Analyze a task context to detect completion status and remaining work';
   schema = taskCompletionDetectionSchema;
 
-  constructor(
-    @inject('DatabaseHandler') private db: IDatabaseHandler
-  ) {}
+  constructor(@inject('DatabaseHandler') private db: IDatabaseHandler) {}
 
   async execute(params: z.infer<typeof taskCompletionDetectionSchema>, context: ToolContext): Promise<ToolResult> {
     try {
@@ -305,11 +301,14 @@ export class TaskCompletionDetectionTool implements IMCPTool {
         await this.db.storeEnhancedContext(updatedEntry);
         result.statusUpdated = true;
 
-        context.logger.info({
-          contextKey: params.contextKey,
-          isComplete: taskAnalysis.isComplete,
-          completionPercentage: taskAnalysis.completionPercentage
-        }, 'Task status updated');
+        context.logger.info(
+          {
+            contextKey: params.contextKey,
+            isComplete: taskAnalysis.isComplete,
+            completionPercentage: taskAnalysis.completionPercentage
+          },
+          'Task status updated'
+        );
       }
 
       return {
@@ -387,9 +386,7 @@ export class TaskGenealogyTool implements IMCPTool {
   description = 'Trace the genealogy and relationships of a task context';
   schema = taskGenealogySchema;
 
-  constructor(
-    @inject('DatabaseHandler') private db: IDatabaseHandler
-  ) {}
+  constructor(@inject('DatabaseHandler') private db: IDatabaseHandler) {}
 
   async execute(params: z.infer<typeof taskGenealogySchema>, context: ToolContext): Promise<ToolResult> {
     try {
@@ -431,7 +428,12 @@ export class TaskGenealogyTool implements IMCPTool {
     }
   }
 
-  private async traceGenealogy(contextKey: string, maxDepth: number, visited: Set<string>, currentDepth: number = 0): Promise<any[]> {
+  private async traceGenealogy(
+    contextKey: string,
+    maxDepth: number,
+    visited: Set<string>,
+    currentDepth: number = 0
+  ): Promise<any[]> {
     if (currentDepth >= maxDepth || visited.has(contextKey)) {
       return [];
     }
@@ -475,7 +477,6 @@ export class TaskGenealogyTool implements IMCPTool {
           genealogy.push(...relatedGenealogy);
         }
       }
-
     } catch (error) {
       logger.warn({ error, contextKey }, 'Failed to trace context in genealogy');
     }
@@ -611,9 +612,7 @@ export class UpdateTaskProgressTool implements IMCPTool {
   description = 'Update the progress and status of a task context';
   schema = updateTaskProgressSchema;
 
-  constructor(
-    @inject('DatabaseHandler') private db: IDatabaseHandler
-  ) {}
+  constructor(@inject('DatabaseHandler') private db: IDatabaseHandler) {}
 
   async execute(params: z.infer<typeof updateTaskProgressSchema>, context: ToolContext): Promise<ToolResult> {
     try {
@@ -657,10 +656,7 @@ export class UpdateTaskProgressTool implements IMCPTool {
       }
 
       if (params.completedItems) {
-        updatedValue.completedItems = [
-          ...(currentValue.completedItems || []),
-          ...params.completedItems
-        ];
+        updatedValue.completedItems = [...(currentValue.completedItems || []), ...params.completedItems];
       }
 
       // Update metadata
@@ -699,11 +695,14 @@ export class UpdateTaskProgressTool implements IMCPTool {
         progressHistory: updatedValue.progressHistory
       };
 
-      context.logger.info({
-        contextKey: params.contextKey,
-        progress: params.progress,
-        status: params.status
-      }, 'Task progress updated');
+      context.logger.info(
+        {
+          contextKey: params.contextKey,
+          progress: params.progress,
+          status: params.status
+        },
+        'Task progress updated'
+      );
 
       return {
         content: [

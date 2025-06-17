@@ -208,11 +208,17 @@ container.bind<UpdateEmbeddingsTool>(UpdateEmbeddingsTool).to(UpdateEmbeddingsTo
 container.bind<AutoStateManagerService>(AutoStateManagerService).to(AutoStateManagerService).inSingletonScope();
 
 // Phase 4: Intelligent Batching Service
-container.bind<IntelligentBatchingService>(IntelligentBatchingService).to(IntelligentBatchingService).inSingletonScope();
+container
+  .bind<IntelligentBatchingService>(IntelligentBatchingService)
+  .to(IntelligentBatchingService)
+  .inSingletonScope();
 
 // Task State Management Tools
 container.bind<FindActiveTasksTool>(FindActiveTasksTool).to(FindActiveTasksTool).inSingletonScope();
-container.bind<TaskCompletionDetectionTool>(TaskCompletionDetectionTool).to(TaskCompletionDetectionTool).inSingletonScope();
+container
+  .bind<TaskCompletionDetectionTool>(TaskCompletionDetectionTool)
+  .to(TaskCompletionDetectionTool)
+  .inSingletonScope();
 container.bind<TaskGenealogyTool>(TaskGenealogyTool).to(TaskGenealogyTool).inSingletonScope();
 container.bind<UpdateTaskProgressTool>(UpdateTaskProgressTool).to(UpdateTaskProgressTool).inSingletonScope();
 
@@ -230,7 +236,10 @@ container.bind<RecoverFromPanicTool>(RecoverFromPanicTool).to(RecoverFromPanicTo
 container.bind<BackupRedundancyTool>(BackupRedundancyTool).to(BackupRedundancyTool).inSingletonScope();
 
 // Phase 4: Intelligent Batching Tools
-container.bind<BatchContextOperationsTool>(BatchContextOperationsTool).to(BatchContextOperationsTool).inSingletonScope();
+container
+  .bind<BatchContextOperationsTool>(BatchContextOperationsTool)
+  .to(BatchContextOperationsTool)
+  .inSingletonScope();
 container.bind<WorkflowExecutorTool>(WorkflowExecutorTool).to(WorkflowExecutorTool).inSingletonScope();
 container.bind<CascadeStorageTool>(CascadeStorageTool).to(CascadeStorageTool).inSingletonScope();
 container.bind<BulkRelationshipsTool>(BulkRelationshipsTool).to(BulkRelationshipsTool).inSingletonScope();
@@ -250,11 +259,20 @@ container.bind<AutonomousMonitorService>(AutonomousMonitorService).to(Autonomous
 
 // Phase 7: Advanced Features Tools
 container.bind<CompressionAlgorithmsTool>(CompressionAlgorithmsTool).to(CompressionAlgorithmsTool).inSingletonScope();
-container.bind<TokenBudgetOptimizationTool>(TokenBudgetOptimizationTool).to(TokenBudgetOptimizationTool).inSingletonScope();
+container
+  .bind<TokenBudgetOptimizationTool>(TokenBudgetOptimizationTool)
+  .to(TokenBudgetOptimizationTool)
+  .inSingletonScope();
 container.bind<ContextDeduplicationTool>(ContextDeduplicationTool).to(ContextDeduplicationTool).inSingletonScope();
 container.bind<ArchiveOldContextsTool>(ArchiveOldContextsTool).to(ArchiveOldContextsTool).inSingletonScope();
-container.bind<ContextTemplatesLibraryTool>(ContextTemplatesLibraryTool).to(ContextTemplatesLibraryTool).inSingletonScope();
-container.bind<AdaptiveWorkflowCreationTool>(AdaptiveWorkflowCreationTool).to(AdaptiveWorkflowCreationTool).inSingletonScope();
+container
+  .bind<ContextTemplatesLibraryTool>(ContextTemplatesLibraryTool)
+  .to(ContextTemplatesLibraryTool)
+  .inSingletonScope();
+container
+  .bind<AdaptiveWorkflowCreationTool>(AdaptiveWorkflowCreationTool)
+  .to(AdaptiveWorkflowCreationTool)
+  .inSingletonScope();
 container.bind<AutoSmartPathCreationTool>(AutoSmartPathCreationTool).to(AutoSmartPathCreationTool).inSingletonScope();
 
 // Phase 8: Integration Testing Tool
@@ -269,7 +287,13 @@ import {
   TriggerMaintenanceTool
 } from '../../application/tools/autonomous-control.tool.js';
 
-container.bind<EnableAutonomousMonitoringTool>(EnableAutonomousMonitoringTool).to(EnableAutonomousMonitoringTool).inSingletonScope();
-container.bind<DisableAutonomousMonitoringTool>(DisableAutonomousMonitoringTool).to(DisableAutonomousMonitoringTool).inSingletonScope();
+container
+  .bind<EnableAutonomousMonitoringTool>(EnableAutonomousMonitoringTool)
+  .to(EnableAutonomousMonitoringTool)
+  .inSingletonScope();
+container
+  .bind<DisableAutonomousMonitoringTool>(DisableAutonomousMonitoringTool)
+  .to(DisableAutonomousMonitoringTool)
+  .inSingletonScope();
 container.bind<GetAutonomousStatusTool>(GetAutonomousStatusTool).to(GetAutonomousStatusTool).inSingletonScope();
 container.bind<TriggerMaintenanceTool>(TriggerMaintenanceTool).to(TriggerMaintenanceTool).inSingletonScope();

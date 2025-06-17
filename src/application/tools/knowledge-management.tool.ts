@@ -7,7 +7,6 @@ import type { IMCPTool, ToolContext, ToolResult } from '../../core/interfaces/to
 import { KnowledgeManagementService } from '../services/knowledge-management.service.js';
 import type { VersionCacheOptions, FreshnessCheckOptions } from '../services/knowledge-management.service.js';
 
-
 // ===== VERSION MANAGEMENT TOOLS =====
 
 // Schema for VersionCacheManagementTool
@@ -24,9 +23,7 @@ export class VersionCacheManagementTool implements IMCPTool {
   description = 'Manage version cache for knowledge items with automatic cleanup and compression';
   schema = versionCacheManagementSchema;
 
-  constructor(
-    @inject(KnowledgeManagementService) private knowledgeService: KnowledgeManagementService
-  ) {}
+  constructor(@inject(KnowledgeManagementService) private knowledgeService: KnowledgeManagementService) {}
 
   async execute(params: z.infer<typeof versionCacheManagementSchema>, context: ToolContext): Promise<ToolResult> {
     try {
@@ -50,23 +47,24 @@ export class VersionCacheManagementTool implements IMCPTool {
         },
         cacheSummary: result.summary,
         efficiency: {
-          cacheUtilization: result.summary.totalVersions > 0 ? 
-            Math.round((result.cached / (result.cached + result.cleaned)) * 100) : 0,
-          compressionRatio: result.compressed > 0 ? 
-            Math.round((result.compressed / result.cached) * 100) : 0,
-          cleanupEfficiency: result.cleaned > 0 ? 
-            Math.round((result.cleaned / result.summary.totalVersions) * 100) : 0
+          cacheUtilization:
+            result.summary.totalVersions > 0 ? Math.round((result.cached / (result.cached + result.cleaned)) * 100) : 0,
+          compressionRatio: result.compressed > 0 ? Math.round((result.compressed / result.cached) * 100) : 0,
+          cleanupEfficiency: result.cleaned > 0 ? Math.round((result.cleaned / result.summary.totalVersions) * 100) : 0
         },
         recommendations: this.generateCacheRecommendations(result, options),
         nextActions: this.generateCacheActionItems(result)
       };
 
-      context.logger.info({
-        cached: result.cached,
-        cleaned: result.cleaned,
-        compressed: result.compressed,
-        totalVersions: result.summary.totalVersions
-      }, 'Version cache management completed');
+      context.logger.info(
+        {
+          cached: result.cached,
+          cleaned: result.cleaned,
+          compressed: result.compressed,
+          totalVersions: result.summary.totalVersions
+        },
+        'Version cache management completed'
+      );
 
       return {
         content: [
@@ -105,11 +103,14 @@ export class VersionCacheManagementTool implements IMCPTool {
       recommendations.push('No versions were compressed - content may be already optimized');
     }
 
-    if (result.summary.totalSize > 10000000) { // 10MB
+    if (result.summary.totalSize > 10000000) {
+      // 10MB
       recommendations.push('Large cache size detected - consider more aggressive compression or cleanup');
     }
 
-    recommendations.push(`Successfully managed ${result.summary.totalVersions} versions across ${result.summary.uniqueContexts} contexts`);
+    recommendations.push(
+      `Successfully managed ${result.summary.totalVersions} versions across ${result.summary.uniqueContexts} contexts`
+    );
 
     return recommendations;
   }
@@ -148,9 +149,7 @@ export class KnowledgeFreshnessCheckTool implements IMCPTool {
   description = 'Check knowledge freshness and identify stale or outdated items';
   schema = knowledgeFreshnessCheckSchema;
 
-  constructor(
-    @inject(KnowledgeManagementService) private knowledgeService: KnowledgeManagementService
-  ) {}
+  constructor(@inject(KnowledgeManagementService) private knowledgeService: KnowledgeManagementService) {}
 
   async execute(params: z.infer<typeof knowledgeFreshnessCheckSchema>, context: ToolContext): Promise<ToolResult> {
     try {
@@ -183,12 +182,15 @@ export class KnowledgeFreshnessCheckTool implements IMCPTool {
         actionPlan: this.generateFreshnessActionPlan(results)
       };
 
-      context.logger.info({
-        totalChecked: results.length,
-        stale: response.freshnessCheck.summary.stale,
-        outdated: response.freshnessCheck.summary.outdated,
-        critical: response.criticalItems.length
-      }, 'Knowledge freshness check completed');
+      context.logger.info(
+        {
+          totalChecked: results.length,
+          stale: response.freshnessCheck.summary.stale,
+          outdated: response.freshnessCheck.summary.outdated,
+          critical: response.criticalItems.length
+        },
+        'Knowledge freshness check completed'
+      );
 
       return {
         content: [
@@ -279,9 +281,7 @@ export class DependencyTrackingTool implements IMCPTool {
   description = 'Track dependencies between knowledge items and detect circular dependencies';
   schema = dependencyTrackingSchema;
 
-  constructor(
-    @inject(KnowledgeManagementService) private knowledgeService: KnowledgeManagementService
-  ) {}
+  constructor(@inject(KnowledgeManagementService) private knowledgeService: KnowledgeManagementService) {}
 
   async execute(params: z.infer<typeof dependencyTrackingSchema>, context: ToolContext): Promise<ToolResult> {
     try {
@@ -310,12 +310,15 @@ export class DependencyTrackingTool implements IMCPTool {
         riskAssessment: this.assessDependencyRisks(result)
       };
 
-      context.logger.info({
-        contextKey: params.contextKey,
-        dependencies: result.dependencies.length,
-        dependents: result.dependents.length,
-        circular: result.circularDependencies.length
-      }, 'Dependency tracking completed');
+      context.logger.info(
+        {
+          contextKey: params.contextKey,
+          dependencies: result.dependencies.length,
+          dependents: result.dependents.length,
+          circular: result.circularDependencies.length
+        },
+        'Dependency tracking completed'
+      );
 
       return {
         content: [
@@ -395,10 +398,10 @@ export class DependencyTrackingTool implements IMCPTool {
       level = 'high';
     }
 
-    const criticalOutdated = result.dependencies.filter((d: any) => 
-      !d.isUpToDate && d.dependencyType === 'file'
+    const criticalOutdated = result.dependencies.filter(
+      (d: any) => !d.isUpToDate && d.dependencyType === 'file'
     ).length;
-    
+
     if (criticalOutdated > 0) {
       risks.push(`${criticalOutdated} critical file dependencies are outdated`);
       level = level === 'high' ? 'high' : 'medium';
@@ -426,9 +429,7 @@ export class UpdateNotificationsTool implements IMCPTool {
   description = 'Generate and manage update notifications for knowledge items';
   schema = updateNotificationsSchema;
 
-  constructor(
-    @inject(KnowledgeManagementService) private knowledgeService: KnowledgeManagementService
-  ) {}
+  constructor(@inject(KnowledgeManagementService) private knowledgeService: KnowledgeManagementService) {}
 
   async execute(params: z.infer<typeof updateNotificationsSchema>, context: ToolContext): Promise<ToolResult> {
     try {
@@ -436,11 +437,11 @@ export class UpdateNotificationsTool implements IMCPTool {
 
       // Filter notifications if requested
       let filteredNotifications = result.notifications;
-      
+
       if (params.filterBySeverity) {
         filteredNotifications = filteredNotifications.filter(n => n.severity === params.filterBySeverity);
       }
-      
+
       if (params.filterByType) {
         filteredNotifications = filteredNotifications.filter(n => n.notificationType === params.filterByType);
       }
@@ -467,12 +468,15 @@ export class UpdateNotificationsTool implements IMCPTool {
         actionItems: this.generateNotificationActionItems(filteredNotifications)
       };
 
-      context.logger.info({
-        totalGenerated: result.notifications.length,
-        filtered: filteredNotifications.length,
-        priority: response.priorityNotifications.length,
-        unacknowledged: result.summary.unacknowledged
-      }, 'Update notifications processed');
+      context.logger.info(
+        {
+          totalGenerated: result.notifications.length,
+          filtered: filteredNotifications.length,
+          priority: response.priorityNotifications.length,
+          unacknowledged: result.summary.unacknowledged
+        },
+        'Update notifications processed'
+      );
 
       return {
         content: [
@@ -556,9 +560,7 @@ export class FileChangeContextTool implements IMCPTool {
   description = 'Generate context from file changes and assess their impact';
   schema = fileChangeContextSchema;
 
-  constructor(
-    @inject(KnowledgeManagementService) private knowledgeService: KnowledgeManagementService
-  ) {}
+  constructor(@inject(KnowledgeManagementService) private knowledgeService: KnowledgeManagementService) {}
 
   async execute(params: z.infer<typeof fileChangeContextSchema>, context: ToolContext): Promise<ToolResult> {
     try {
@@ -590,12 +592,15 @@ export class FileChangeContextTool implements IMCPTool {
         nextActions: this.generateFileChangeActions(fileChangeContext)
       };
 
-      context.logger.info({
-        filePath: params.filePath,
-        changeType: params.changeType,
-        impact: fileChangeContext.impact,
-        relatedContexts: fileChangeContext.relatedContexts.length
-      }, 'File change context generated');
+      context.logger.info(
+        {
+          filePath: params.filePath,
+          changeType: params.changeType,
+          impact: fileChangeContext.impact,
+          relatedContexts: fileChangeContext.relatedContexts.length
+        },
+        'File change context generated'
+      );
 
       return {
         content: [
@@ -630,7 +635,9 @@ export class FileChangeContextTool implements IMCPTool {
     }
 
     if (fileChangeContext.relatedContexts.length > 5) {
-      recommendations.push(`${fileChangeContext.relatedContexts.length} related contexts found - systematic review recommended`);
+      recommendations.push(
+        `${fileChangeContext.relatedContexts.length} related contexts found - systematic review recommended`
+      );
     }
 
     if (fileChangeContext.changeType === 'created') {
@@ -675,22 +682,16 @@ export class AutoContextOnFileOpsTool implements IMCPTool {
   description = 'Automatically generate context when file operations are performed';
   schema = autoContextOnFileOpsSchema;
 
-  constructor(
-    @inject(KnowledgeManagementService) private knowledgeService: KnowledgeManagementService
-  ) {}
+  constructor(@inject(KnowledgeManagementService) private knowledgeService: KnowledgeManagementService) {}
 
   async execute(params: z.infer<typeof autoContextOnFileOpsSchema>, context: ToolContext): Promise<ToolResult> {
     try {
-      const fileOpContext = await this.knowledgeService.autoGenerateContextOnFileOp(
-        params.operation,
-        params.filePath,
-        {
-          userId: params.userId,
-          sessionId: params.sessionId,
-          autoContext: params.autoContext,
-          metadata: params.metadata
-        }
-      );
+      const fileOpContext = await this.knowledgeService.autoGenerateContextOnFileOp(params.operation, params.filePath, {
+        userId: params.userId,
+        sessionId: params.sessionId,
+        autoContext: params.autoContext,
+        metadata: params.metadata
+      });
 
       const response = {
         fileOperation: {
@@ -719,13 +720,16 @@ export class AutoContextOnFileOpsTool implements IMCPTool {
         insights: this.generateFileOpInsights(fileOpContext)
       };
 
-      context.logger.info({
-        operationId: fileOpContext.operationId,
-        operation: params.operation,
-        filePath: params.filePath,
-        contextsGenerated: fileOpContext.generatedContexts.length,
-        autoContext: fileOpContext.autoContext
-      }, 'Auto-context generation completed');
+      context.logger.info(
+        {
+          operationId: fileOpContext.operationId,
+          operation: params.operation,
+          filePath: params.filePath,
+          contextsGenerated: fileOpContext.generatedContexts.length,
+          autoContext: fileOpContext.autoContext
+        },
+        'Auto-context generation completed'
+      );
 
       return {
         content: [
@@ -736,7 +740,10 @@ export class AutoContextOnFileOpsTool implements IMCPTool {
         ]
       };
     } catch (error) {
-      context.logger.error({ error, operation: params.operation, filePath: params.filePath }, 'Failed to auto-generate context');
+      context.logger.error(
+        { error, operation: params.operation, filePath: params.filePath },
+        'Failed to auto-generate context'
+      );
       return {
         content: [
           {
@@ -758,26 +765,30 @@ export class AutoContextOnFileOpsTool implements IMCPTool {
       copy: { category: 'duplication', description: 'File was copied to another location' }
     };
 
-    return operationTypes[operation as keyof typeof operationTypes] || 
-           { category: 'unknown', description: 'Operation type not recognized' };
+    return (
+      operationTypes[operation as keyof typeof operationTypes] || {
+        category: 'unknown',
+        description: 'Operation type not recognized'
+      }
+    );
   }
 
   private assessContextRelevance(operation: string, contextCount: number): string {
     if (contextCount === 0) return 'none';
-    
+
     const significantOperations = ['create', 'delete', 'write'];
     if (significantOperations.includes(operation) && contextCount > 0) return 'high';
-    
+
     return contextCount > 1 ? 'medium' : 'low';
   }
 
   private assessOperationImpact(operation: string, filePath: string): 'low' | 'medium' | 'high' {
     // High impact operations
     if (['delete', 'move'].includes(operation)) return 'high';
-    
+
     // Medium impact for important file types
     if (operation === 'write' && /\.(ts|js|json|config|env)$/i.test(filePath)) return 'medium';
-    
+
     // Low impact for read operations or other file types
     return 'low';
   }
@@ -839,20 +850,15 @@ export class FileHistoryContextTool implements IMCPTool {
   description = 'Generate comprehensive context from file history and versions';
   schema = fileHistoryContextSchema;
 
-  constructor(
-    @inject(KnowledgeManagementService) private knowledgeService: KnowledgeManagementService
-  ) {}
+  constructor(@inject(KnowledgeManagementService) private knowledgeService: KnowledgeManagementService) {}
 
   async execute(params: z.infer<typeof fileHistoryContextSchema>, context: ToolContext): Promise<ToolResult> {
     try {
-      const fileHistoryContext = await this.knowledgeService.generateFileHistoryContext(
-        params.filePath,
-        {
-          maxVersions: params.maxVersions,
-          consolidate: params.consolidate,
-          includeDeleted: params.includeDeleted
-        }
-      );
+      const fileHistoryContext = await this.knowledgeService.generateFileHistoryContext(params.filePath, {
+        maxVersions: params.maxVersions,
+        consolidate: params.consolidate,
+        includeDeleted: params.includeDeleted
+      });
 
       const response = {
         fileHistory: {
@@ -883,12 +889,15 @@ export class FileHistoryContextTool implements IMCPTool {
         recommendations: this.generateHistoryRecommendations(fileHistoryContext)
       };
 
-      context.logger.info({
-        historyId: fileHistoryContext.historyId,
-        filePath: params.filePath,
-        totalVersions: fileHistoryContext.totalVersions,
-        consolidated: params.consolidate
-      }, 'File history context generated');
+      context.logger.info(
+        {
+          historyId: fileHistoryContext.historyId,
+          filePath: params.filePath,
+          totalVersions: fileHistoryContext.totalVersions,
+          consolidated: params.consolidate
+        },
+        'File history context generated'
+      );
 
       return {
         content: [
@@ -914,7 +923,7 @@ export class FileHistoryContextTool implements IMCPTool {
   private calculateTimeSpan(oldest: Date, newest: Date): string {
     const diffMs = newest.getTime() - oldest.getTime();
     const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays === 0) return 'Same day';
     if (diffDays === 1) return '1 day';
     if (diffDays < 7) return `${diffDays} days`;
@@ -927,7 +936,7 @@ export class FileHistoryContextTool implements IMCPTool {
 
     const intervals = [];
     for (let i = 1; i < versions.length; i++) {
-      const interval = versions[i-1].timestamp.getTime() - versions[i].timestamp.getTime();
+      const interval = versions[i - 1].timestamp.getTime() - versions[i].timestamp.getTime();
       intervals.push(interval);
     }
 
@@ -957,7 +966,7 @@ export class FileHistoryContextTool implements IMCPTool {
     // Simple trend analysis
     const recentVersions = versions.slice(0, Math.min(5, versions.length));
     const olderVersions = versions.slice(Math.min(5, versions.length));
-    
+
     const recentChangeCount = recentVersions.reduce((sum, v) => sum + v.changes.length, 0);
     const olderChangeCount = olderVersions.reduce((sum, v) => sum + v.changes.length, 0);
 
@@ -968,7 +977,9 @@ export class FileHistoryContextTool implements IMCPTool {
     return { types: changeTypes, trends };
   }
 
-  private identifyActivityPeriods(versions: any[]): Array<{ period: string; versionCount: number; changeIntensity: string }> {
+  private identifyActivityPeriods(
+    versions: any[]
+  ): Array<{ period: string; versionCount: number; changeIntensity: string }> {
     // Group versions by time periods
     const periods = new Map<string, any[]>();
 

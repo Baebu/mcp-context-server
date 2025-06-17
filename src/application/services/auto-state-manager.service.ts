@@ -37,9 +37,7 @@ export interface ResumeContextResult {
 
 @injectable()
 export class AutoStateManagerService {
-  constructor(
-    @inject('DatabaseHandler') private db: IDatabaseHandler
-  ) {}
+  constructor(@inject('DatabaseHandler') private db: IDatabaseHandler) {}
 
   /**
    * Automatically checkpoint state based on token usage and operation importance
@@ -56,9 +54,10 @@ export class AutoStateManagerService {
 
       // Estimate tokens for current state
       const stateTokens = TokenTracker.estimateTokens(currentState);
-      
+
       // Determine if checkpoint is needed
-      const shouldCheckpoint = forceCheckpoint || 
+      const shouldCheckpoint =
+        forceCheckpoint ||
         budget.usedTokens > budget.handoffThreshold * 0.7 || // 70% of handoff threshold
         stateTokens > 10000 || // Large state
         this.isImportantOperation(operation);
@@ -103,21 +102,32 @@ export class AutoStateManagerService {
       };
 
       await this.db.storeEnhancedContext(checkpointEntry);
-      
-      // Update token usage
-      await this.db.updateTokenUsage(sessionId, `checkpoint_${operation}`, checkpointEntry.tokenCount || 0, checkpointKey);
 
-      logger.info({ 
-        sessionId, 
-        checkpointKey, 
-        operation, 
-        originalTokens: stateTokens, 
-        compressedTokens: checkpointEntry.tokenCount 
-      }, 'Auto checkpoint created');
+      // Update token usage
+      await this.db.updateTokenUsage(
+        sessionId,
+        `checkpoint_${operation}`,
+        checkpointEntry.tokenCount || 0,
+        checkpointKey
+      );
+
+      logger.info(
+        {
+          sessionId,
+          checkpointKey,
+          operation,
+          originalTokens: stateTokens,
+          compressedTokens: checkpointEntry.tokenCount
+        },
+        'Auto checkpoint created'
+      );
 
       return { checkpointed: true, key: checkpointKey };
     } catch (error) {
-      logger.error({ error, sessionId: options.sessionId, operation: options.operation }, 'Failed to create auto checkpoint');
+      logger.error(
+        { error, sessionId: options.sessionId, operation: options.operation },
+        'Failed to create auto checkpoint'
+      );
       throw error;
     }
   }
@@ -145,7 +155,7 @@ export class AutoStateManagerService {
       if (handoffAnalysis.needsHandoff) {
         // Create comprehensive handoff context
         const handoffContext = await this.createHandoffContext(sessionId, currentState, budget);
-        
+
         return {
           shouldHandoff: true,
           remainingTokens: handoffAnalysis.remainingTokens,
@@ -239,12 +249,15 @@ export class AutoStateManagerService {
       // Generate recommendations based on the resumed context
       const recommendations = this.generateResumeRecommendations(contextValue);
 
-      logger.info({
-        resumedKey: latestContext.key,
-        sessionId,
-        lastOperation,
-        age: new Date().getTime() - latestContext.updatedAt.getTime()
-      }, 'Context resumed successfully');
+      logger.info(
+        {
+          resumedKey: latestContext.key,
+          sessionId,
+          lastOperation,
+          age: new Date().getTime() - latestContext.updatedAt.getTime()
+        },
+        'Context resumed successfully'
+      );
 
       return {
         success: true,
@@ -276,12 +289,12 @@ export class AutoStateManagerService {
     try {
       // Get recent token usage history
       const recentUsage = await this.db.getTokenUsageHistory(sessionId, 10);
-      
+
       // Analyze task completion
       const taskAnalysis = TokenTracker.detectTaskCompletion(currentState);
-      
+
       // Compress current state
-      const compressedState = this.compressState(currentState, { 
+      const compressedState = this.compressState(currentState, {
         compressionLevel: 'medium',
         maxTokensPerEntry: 2000
       });
@@ -290,11 +303,11 @@ export class AutoStateManagerService {
         handoff_type: 'automatic_token_limit',
         session_id: sessionId,
         handoff_timestamp: new Date().toISOString(),
-        
+
         // State information
         current_state: compressedState,
         task_analysis: taskAnalysis,
-        
+
         // Token information
         token_budget: {
           used: budget.usedTokens,
@@ -303,7 +316,7 @@ export class AutoStateManagerService {
           threshold: budget.handoffThreshold,
           percentage_used: (budget.usedTokens / budget.maxTokens) * 100
         },
-        
+
         // Recent activity
         recent_operations: recentUsage.map(usage => ({
           operation: usage.operation,
@@ -311,7 +324,7 @@ export class AutoStateManagerService {
           timestamp: usage.timestamp,
           context_key: usage.contextKey
         })),
-        
+
         // Recommendations
         next_steps: this.generateNextSteps(currentState, taskAnalysis),
         resume_instructions: [
@@ -357,7 +370,7 @@ export class AutoStateManagerService {
     if (contextValue.checkpointedAt || contextValue.handoff_timestamp) {
       const timestamp = new Date(contextValue.checkpointedAt || contextValue.handoff_timestamp);
       const ageHours = (Date.now() - timestamp.getTime()) / (1000 * 60 * 60);
-      
+
       if (ageHours > 24) {
         recommendations.push('Context is over 24 hours old - review for relevance');
       } else if (ageHours > 1) {

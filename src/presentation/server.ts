@@ -52,10 +52,10 @@ export class MCPContextServer {
       try {
         this.autonomousMonitor = this.container.get<AutonomousMonitorService>(AutonomousMonitorService);
         this.tokenTrackingMiddleware = new TokenTrackingMiddleware(this.autonomousMonitor);
-        
+
         // Start monitoring with config
         await this.autonomousMonitor.startMonitoring(this.config.autonomous?.monitoring);
-        
+
         logger.info('Autonomous monitoring started successfully');
       } catch (error) {
         logger.error({ error }, 'Failed to start autonomous monitoring - continuing without it');
@@ -76,13 +76,13 @@ export class MCPContextServer {
 
   async shutdown(): Promise<void> {
     logger.info('Shutting down MCP Context Server...');
-    
+
     // Stop autonomous monitoring
     if (this.autonomousMonitor) {
       await this.autonomousMonitor.stopMonitoring();
       logger.info('Autonomous monitoring stopped');
     }
-    
+
     if (this.transport) {
       await this.transport.close();
     }
@@ -155,15 +155,12 @@ export class MCPContextServer {
         const validatedArgs = tool.schema.parse(request.params?.arguments || {});
         // Pass toolName to createToolContext for more granular logging
         const context = this.createToolContext(toolName);
-        
+
         // Wrap tool execution with token tracking if available
         let result;
         if (this.tokenTrackingMiddleware && this.autonomousMonitor) {
-          result = await this.tokenTrackingMiddleware.wrapToolExecution(
-            toolName!,
-            validatedArgs,
-            context,
-            () => tool.execute(validatedArgs, context)
+          result = await this.tokenTrackingMiddleware.wrapToolExecution(toolName!, validatedArgs, context, () =>
+            tool.execute(validatedArgs, context)
           );
         } else {
           result = await tool.execute(validatedArgs, context);
@@ -336,7 +333,7 @@ export class MCPContextServer {
   private createToolContext(toolName?: string) {
     // Generate or retrieve session ID
     const sessionId = this.getCurrentSessionId();
-    
+
     return {
       config: this.config,
       logger: logger.child({ component: 'tool', tool: toolName }), // Pass toolName to child logger

@@ -38,16 +38,19 @@ export class TokenTracker {
 
     // Basic token estimation: ~4 characters per token
     const baseTokens = Math.ceil(text.length / 4);
-    
+
     // Apply multiplier for JSON structure overhead
     const adjustedTokens = Math.ceil(baseTokens * multiplier);
 
-    logger.debug({
-      contentLength: text.length,
-      baseTokens,
-      adjustedTokens,
-      multiplier
-    }, 'Token estimation completed');
+    logger.debug(
+      {
+        contentLength: text.length,
+        baseTokens,
+        adjustedTokens,
+        multiplier
+      },
+      'Token estimation completed'
+    );
 
     return adjustedTokens;
   }
@@ -89,7 +92,7 @@ export class TokenTracker {
 
   static compressContextValue(value: unknown, maxTokens: number = 5000): unknown {
     const currentTokens = this.estimateTokens(value);
-    
+
     if (currentTokens <= maxTokens) {
       return value;
     }
@@ -117,16 +120,16 @@ export class TokenTracker {
     if (Array.isArray(obj)) {
       // For arrays, take the first few items
       const itemCount = Math.max(1, Math.floor(maxTokens / 100));
-      return obj.slice(0, itemCount).concat(
-        obj.length > itemCount ? [`... and ${obj.length - itemCount} more items`] : []
-      );
+      return obj
+        .slice(0, itemCount)
+        .concat(obj.length > itemCount ? [`... and ${obj.length - itemCount} more items`] : []);
     }
 
     if (typeof obj === 'object' && obj !== null) {
       const result: Record<string, unknown> = {};
       const entries = Object.entries(obj);
       const maxEntries = Math.max(1, Math.floor(maxTokens / 200));
-      
+
       for (let i = 0; i < Math.min(entries.length, maxEntries); i++) {
         const entry = entries[i];
         if (entry) {
@@ -155,7 +158,7 @@ export class TokenTracker {
     nextSteps: string[]
   ): Record<string, unknown> {
     const timestamp = new Date().toISOString();
-    
+
     return {
       handoff_type: 'token_limit_reached',
       session_id: sessionId,
@@ -194,7 +197,7 @@ export class TokenTracker {
     };
 
     const text = JSON.stringify(context).toLowerCase();
-    
+
     let completeScore = 0;
     let incompleteScore = 0;
 
@@ -224,7 +227,7 @@ export class TokenTracker {
 
   private static extractTasks(text: string, _indicators: string[]): string[] {
     const tasks: string[] = [];
-    
+
     // Look for patterns like "TODO:", "Next:", etc.
     const taskPatterns = [
       /(?:todo|next|remaining|pending):\s*([^\n.!?]{10,100})/gi,

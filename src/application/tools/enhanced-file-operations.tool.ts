@@ -511,7 +511,12 @@ export class MoveFileTool implements IMCPTool {
         await fs.access(params.destinationPath);
         if (!params.overwrite) {
           return {
-            content: [{ type: 'text', text: `Destination ${params.destinationPath} already exists. Use overwrite=true to replace.` }]
+            content: [
+              {
+                type: 'text',
+                text: `Destination ${params.destinationPath} already exists. Use overwrite=true to replace.`
+              }
+            ]
           };
         }
       } catch {
@@ -574,7 +579,7 @@ export class RecycleFileTool implements IMCPTool {
       };
 
       await fs.writeFile(`${recycledPath}.meta`, JSON.stringify(metadata, null, 2));
-      
+
       // Move file to recycle bin
       await fs.rename(params.filePath, recycledPath);
 
@@ -683,7 +688,7 @@ export class ListRecycleBinTool implements IMCPTool {
   async execute(params: z.infer<typeof listRecycleBinSchema>, context: ToolContext): Promise<ToolResult> {
     try {
       const recycleDir = path.join(process.cwd(), '.recycle');
-      
+
       try {
         await fs.access(recycleDir);
       } catch {
@@ -708,7 +713,7 @@ export class ListRecycleBinTool implements IMCPTool {
             const metaContent = await fs.readFile(metaPath, 'utf8');
             const metadata = JSON.parse(metaContent);
             const stats = await fs.stat(path.join(recycleDir, fileName));
-            
+
             return {
               fileName,
               originalPath: metadata.originalPath,
@@ -783,7 +788,7 @@ export class EmptyRecycleBinTool implements IMCPTool {
 
     try {
       const recycleDir = path.join(process.cwd(), '.recycle');
-      
+
       try {
         await fs.access(recycleDir);
       } catch {
@@ -798,11 +803,11 @@ export class EmptyRecycleBinTool implements IMCPTool {
 
       for (const file of files) {
         const filePath = path.join(recycleDir, file);
-        
+
         if (params.olderThanDays) {
           const stats = await fs.stat(filePath);
           const ageInDays = (Date.now() - stats.mtime.getTime()) / (1000 * 60 * 60 * 24);
-          
+
           if (ageInDays < params.olderThanDays) {
             skippedCount++;
             continue;
