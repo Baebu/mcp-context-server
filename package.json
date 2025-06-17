@@ -1,5 +1,5 @@
 {
-  "name": "mcp-context-server",
+  "name": "context-savvy-mcp",
   "version": "2.0.1",
   "description": "A context-efficient MCP server for maximizing productivity in Claude chats with FastMCP and enhanced semantic memory",
   "main": "dist/index.js",
@@ -24,7 +24,8 @@
     "type-check": "tsc --noEmit",
     "health-check": "node scripts/health-check.js",
     "claude-config": "node scripts/claude-config.js",
-    "create-workspace": "tsx scripts/create-test-fs-workspace.ts"
+    "create-workspace": "tsx scripts/create-test-fs-workspace.ts",
+    "quick-setup": "node scripts/quick-setup.js"
   },
   "keywords": [
     "mcp",
@@ -41,17 +42,18 @@
   "author": "Baebu <bae.bu.8@gmail.com>",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Baebu/mcp-context-server.git"
+    "url": "https://github.com/Baebu/context-savvy-mcp.git"
   },
-  "homepage": "https://github.com/Baebu/mcp-context-server#readme",
+  "homepage": "https://github.com/Baebu/context-savvy-mcp#readme",
   "bugs": {
-    "url": "https://github.com/Baebu/mcp-context-server/issues"
+    "url": "https://github.com/Baebu/context-savvy-mcp/issues"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.10.2",
     "@tensorflow/tfjs-node": "^4.15.0",
     "better-sqlite3": "^11.6.0",
     "convict": "^6.2.4",
+    "crypto": "^1.0.1",
     "fastmcp": "^2.0.0",
     "glob": "^10.3.10",
     "inversify": "^6.0.2",
@@ -59,7 +61,6 @@
     "node-cron": "^3.0.3",
     "p-queue": "^8.0.1",
     "pino": "^9.7.0",
-    "crypto": "^1.0.1",
     "pino-pretty": "^13.0.0",
     "reflect-metadata": "^0.2.1",
     "stream-json": "^1.8.0",
@@ -86,7 +87,7 @@
     "cross-env": "^7.0.3",
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^9.1.0",
-    "eslint-plugin-prettier": "^5.2.1",
+    "eslint-plugin-prettier": "^5.5.0",
     "husky": "^9.0.11",
     "jest": "^29.7.0",
     "lint-staged": "^15.2.0",
@@ -97,52 +98,6 @@
     "tsconfig-paths": "^4.2.0",
     "tsx": "^4.7.0",
     "typescript": "^5.3.3"
-  },
-  "peerDependencies": {},
-  "jest": {
-    "preset": "ts-jest/presets/default-esm",
-    "extensionsToTreatAsEsm": [
-      ".ts"
-    ],
-    "moduleNameMapping": {
-      "^(\\.{1,2}/.*)\\.js$": "$1"
-    },
-    "testEnvironment": "node",
-    "collectCoverage": true,
-    "coverageDirectory": "coverage",
-    "collectCoverageFrom": [
-      "src/**/*.{ts,js}",
-      "!src/**/*.d.ts",
-      "!src/**/index.ts",
-      "!**/node_modules/**"
-    ],
-    "coverageReporters": [
-      "text",
-      "lcov",
-      "html"
-    ],
-    "testMatch": [
-      "**/tests/**/*.test.{ts,js}",
-      "**/?(*.)+(spec|test).{ts,js}"
-    ],
-    "testPathIgnorePatterns": [
-      "/node_modules/",
-      "/build/",
-      "/dist/"
-    ],
-    "globals": {
-      "ts-jest": {
-        "useESM": true
-      }
-    },
-    "transform": {
-      "^.+\\.tsx?$": [
-        "ts-jest",
-        {
-          "useESM": true
-        }
-      ]
-    }
   },
   "lint-staged": {
     "*.{ts,js}": [

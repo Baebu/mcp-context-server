@@ -1,6 +1,6 @@
-﻿# Contributing to MCP Context Server
+﻿# Contributing to Context Savvy MCP
 
-Thank you for your interest in contributing to MCP Context Server! This document provides guidelines and information for contributors.
+Thank you for your interest in contributing to Context Savvy MCP! This document provides guidelines and information for contributors.
 
 ## 🚀 Getting Started
 
@@ -15,9 +15,8 @@ Thank you for your interest in contributing to MCP Context Server! This document
 
 1. **Fork and Clone**
 
-   ```bash
-   git clone https://github.com/yourusername/mcp-context-server.git
-   cd mcp-context-server
+   ```bash   git clone https://github.com/yourusername/context-savvy-mcp.git
+   cd context-savvy-mcp
    ```
 
 2. **Install Dependencies**
@@ -331,9 +330,9 @@ Use our issue template with:
 
 ## 📞 Getting Help
 
-- 💬 [GitHub Discussions](https://github.com/yourusername/mcp-context-server/discussions)
-- 🐛 [Issue Tracker](https://github.com/yourusername/mcp-context-server/issues)
-- 📖 [Documentation](https://github.com/yourusername/mcp-context-server/wiki)
+- 💬 [GitHub Discussions](https://github.com/yourusername/context-savvy-mcp/discussions)
+- 🐛 [Issue Tracker](https://github.com/yourusername/context-savvy-mcp/issues)
+- 📖 [Documentation](https://github.com/yourusername/context-savvy-mcp/wiki)
 
 ## 🙏 Recognition
 

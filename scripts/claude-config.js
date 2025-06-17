@@ -52,7 +52,7 @@ async function generateConfig() {
   console.log(`   MCP Server Configuration File Path: ${serverConfigFilePath}\n`);
 
   const serverConfigEntry = {
-    'context-server': {
+    'context-savvy-mcp': {
       command: 'node',
       args: [serverExecutablePath],
       env: {

@@ -726,8 +726,8 @@
           <div>
             <div class="form-group">
               <label for="serverName">Server Name in Claude Desktop</label>
-              <input type="text" id="serverName" class="form-control" value="context-server"
-                placeholder="context-server">
+              <input type="text" id="serverName" class="form-control" value="context-savvy-mcp"
+                placeholder="context-savvy-mcp">
               <div class="help-text">Unique name for this MCP server as it will appear in Claude Desktop.</div>
             </div>
             <div class="form-group">
@@ -919,7 +919,7 @@ execute_command"></textarea>
           <div>
             <div class="form-group">
               <label for="serverName2">Server Name (in `server.yaml`)</label>
-              <input type="text" id="serverName2" class="form-control" value="mcp-context-server">
+              <input type="text" id="serverName2" class="form-control" value="context-savvy-mcp">
             </div>
             <div class="form-group">
               <label for="maxExecutionTime">Max Execution Time (ms)</label>
@@ -1131,16 +1131,15 @@ execute_command"></textarea>
     }
 
     function updateClaudeDesktopFormFields() {
-      const servers = currentClaudeConfig.mcpServers || {};
-      // Try to find a server entry that looks like ours, or default to 'context-server'
+      const servers = currentClaudeConfig.mcpServers || {};      // Try to find a server entry that looks like ours, or default to 'context-savvy-mcp'
       const serverKeys = Object.keys(servers);
-      let ourServerName = 'context-server'; // Default
+      let ourServerName = 'context-savvy-mcp'; // Default
       let ourServerEntry = servers[ourServerName];
 
       if (!ourServerEntry) {
         // Attempt to find by looking at args, if only one server is configured or common path element exists
         const potentialServerKey = serverKeys.find(key =>
-          servers[key]?.args?.some(arg => arg.includes('mcp-context-server') || arg.includes('dist/index.js'))
+          servers[key]?.args?.some(arg => arg.includes('context-savvy-mcp') || arg.includes('dist/index.js'))
         );
         if (potentialServerKey) {
           ourServerName = potentialServerKey;
@@ -1173,7 +1172,7 @@ execute_command"></textarea>
           updateUnsafePatternList();
           updateActiveSecurityPresets();
 
-          document.getElementById('serverName2').value = currentServerConfig.server?.name || 'mcp-context-server';
+          document.getElementById('serverName2').value = currentServerConfig.server?.name || 'context-savvy-mcp';
           document.getElementById('maxExecutionTime').value = securityConf.maxExecutionTime || 30000;
           document.getElementById('maxFileSize').value = securityConf.maxFileSize || 10485760;
           document.getElementById('databasePath').value = currentServerConfig.database?.path || './data/context.db';
@@ -1373,7 +1372,7 @@ execute_command"></textarea>
     function updateClaudeServerStatus() {
       const servers = currentClaudeConfig.mcpServers || {};
       const serverCount = Object.keys(servers).length;
-      const serverNameInput = document.getElementById('serverName').value.trim() || 'context-server';
+      const serverNameInput = document.getElementById('serverName').value.trim() || 'context-savvy-mcp';
       const hasThisServer = !!servers[serverNameInput];
 
       let status = '🔴 Not Configured';
@@ -1485,7 +1484,7 @@ execute_command"></textarea>
       try {
         const configToSave = {
           server: {
-            name: document.getElementById('serverName2').value || 'mcp-context-server',
+            name: document.getElementById('serverName2').value || 'context-savvy-mcp',
             version: currentServerConfig.server?.version || '1.0.0' // Preserve existing if not editable here
           },
           security: { // Include all security fields from the security tab

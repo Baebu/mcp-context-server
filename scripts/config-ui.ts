@@ -114,7 +114,7 @@ const getDefaultServerConfig = (): ServerConfig => {
     // Fallback to a minimal structure if Zod parsing fails (should ideally not happen with an empty object)
     return {
       server: {
-        name: 'mcp-context-server',
+        name: 'context-savvy-mcp',
         version: '2.0.0',
         port: 3000,
         host: 'localhost',

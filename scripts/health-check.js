@@ -133,7 +133,7 @@ async function checkClaudeDesktopConfig() {
 
         // Check if our server is configured
         const ourServer = Object.values(config.mcpServers).find(
-          server => server.args && server.args.some(arg => arg.includes('mcp-context-server'))
+          server => server.args && server.args.some(arg => arg.includes('context-savvy-mcp'))
         );
 
         if (ourServer) {
@@ -162,7 +162,7 @@ function generateClaudeConfig() {
 
   const config = {
     mcpServers: {
-      'context-server': {
+      'context-savvy-mcp': {
         command: 'node',
         args: [absolutePath],
         env: {

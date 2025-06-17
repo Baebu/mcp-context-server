@@ -1,10 +1,20 @@
-# MCP Context Server
+# Context Savvy MCP
 
-A high-performance Model Context Protocol (MCP) server that maximizes productivity in Claude Desktop through intelligent context management, secure command execution, and efficient file operations.
+> **Hey there!** 👋 This is a bunch of code for an MCP server tThe `quick-setup` script will:
+
+- Check your Node.js version
+- Create necessary directories
+- Copy example configuration
+- Build the project
+- Run tests
+- Show you exactly what to add to your Claude configse pretty often. It may be a bunch of junk, or it may have promise - honestly, for the most part, I know it works somewhat at least. I'd love some help and possibly some insight on where to go from here!
+
+A high-performance Model Context Protocol (MCP) server that tries to maximize productivity in Claude Desktop through intelligent context management, secure command execution, and efficient file operations. Built with way too much coffee and stubborn determination.
 
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/typescript-5.3+-blue.svg)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
 
 ## ✨ Features
 
@@ -15,7 +25,44 @@ A high-performance Model Context Protocol (MCP) server that maximizes productivi
 - **🛠️ Command Execution**: Secure system command execution with timeout and validation
 - **📊 Monitoring**: Built-in metrics and performance monitoring
 - **🎯 Clean Architecture**: Modular design following dependency injection principles
-- **⚙️ Flexible Configuration**: Server behavior configurable via `server.yaml`, path specifiable at launch.
+- **⚙️ Flexible Configuration**: Server behavior configurable via `server.yaml`, path specifiable at launch
+- **🤖 Task Management**: Enhanced task creation, tracking, and management with semantic search
+- **🔄 Autonomous Behaviors**: Background monitoring, auto-compression, and maintenance
+
+## 🤔 Current Status & Help Wanted
+
+**What works well:**
+
+- Basic MCP server functionality with Claude Desktop
+- File operations and command execution
+- Context storage and retrieval
+- Task management system
+- Most of the tools I use daily
+
+**What might be janky:**
+
+- The autonomous monitoring system (new feature, needs testing)
+- Some of the more complex task workflows
+- Error handling in edge cases
+- Performance with very large projects
+
+**Where I could use help:**
+
+- Code review and optimization suggestions
+- Testing with different environments and use cases
+- Documentation improvements
+- Security audit of the command execution
+- Ideas for new features or better UX
+- General "is this actually useful to anyone else?" feedback
+
+**What I'm wondering about:**
+
+- Should this be split into multiple smaller MCP servers?
+- Is the autonomous behavior stuff too complicated/unnecessary?
+- Are there better patterns for the clean architecture setup?
+- How can we make setup easier for new users?
+
+If any of this resonates with you or you have thoughts, I'd love to hear them! Open an issue, start a discussion, or submit a PR.
 
 ## 🚀 Quick Start
 
@@ -28,21 +75,29 @@ A high-performance Model Context Protocol (MCP) server that maximizes productivi
 ### Installation
 
 ```bash
-
 # Clone the repository
+git clone https://github.com/yourusername/context-savvy-mcp.git
+cd context-savvy-mcp
 
-git clone <https://github.com/yourusername/mcp-context-server.git>
-cd mcp-context-server
-
-# Install dependencies and setup
-
+# Install dependencies
 npm install
+
+# Quick setup (recommended for first-time users)
+npm run quick-setup
+
+# OR manual setup
 npm run setup # This creates default config/server.yaml and .env if they don't exist
-
-# Build the project
-
 npm run build
 ```
+
+The `quick-setup` script will:
+
+- Check your Node.js version
+- Create necessary directories
+- Copy example configuration
+- Build the project
+- Run tests
+- Show you exactly what to add to your Claude config
 
 ### Server Configuration (`config/server.yaml`)
 
@@ -81,10 +136,10 @@ Add this server to your `claude_desktop_config.json`. This tells Claude Desktop 
   "mcpServers": {
     "context-server": {
       "command": "node",
-      "args": ["/absolute/path/to/mcp-context-server/dist/index.js"],
+      "args": ["/absolute/path/to/context-savvy-mcp/dist/index.js"],
       "env": {
         "MCP_LOG_LEVEL": "info",
-        "MCP_SERVER_CONFIG_PATH": "/absolute/path/to/mcp-context-server/config/server.yaml"
+        "MCP_SERVER_CONFIG_PATH": "/absolute/path/to/context-savvy-mcp/config/server.yaml"
       }
     }
   }
@@ -295,7 +350,48 @@ src/
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md).
+**Want to help out?** Awesome! Here's how to get started:
+
+### Quick Start for Contributors
+
+```bash
+# Fork the repo on GitHub, then clone your fork
+git clone https://github.com/YOUR_USERNAME/context-savvy-mcp.git
+cd context-savvy-mcp
+
+# Install dependencies
+npm install
+
+# Run tests to make sure everything works
+npm test
+
+# Build and type-check
+npm run build
+npm run type-check
+
+# Start development mode
+npm run dev
+```
+
+### What to work on
+
+Check out the [issues](https://github.com/yourusername/context-savvy-mcp/issues) or look at the "Help Wanted" section above. Some good starting points:
+
+- 🐛 Fix bugs or edge cases
+- 📝 Improve documentation
+- ✨ Add new MCP tools
+- 🔍 Test with different setups
+- 💡 Suggest architectural improvements
+
+### Development Notes
+
+- The code uses clean architecture patterns (might be overkill, but it's what we have)
+- TypeScript is strictly enforced
+- Tests are with Jest
+- Please add tests for new features
+- ESLint and Prettier are configured (mostly)
+
+For more detailed contribution guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## 📄 License
 
@@ -309,8 +405,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 📞 Support
 
 - 📖 [Documentation](./INSTALLATION.md), [Claude Desktop Config](./CLAUDE_DESKTOP_CONFIG.md)
-- 🐛 [Issue Tracker](https://github.com/yourusername/mcp-context-server/issues)
-- 💬 [Discussions](https://github.com/yourusername/mcp-context-server/discussions)
+- 🐛 [Issue Tracker](https://github.com/yourusername/context-savvy-mcp/issues)
+- 💬 [Discussions](https://github.com/yourusername/context-savvy-mcp/discussions)
 
 ---
 
